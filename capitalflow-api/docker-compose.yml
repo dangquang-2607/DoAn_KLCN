@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: capitalflow-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: capitalflow
+      POSTGRES_USER: capitalflow
+      POSTGRES_PASSWORD: capitalflow_dev
+
+    ports:
+      - "5433:5432"
+
+    volumes:
+      - capitalflow_pgdata:/var/lib/postgresql/data
+
+volumes:
+  capitalflow_pgdata:
