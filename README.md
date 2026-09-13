@@ -1,129 +1,50 @@
-Dưới đây là thông tin tài khoản Quản trị viên (Admin) và hướng dẫn chi tiết cách khởi chạy toàn bộ hệ thống CapitalFlow.
+# 🚀 CapitalFlow — Hệ Thống Quản Lý Tài Chính & OCR Hóa Đơn Tự Động
 
-🔑 1. Thông tin Tài khoản Quản trị viên (Admin)
-Hệ thống đã thiết lập sẵn tài khoản Admin trong cơ sở dữ liệu với thông tin đăng nhập chính xác như sau:
+> **Đồ án Khóa luận Tốt nghiệp (KLCN)**  
+> Nền tảng quản lý tài chính cá nhân và doanh nghiệp thông minh, tích hợp trí tuệ nhân tạo (Gemini AI / Tesseract OCR) tự động trích xuất dữ liệu hóa đơn, thiết lập ngân sách và bảng điều khiển trực quan.
 
-Thông tin	Giá trị
-Email đăng nhập	admin@capitalflow.vn (hoặc admin@cashflow.vn)
+---
 
-Mật khẩu	CapitalFlow@2026
+## 🔑 1. Tài Khoản Quản Trị Hệ Thống (Default Credentials)
 
-Vai trò (Role)	ADMIN (Quản trị viên toàn quyền hệ thống)
+Hệ thống đã thiết lập sẵn tài khoản Quản trị viên (Admin) mặc định trong cơ sở dữ liệu:
 
-Trang đăng nhập Admin	http://localhost:5173/login
-(Tài khoản này cũng có thể đăng nhập được vào cả cổng người dùng http://localhost:3010/login).
+| Cổng dịch vụ | Địa chỉ URL | Email đăng nhập | Mật khẩu mặc định | Quyền hạn |
+| :--- | :--- | :--- | :--- | :--- |
+| **Bảng điều khiển Admin** | [http://localhost:5173](http://localhost:5173) | `admin@capitalflow.vn` *(hoặc `admin@cashflow.vn`)* | `CapitalFlow@2026` | **Quản trị viên toàn quyền (ADMIN)** |
+| **Cổng người dùng User** | [http://localhost:3010](http://localhost:3010) | `admin@capitalflow.vn` | `CapitalFlow@2026` | Đăng nhập được cả 2 cổng |
 
+*💡 Bạn cũng có thể bấm nút **"Đăng ký tài khoản mới"** tại cổng User để trải nghiệm đầy đủ quy trình của người dùng thông thường.*
 
+---
 
-🏗️ 2. Kiến trúc các dịch vụ cần chạy
-Toàn bộ dự án gồm 4 tiến trình chạy song song:
+## 🌐 2. Bảng Tổng Hợp Cổng Dịch Vụ
 
-Database: Microsoft SQL Server (đã được bật sẵn trên máy).
+| Dịch vụ | Đường dẫn URL | Mô tả chức năng |
+| :--- | :--- | :--- |
+| 🛡️ **Admin Web** | [http://localhost:5173](http://localhost:5173) | Trang quản trị hệ thống, duyệt người dùng, giám sát OCR, Email Logs |
+| 👤 **User Web** | [http://localhost:3010](http://localhost:3010) | Không gian cá nhân: Quản lý chi tiêu, ví tài khoản, quét hóa đơn OCR, ngân sách |
+| ⚡ **Backend API** | [http://localhost:8000](http://localhost:8000) | RESTful API nền tảng FastAPI |
+| 📚 **Swagger Docs** | [http://localhost:8000/docs](http://localhost:8000/docs) | Tài liệu kiểm thử và tương tác trực tiếp toàn bộ API |
+| 🩺 **Health Check** | [http://localhost:8000/ready](http://localhost:8000/ready) | Kiểm tra trạng thái sẵn sàng của Database và Worker |
 
-Backend API: FastAPI (Port 8000) - Cung cấp toàn bộ REST API, Auth, nghiệp vụ.
+---
 
-Backend Worker: Tiến trình xử lý ngầm (Outbox Worker) - Chuyên xử lý OCR hóa đơn, gửi email, tổng hợp báo cáo.
+## 🏗️ 3. Yêu Cầu Môi Trường (Prerequisites)
 
-User Web: Next.js (Port 3010) - Ứng dụng quản lý tài chính cá nhân dành cho người dùng.
+Để chạy dự án mượt mà trên máy tính mới, cần cài đặt sẵn:
+- **Git**
+- **Python**: Phiên bản `>= 3.11` (Khuyên dùng Python 3.11 hoặc 3.12)
+- **Node.js**: Phiên bản `>= 18.x` (Khuyên dùng Node 20 LTS)
+- **Microsoft SQL Server**: Phiên bản 2019 / 2022 (hoặc SQL Server Express)
+- **ODBC Driver for SQL Server**: Phiên bản 17 hoặc 18
 
-Admin Web: React + Vite (Port 5173) - Trang dashboard điều hành, quản trị người dùng, nhật ký email, giám sát OCR.
+---
 
+## 🛠️ 4. Hướng Dẫn Cài Đặt Ban Đầu Cho Máy Mới (Setup From Scratch)
 
-
-🚀 3. Hướng dẫn chi tiết cách chạy dự án (Local Development)
-
-Bạn mở 4 cửa sổ Terminal / PowerShell riêng biệt để chạy 4 tiến trình:
-
-🖥️ Terminal 1: Chạy Backend API
-powershell
-
-cd D:\code\DoAn_KLCN\capitalflow-api.\
-
-.venv\Scripts\activate python -m uvicorn app.main:app --reload --port 8000
-
-API sẽ lắng nghe tại: http://localhost:8000
-
-Tài liệu Swagger API: http://localhost:8000/docs
-
-⚙️ Terminal 2: Chạy Backend Worker (Xử lý OCR & Tác vụ ngầm)
-
-(Rất quan trọng: nếu không bật tiến trình này, tính năng quét hóa đơn OCR và gửi email sẽ ở trạng thái chờ - PENDING).
-
-powershell
-cd D:\code\DoAn_KLCN\capitalflow-api
-
-.\.venv\Scripts\activate python -m app.services.worker
-
-👤 Terminal 3: Chạy giao diện User Web (Next.js)
-
-powershell
-
-cd D:\code\DoAn_KLCN\frontend\user-web
-
-npm run dev
-
-Truy cập ứng dụng người dùng tại: http://localhost:3010
-
-🛡️ Terminal 4: Chạy giao diện Admin Web (Vite + React)
-
-powershell
-
-cd D:\code\DoAn_KLCN\frontend\admin-web
-
-npm run dev
-
-Truy cập bảng điều khiển Admin tại: http://localhost:5173
-
-
-
-📦 4. Hướng dẫn nếu thiết lập trên máy mới (Setup from scratch)
-
-Nếu sau này bạn tải code về một máy tính hoàn toàn mới, quy trình cài đặt ban đầu như sau:
-
-
-1. Cài đặt Backend:
-
-powershell
-
-cd D:\code\DoAn_KLCN\capitalflow-api
-
-python -m venv .venv.\.venv\Scripts\activate
-
-pip install -r requirements.txt
-
-copy .env.example .env   # Cấu hình chuỗi kết nối SQL Server trong .env
-
-2. Khởi tạo dữ liệu và tài khoản Admin mặc định:
-
-
-powershell
-
-python scripts/migrate_financial_integrity.py
-
-python scripts/migrate_resilience.py
-
-python scripts/seed.py    # Tự động tạo Admin admin@capitalflow.vn / CapitalFlow@2026
-
-3. Cài đặt Frontend:
-
-powershell
-
-cd D:\code\DoAn_KLCN\frontend\user-web
-
-npm install
-
-cd D:\code\DoAn_KLCN\frontend\admin-web
-
-npm install
-
-🌐 Bảng tổng hợp liên kết truy cập nhanh
-
-Dịch vụ	Địa chỉ URL	Ghi chú
-
-Admin Portal	http://localhost:5173	Đăng nhập: admin@capitalflow.vn / CapitalFlow@2026
-
-User Portal	http://localhost:3010	Không gian quản lý tài chính cá nhân
-
-Swagger Docs	http://localhost:8000/docs	Kiểm tra và test trực tiếp các API
-
-Health Check	http://localhost:8000/ready	Kiểm tra kết nối Database và Redis/Worker
+### Bước 1: Tải mã nguồn về máy
+Mở Terminal / Command Prompt và chạy:
+```bash
+git clone https://github.com/dangquang-2607/DoAn_KLCN.git
+cd DoAn_KLCN
