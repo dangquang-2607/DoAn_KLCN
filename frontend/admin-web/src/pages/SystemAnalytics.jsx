@@ -1,120 +1,153 @@
-import { useQuery } from '@tanstack/react-query';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import api from '../services/api';
-import { StatCard, Spinner, EmptyState } from '../components/ui';
-
-const CATEGORY_COLORS = ['#6366f1', '#8b5cf6', '#a78bfa', '#c4b5fd', '#ddd6fe'];
-
+import { useMotionAllowed } from "../components/Motion";
+import { useQuery } from "@tanstack/react-query";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+import { RefreshCw } from "lucide-react";
+import api from "../services/api";
+import {
+  PageHead,
+  Panel,
+  Stat,
+  Loading,
+  ErrorState,
+  Empty,
+} from "../components/design";
 export default function SystemAnalytics() {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['system-analytics'],
-    queryFn: () => api.get('/admin/system/analytics').then(r => r.data),
-    refetchInterval: 60_000, // tự refresh mỗi 1 phút
+  const motionAllowed = useMotionAllowed();
+  const query = useQuery({
+    queryKey: ["admin-analytics"],
+    queryFn: async () => (await api.get("/admin/system/analytics")).data,
   });
-
-  if (isLoading) return (
-    <div className="flex justify-center items-center h-64"><Spinner size="lg" /></div>
-  );
-  if (isError) return (
-    <EmptyState icon="⚠️" title="Không thể tải dữ liệu" desc="Vui lòng thử lại sau" />
-  );
-
-  const { transactions, active_users_this_month, top_categories, period } = data || {};
-
-  const typeChartData = [
-    { name: 'Thu nhập', value: transactions?.income_count || 0, color: '#10b981' },
-    { name: 'Chi tiêu', value: transactions?.expense_count || 0, color: '#f43f5e' },
-  ];
-
-  const categoryChartData = (top_categories || []).map((c, i) => ({
-    name: c.name,
-    value: c.transaction_count,
-    color: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
-  }));
-
+  const d = query.data;
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-gray-900">System Analytics</h1>
-          <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-3 py-1 rounded-full">
-            Tháng {period?.month}/{period?.year}
-          </span>
-        </div>
-        <p className="text-sm text-gray-500 mt-1">
-          Thống kê vận hành hệ thống — dữ liệu tổng hợp, không bao gồm thông tin cá nhân
-        </p>
-      </div>
-
-      {/* Privacy notice */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-3">
-        <span className="text-blue-500 text-lg mt-0.5">🛡️</span>
-        <div>
-          <p className="text-blue-800 font-semibold text-sm">Chính sách bảo mật dữ liệu</p>
-          <p className="text-blue-600 text-xs mt-0.5">
-            Trang này chỉ hiển thị số liệu tổng hợp. Quản trị viên không thể xem giao dịch cụ thể của từng người dùng.
-          </p>
-        </div>
-      </div>
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon="💳" label="Tổng giao dịch (all-time)" value={transactions?.total_all_time?.toLocaleString('vi-VN') || 0} color="indigo" />
-        <StatCard icon="📅" label="Giao dịch tháng này" value={transactions?.this_month?.toLocaleString('vi-VN') || 0} color="blue" />
-        <StatCard icon="📈" label="Giao dịch thu nhập" value={transactions?.income_count?.toLocaleString('vi-VN') || 0} color="emerald" />
-        <StatCard icon="👥" label="User active tháng này" value={active_users_this_month || 0} sub="Có ít nhất 1 giao dịch" color="amber" />
-      </div>
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Transaction type split */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <h3 className="font-semibold text-gray-800 mb-4">Phân loại giao dịch</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={typeChartData} barSize={48}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="name" tick={{ fontSize: 13 }} />
-              <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip formatter={(val) => [val.toLocaleString('vi-VN'), 'Số lượng']} />
-              <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                {typeChartData.map((entry, i) => (
-                  <Cell key={i} fill={entry.color} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Top categories */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <h3 className="font-semibold text-gray-800 mb-4">Top 5 danh mục phổ biến</h3>
-          {categoryChartData.length === 0 ? (
-            <EmptyState icon="📊" title="Chưa có dữ liệu danh mục" />
-          ) : (
-            <div className="space-y-3">
-              {categoryChartData.map((cat, i) => {
-                const max = categoryChartData[0]?.value || 1;
-                const pct = Math.round((cat.value / max) * 100);
-                return (
-                  <div key={i}>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="font-medium text-gray-700">{cat.name}</span>
-                      <span className="text-gray-500">{cat.value.toLocaleString('vi-VN')} GD</span>
+    <div className="cf-stack">
+      <PageHead
+        eyebrow="VẬN HÀNH"
+        title="Phân tích hệ thống"
+        description="Số liệu sử dụng tổng hợp, không hiển thị nội dung giao dịch cá nhân."
+        actions={
+          <button
+            className="cf-btn"
+            onClick={() => query.refetch()}
+            disabled={query.isFetching}
+          >
+            <RefreshCw />
+            Làm mới
+          </button>
+        }
+      />
+      {query.isPending ? (
+        <Loading />
+      ) : query.isError ? (
+        <ErrorState retry={() => query.refetch()} />
+      ) : (
+        <>
+          <div className="cf-grid">
+            <Stat
+              label="Giao dịch tháng này"
+              value={d.transactions.this_month.toLocaleString("vi-VN")}
+              note={`Tháng ${d.period.month}/${d.period.year}`}
+            />
+            <Stat
+              label="Người dùng có giao dịch"
+              value={d.active_users_this_month.toLocaleString("vi-VN")}
+              note="Trong tháng hiện tại"
+            />
+            <Stat
+              label="Tổng giao dịch"
+              value={d.transactions.total_all_time.toLocaleString("vi-VN")}
+              note="Từ khi hệ thống hoạt động"
+            />
+          </div>
+          <div className="cf-grid-2">
+            <Panel
+              title="Danh mục được sử dụng nhiều"
+              description="5 danh mục theo số lượng giao dịch"
+            >
+              {!d.top_categories.length ? (
+                <Empty title="Chưa có dữ liệu danh mục" />
+              ) : (
+                <div className="cf-panel-body cf-chart">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={d.top_categories}
+                      layout="vertical"
+                      margin={{ left: 8, right: 24 }}
+                    >
+                      <CartesianGrid horizontal={false} stroke="#e8edf5" />
+                      <XAxis
+                        type="number"
+                        allowDecimals={false}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        width={115}
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 12 }}
+                      />
+                      <Tooltip />
+                      <Bar isAnimationActive={motionAllowed} animationDuration={400} animationBegin={0}
+                        dataKey="transaction_count"
+                        name="Số giao dịch"
+                        fill="#2454e6"
+                        radius={[0, 4, 4, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </Panel>
+            <Panel
+              title="Cơ cấu giao dịch"
+              description="Tổng số giao dịch theo loại"
+            >
+              <div className="cf-panel-body cf-stack">
+                {[
+                  ["Thu nhập", d.transactions.income_count],
+                  ["Chi tiêu", d.transactions.expense_count],
+                  [
+                    "Chuyển tiền / khác",
+                    Math.max(
+                      0,
+                      d.transactions.total_all_time -
+                        d.transactions.income_count -
+                        d.transactions.expense_count,
+                    ),
+                  ],
+                ].map(([label, value]) => (
+                  <div key={label}>
+                    <div
+                      className="cf-row cf-between"
+                      style={{ marginBottom: 10, fontSize: 14 }}
+                    >
+                      <span>{label}</span>
+                      <strong>{value.toLocaleString("vi-VN")}</strong>
                     </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-500"
-                        style={{ width: `${pct}%`, backgroundColor: cat.color }}
+                    <div className="cf-progress">
+                      <span
+                        style={{
+                          width: `${d.transactions.total_all_time ? (value / d.transactions.total_all_time) * 100 : 0}%`,
+                        }}
                       />
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
+                ))}
+              </div>
+            </Panel>
+          </div>
+        </>
+      )}
     </div>
   );
 }

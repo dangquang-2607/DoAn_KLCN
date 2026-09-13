@@ -8,6 +8,7 @@ import Settings from './pages/Settings';
 import AuditLogs from './pages/AuditLogs';
 import SystemAnalytics from './pages/SystemAnalytics';
 import OcrMonitor from './pages/OcrMonitor';
+import EmailLogs from './pages/EmailLogs';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -29,6 +30,7 @@ function App() {
           <Route path="/system-analytics" element={<SystemAnalytics />} />
           <Route path="/ocr-monitor" element={<OcrMonitor />} />
           <Route path="/audit-logs" element={<AuditLogs />} />
+          <Route path="/email-logs" element={<EmailLogs />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />

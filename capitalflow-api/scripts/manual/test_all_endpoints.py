@@ -1,6 +1,6 @@
 import httpx
 
-base_url = "http://localhost:8000/api"
+base_url = "http://localhost:8000/api/v1"
 client = httpx.Client(base_url=base_url, follow_redirects=True)
 
 def test_endpoints():

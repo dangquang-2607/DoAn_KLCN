@@ -1,207 +1,639 @@
-'use client';
-
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import api from '@/lib/api';
-import { 
-  Download, Search, Calendar as CalendarIcon, 
-  Inbox, ChevronDown, LayoutList
-} from 'lucide-react';
-import { getHashColor, getCategoryIcon } from '@/lib/ui-helpers';
-
-export default function TransactionsPage() {
-  const [page, setPage] = useState(1);
-  const pageSize = 10;
-  
-  const { data: txData, isLoading } = useQuery({
-    queryKey: ['transactions', page],
-    queryFn: async () => {
-      const res = await api.get('/transactions', { params: { page, page_size: pageSize } });
-      return res.data;
-    }
+"use client";
+import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Plus,
+  ArrowLeftRight,
+  Pencil,
+  Trash2,
+  Download,
+  Search,
+} from "lucide-react";
+import api from "@/lib/api";
+import { TransferFlow } from "@/components/Motion";
+import {
+  PageHead,
+  Panel,
+  Field,
+  Modal,
+  Alert,
+  Loading,
+  ErrorState,
+  Empty,
+  Pagination,
+} from "@/components/ui";
+import {
+  money,
+  dateLabel,
+  localDate,
+  exportCsv,
+  errorMessage,
+  type Account,
+  type Category,
+  type Transaction,
+} from "@/lib/finance";
+const fresh = () => ({
+  account_id: "",
+  category_id: "",
+  type: "EXPENSE",
+  amount: "",
+  transaction_date: localDate(),
+  description: "",
+  note: "",
+  to_account_id: "",
+});
+export default function Transactions() {
+  const cache = useQueryClient();
+  const [receipt, setReceipt] = useState<{from: string; to: string; amount: string} | null>(null);
+  const [page, setPage] = useState(1),
+    [filters, setFilters] = useState({
+      type: "",
+      account_id: "",
+      category_id: "",
+      start_date: "",
+      end_date: "",
+    }),
+    [search, setSearch] = useState(""),
+    [mode, setMode] = useState(""),
+    [editing, setEditing] = useState<Transaction | null>(null),
+    [deleting, setDeleting] = useState<Transaction | null>(null),
+    [form, setForm] = useState(fresh),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(""),
+    [notice, setNotice] = useState("");
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("new")) setMode("create");
+    if (params.get("account_id"))
+      setFilters((f) => ({ ...f, account_id: params.get("account_id") || "" }));
+  }, []);
+  const accounts = useQuery<Account[]>({
+    queryKey: ["accounts"],
+    queryFn: async () => (await api.get("/accounts")).data,
   });
-
-  const transactions = txData?.items || [];
-  const total = txData?.total || 0;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
+  const categories = useQuery<Category[]>({
+    queryKey: ["categories"],
+    queryFn: async () => (await api.get("/categories")).data,
+  });
+  const query = useQuery<{ items: Transaction[]; total: number }>({
+    queryKey: ["transactions", page, filters],
+    queryFn: async () =>
+      (
+        await api.get("/transactions", {
+          params: {
+            page,
+            page_size: 15,
+            ...Object.fromEntries(Object.entries(filters).filter(([, v]) => v)),
+          },
+        })
+      ).data,
+  });
+  const list = (query.data?.items || []).filter(
+    (t) =>
+      t.description?.toLocaleLowerCase().includes(search.toLocaleLowerCase()) ||
+      !search,
+  );
+  const account = (id: string) => accounts.data?.find((a) => a.id === id);
+  const category = (id: string | null) =>
+    categories.data?.find((c) => c.id === id);
+  const invalidate = () =>
+    Promise.all(
+      ["transactions", "accounts", "dashboard", "budgets", "analytics"].map(
+        (key) => cache.invalidateQueries({ queryKey: [key] }),
+      ),
+    );
+  const open = (kind: string, tx?: Transaction) => {
+    setMode(kind);
+    setEditing(tx || null);
+    setError("");
+    setForm(
+      tx
+        ? {
+            ...fresh(),
+            account_id: tx.account_id,
+            category_id: tx.category_id || "",
+            type: tx.type,
+            amount: String(Math.abs(Number(tx.amount))),
+            transaction_date: tx.transaction_date,
+            description: tx.description || "",
+            note: tx.note || "",
+          }
+        : { ...fresh(), account_id: accounts.data?.[0]?.id || "" },
+    );
+  };
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setBusy(true);
+    setReceipt(null);
+    try {
+      if (mode === "transfer") {
+        const from = account(form.account_id),
+          to = account(form.to_account_id);
+        if (!from || !to || from.id === to.id)
+          throw new Error("Chọn hai tài khoản khác nhau.");
+        if (from.currency !== to.currency)
+          throw new Error("Chỉ chuyển giữa các tài khoản cùng loại tiền tệ.");
+        await api.post("/transactions/transfer", {
+          from_account_id: form.account_id,
+          to_account_id: form.to_account_id,
+          amount: form.amount,
+          transaction_date: form.transaction_date,
+          note: form.note || null,
+        });
+      } else {
+        const payload = {
+          account_id: form.account_id,
+          category_id: form.category_id || null,
+          type: form.type,
+          amount: form.amount,
+          transaction_date: form.transaction_date,
+          description: form.description.trim(),
+          note: form.note || null,
+        };
+        if (editing) await api.patch("/transactions/" + editing.id, payload);
+        else await api.post("/transactions", payload);
+      }
+      await invalidate();
+      if (mode === "transfer") setReceipt({from: account(form.account_id)?.name || "Ví nguồn", to: account(form.to_account_id)?.name || "Ví nhận", amount: money(form.amount)});
+      setMode("");
+      setNotice(
+        mode === "transfer"
+          ? "Đã chuyển tiền giữa hai tài khoản."
+          : "Đã lưu giao dịch và cập nhật số dư.",
+      );
+    } catch (e) {
+      setError(
+        e instanceof Error && !("response" in e) ? e.message : errorMessage(e),
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+  const remove = async () => {
+    if (!deleting) return;
+    setBusy(true);
+    setError("");
+    try {
+      await api.delete("/transactions/" + deleting.id);
+      await invalidate();
+      setDeleting(null);
+      setNotice("Đã xóa giao dịch và hoàn lại số dư.");
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const filter = (key: string, value: string) => {
+    setFilters((f) => ({ ...f, [key]: value }));
+    setPage(1);
+    setSearch("");
+  };
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Lịch sử Giao dịch</h1>
-          <p className="text-slate-500 mt-1">Quản lý và theo dõi dòng tiền qua tất cả các tài khoản.</p>
-        </div>
-        <button className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-lg font-medium transition-colors flex items-center gap-2 shadow-sm">
-          <Download className="w-4 h-4" /> Xuất CSV
-        </button>
-      </div>
-
-      <div className="flex flex-col lg:flex-row gap-6 items-start">
-        
-        {/* Filters Sidebar */}
-        <div className="w-full lg:w-64 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 shrink-0 sticky top-24">
-          <div className="flex items-center gap-2 font-bold text-slate-800 mb-6">
-            <LayoutList className="w-5 h-5" /> Bộ lọc
-          </div>
-
-          <div className="space-y-6">
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">KHOẢNG THỜI GIAN</label>
-              <div className="flex items-center gap-2 border border-slate-200 rounded-lg px-3 py-2 bg-slate-50">
-                <CalendarIcon className="w-4 h-4 text-slate-400" />
-                <span className="text-sm font-medium text-slate-700">Tất cả thời gian</span>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">LOẠI</label>
-              <div className="flex bg-slate-100 p-1 rounded-lg">
-                <button className="flex-1 text-sm py-1.5 px-2 bg-white rounded shadow-sm font-medium text-slate-800">Tất cả</button>
-                <button className="flex-1 text-sm py-1.5 px-2 font-medium text-slate-600 hover:text-slate-800">Thu nhập</button>
-                <button className="flex-1 text-sm py-1.5 px-2 font-medium text-slate-600 hover:text-slate-800">Chi phí</button>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">VÍ / TÀI KHOẢN</label>
-              <div className="flex items-center justify-between border border-slate-200 rounded-lg px-3 py-2 bg-white cursor-pointer hover:bg-slate-50">
-                <span className="text-sm font-medium text-slate-700">Tất cả tài khoản</span>
-                <ChevronDown className="w-4 h-4 text-slate-400" />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">DANH MỤC</label>
-              <div className="flex items-center justify-between border border-slate-200 rounded-lg px-3 py-2 bg-white cursor-pointer hover:bg-slate-50">
-                <span className="text-sm font-medium text-slate-700">Tất cả danh mục</span>
-                <ChevronDown className="w-4 h-4 text-slate-400" />
-              </div>
-            </div>
-
-            <button className="w-full py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors mt-4">
-              Đặt lại Bộ lọc
+    <div className="cf-stack">
+      <PageHead
+        eyebrow="SỔ GIAO DỊCH"
+        title="Giao dịch"
+        description="Ghi nhận thu chi và theo dõi dòng tiền qua từng tài khoản."
+        actions={
+          <>
+            <button className="cf-btn" onClick={() => open("transfer")}>
+              <ArrowLeftRight />
+              Chuyển tiền
             </button>
-          </div>
+            <button
+              className="cf-btn cf-btn-primary"
+              onClick={() => open("create")}
+            >
+              <Plus />
+              Thêm giao dịch
+            </button>
+          </>
+        }
+      />
+      {receipt && <TransferFlow {...receipt} confirmed onClose={() => setReceipt(null)} />}
+      {notice && <Alert kind="success" onDismiss={() => setNotice("")}>{notice}</Alert>}
+      <Panel>
+        <div className="cf-toolbar">
+          <Field label="Loại giao dịch">
+            <select
+              className="cf-input"
+              value={filters.type}
+              onChange={(e) => filter("type", e.target.value)}
+            >
+              <option value="">Tất cả</option>
+              <option value="INCOME">Thu nhập</option>
+              <option value="EXPENSE">Chi tiêu</option>
+            </select>
+          </Field>
+          <Field label="Tài khoản">
+            <select
+              className="cf-input"
+              value={filters.account_id}
+              onChange={(e) => filter("account_id", e.target.value)}
+            >
+              <option value="">Tất cả tài khoản</option>
+              {accounts.data?.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Danh mục">
+            <select
+              className="cf-input"
+              value={filters.category_id}
+              onChange={(e) => filter("category_id", e.target.value)}
+            >
+              <option value="">Tất cả danh mục</option>
+              {categories.data?.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Từ ngày">
+            <input
+              className="cf-input"
+              type="date"
+              value={filters.start_date}
+              max={filters.end_date || undefined}
+              onChange={(e) => filter("start_date", e.target.value)}
+            />
+          </Field>
+          <Field label="Đến ngày">
+            <input
+              className="cf-input"
+              type="date"
+              value={filters.end_date}
+              min={filters.start_date || undefined}
+              onChange={(e) => filter("end_date", e.target.value)}
+            />
+          </Field>
+          <button
+            className="cf-btn cf-btn-ghost"
+            onClick={() => {
+              setFilters({
+                type: "",
+                account_id: "",
+                category_id: "",
+                start_date: "",
+                end_date: "",
+              });
+              setPage(1);
+              setSearch("");
+            }}
+          >
+            Đặt lại
+          </button>
         </div>
-
-        {/* Transactions Table */}
-        <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden w-full">
-          {/* Table Header */}
-          <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div className="text-sm font-medium text-slate-500">
-              Đang hiển thị <span className="font-bold text-slate-800">{transactions.length > 0 ? (page - 1) * pageSize + 1 : 0}-{Math.min(page * pageSize, total)}</span> trong số <span className="font-bold text-slate-800">{total}</span> mục
-            </div>
-            <div className="relative w-full sm:w-64">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input 
-                type="text" 
-                placeholder="Tìm kiếm mô tả..."
-                className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
+        <div className="cf-panel-head">
+          <div className="cf-search">
+            <Search />
+            <input
+              className="cf-input"
+              aria-label="Tìm mô tả trong trang hiện tại"
+              placeholder="Tìm mô tả trong trang này…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
-
-          {/* Table Body */}
-          <div className="overflow-x-auto min-h-[400px]">
-            {isLoading ? (
-              <div className="flex items-center justify-center h-64 text-slate-400 font-medium animate-pulse">
-                Đang tải dữ liệu giao dịch...
-              </div>
-            ) : transactions.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 text-center p-6">
-                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                  <Inbox className="w-8 h-8 text-slate-400" />
-                </div>
-                <h2 className="text-lg font-bold text-slate-900 mb-2">Chưa có giao dịch</h2>
-                <p className="text-slate-500 text-sm max-w-sm mb-4">Hiện tại không có giao dịch nào phù hợp với bộ lọc hoặc bạn chưa có giao dịch nào.</p>
-                <button className="text-indigo-600 font-semibold hover:underline text-sm">
-                  Thêm giao dịch mới
-                </button>
-              </div>
-            ) : (
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-slate-50 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
-                    <th className="px-6 py-4">Ngày</th>
-                    <th className="px-6 py-4">Mô tả</th>
-                    <th className="px-6 py-4 text-center">Danh mục</th>
-                    <th className="px-6 py-4">Ví / Tài khoản</th>
-                    <th className="px-6 py-4 text-right">Số tiền</th>
+          <button
+            className="cf-btn cf-btn-sm"
+            disabled={!list.length}
+            onClick={() =>
+              exportCsv("giao-dich-trang-" + page + ".csv", [
+                [
+                  "Ngày",
+                  "Mô tả",
+                  "Tài khoản",
+                  "Danh mục",
+                  "Số tiền",
+                  "Tiền tệ",
+                ],
+                ...list.map((t) => [
+                  t.transaction_date,
+                  t.description,
+                  account(t.account_id)?.name,
+                  category(t.category_id)?.name,
+                  t.amount,
+                  account(t.account_id)?.currency || "VND",
+                ]),
+              ])
+            }
+          >
+            <Download />
+            Xuất trang này
+          </button>
+        </div>
+        {query.isPending ? (
+          <Loading />
+        ) : query.isError ? (
+          <ErrorState retry={() => query.refetch()} />
+        ) : !list.length ? (
+          <Empty
+            title="Không có giao dịch phù hợp"
+            description="Thử thay đổi bộ lọc hoặc thêm giao dịch mới."
+          />
+        ) : (
+          <div className="cf-table-wrap">
+            <table className="cf-table">
+              <thead>
+                <tr>
+                  <th>Ngày</th>
+                  <th>Giao dịch</th>
+                  <th>Danh mục</th>
+                  <th>Tài khoản</th>
+                  <th className="right">Số tiền</th>
+                  <th aria-label="Thao tác" />
+                </tr>
+              </thead>
+              <tbody>
+                {list.map((t) => (
+                  <tr key={t.id}>
+                    <td className="cf-muted">
+                      {dateLabel(t.transaction_date)}
+                    </td>
+                    <td>
+                      <strong>{t.description || "Giao dịch"}</strong>
+                      <div className="cf-sub">
+                        {t.source === "OCR"
+                          ? "Từ hóa đơn"
+                          : t.kind === "TRANSFER"
+                            ? "Chuyển nội bộ"
+                            : t.kind === "ADJUSTMENT"
+                              ? "Điều chỉnh số dư"
+                              : t.source === "SYSTEM"
+                                ? "Hệ thống"
+                                : "Nhập thủ công"}
+                      </div>
+                    </td>
+                    <td>
+                      <span className="cf-badge">
+                        {category(t.category_id)?.name || "Chưa phân loại"}
+                      </span>
+                    </td>
+                    <td>
+                      {account(t.account_id)?.name ||
+                        "Tài khoản đã ngừng sử dụng"}
+                    </td>
+                    <td
+                      className={`right cf-number ${Number(t.amount) > 0 ? "cf-success" : ""}`}
+                    >
+                      {Number(t.amount) > 0 ? "+" : ""}
+                      {money(
+                        t.amount,
+                        account(t.account_id)?.currency || "VND",
+                      )}
+                    </td>
+                    <td>
+                      {t.source !== "SYSTEM" && (
+                        <div className="cf-row">
+                          <button
+                            className="cf-icon-btn"
+                            aria-label="Sửa giao dịch"
+                            onClick={() => open("edit", t)}
+                          >
+                            <Pencil size={15} />
+                          </button>
+                          <button
+                            className="cf-icon-btn"
+                            aria-label="Xóa giao dịch"
+                            onClick={() => {
+                              setDeleting(t);
+                              setError("");
+                            }}
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      )}
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {transactions.map((tx: { id: string; transaction_date: string; description: string; category_id?: string; amount: number }) => {
-                    const Icon = getCategoryIcon(tx.category_id || tx.description);
-                    const colors = getHashColor(tx.description);
-                    return (
-                      <tr key={tx.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-600">
-                          {new Date(tx.transaction_date).toLocaleDateString('vi-VN')}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${colors.bg}`}>
-                              <Icon className={`w-5 h-5 ${colors.text}`} />
-                            </div>
-                            <span className="font-bold text-slate-900">{tx.description}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
-                            {tx.category_id ? 'Đã phân loại' : 'Chưa phân loại'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm font-semibold text-slate-700">Tài khoản Nội bộ</div>
-                        </td>
-                        <td className={`px-6 py-4 text-right font-bold whitespace-nowrap ${tx.amount > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                          {tx.amount > 0 ? '+' : ''}{tx.amount > 0 ? '$' : '-$'}{Math.abs(tx.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="p-4 border-t border-slate-100 flex items-center justify-between">
-              <button 
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Trước
-              </button>
-              <div className="flex gap-1">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                  <button 
-                    key={p} 
-                    onClick={() => setPage(p)}
-                    className={`w-8 h-8 flex items-center justify-center rounded font-bold text-sm transition-colors ${
-                      page === p ? 'bg-slate-900 text-white' : 'hover:bg-slate-100 text-slate-600'
-                    }`}
-                  >
-                    {p}
-                  </button>
                 ))}
-              </div>
-              <button 
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              </tbody>
+            </table>
+          </div>
+        )}
+        <Pagination
+          page={page}
+          total={query.data?.total || 0}
+          pageSize={15}
+          onChange={setPage}
+        />
+      </Panel>
+      {mode && (
+        <Modal
+          title={
+            mode === "transfer"
+              ? "Chuyển tiền giữa tài khoản"
+              : editing
+                ? "Chỉnh sửa giao dịch"
+                : "Thêm giao dịch"
+          }
+          onClose={() => setMode("")}
+          busy={busy}
+        >
+          <form className="cf-form" onSubmit={submit}>
+            {error && <Alert onDismiss={() => setError("")}>{error}</Alert>}
+            {accounts.isError || categories.isError ? (
+              <Alert persistent>
+                Không thể tải tài khoản hoặc danh mục. Đóng biểu mẫu và thử lại.
+              </Alert>
+            ) : !accounts.data?.length ? (
+              <Alert kind="info">
+                Bạn cần tạo tài khoản ở mục Ví & tài khoản trước khi ghi nhận
+                giao dịch.
+              </Alert>
+            ) : null}
+            {mode === "transfer" && <TransferFlow from={account(form.account_id)?.name || ""} to={account(form.to_account_id)?.name || ""} />}
+            {mode !== "transfer" && (
+              <Field label="Loại giao dịch">
+                <select
+                  className="cf-input"
+                  value={form.type}
+                  onChange={(e) =>
+                    setForm({ ...form, type: e.target.value, category_id: "" })
+                  }
+                >
+                  <option value="EXPENSE">Chi tiêu</option>
+                  <option value="INCOME">Thu nhập</option>
+                </select>
+              </Field>
+            )}
+            <Field
+              label={mode === "transfer" ? "Tài khoản chuyển đi" : "Tài khoản"}
+            >
+              <select
+                required
+                className="cf-input"
+                value={form.account_id}
+                onChange={(e) =>
+                  setForm({ ...form, account_id: e.target.value })
+                }
               >
-                Tiếp
+                <option value="">Chọn tài khoản</option>
+                {accounts.data?.map((a) => (
+                  <option value={a.id} key={a.id}>
+                    {a.name} · {money(a.balance, a.currency)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            {mode === "transfer" ? (
+              <Field label="Tài khoản nhận">
+                <select
+                  className="cf-input"
+                  required
+                  value={form.to_account_id}
+                  onChange={(e) =>
+                    setForm({ ...form, to_account_id: e.target.value })
+                  }
+                >
+                  <option value="">Chọn tài khoản nhận</option>
+                  {accounts.data
+                    ?.filter(
+                      (a) =>
+                        a.id !== form.account_id &&
+                        a.currency === account(form.account_id)?.currency,
+                    )
+                    .map((a) => (
+                      <option value={a.id} key={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                </select>
+              </Field>
+            ) : (
+              <Field label="Danh mục">
+                <select
+                  className="cf-input"
+                  value={form.category_id}
+                  onChange={(e) =>
+                    setForm({ ...form, category_id: e.target.value })
+                  }
+                >
+                  <option value="">Chưa phân loại</option>
+                  {categories.data
+                    ?.filter((c) => c.type === form.type)
+                    .map((c) => (
+                      <option value={c.id} key={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                </select>
+              </Field>
+            )}
+            <div className="cf-form-grid">
+              <Field
+                label={`Số tiền (${account(form.account_id)?.currency || "VND"})`}
+              >
+                <input
+                  className="cf-input"
+                  required
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={form.amount}
+                  onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                />
+              </Field>
+              <Field label="Ngày giao dịch">
+                <input
+                  className="cf-input"
+                  required
+                  type="date"
+                  value={form.transaction_date}
+                  onChange={(e) =>
+                    setForm({ ...form, transaction_date: e.target.value })
+                  }
+                />
+              </Field>
+            </div>
+            {mode !== "transfer" && (
+              <Field label="Mô tả">
+                <input
+                  className="cf-input"
+                  required
+                  maxLength={255}
+                  value={form.description}
+                  onChange={(e) =>
+                    setForm({ ...form, description: e.target.value })
+                  }
+                />
+              </Field>
+            )}
+            <Field label="Ghi chú (tùy chọn)">
+              <textarea
+                className="cf-input"
+                rows={2}
+                value={form.note}
+                onChange={(e) => setForm({ ...form, note: e.target.value })}
+              />
+            </Field>
+            <div className="cf-form-actions">
+              <button
+                type="button"
+                disabled={busy}
+                className="cf-btn"
+                onClick={() => setMode("")}
+              >
+                Hủy
+              </button>
+              <button
+                className="cf-btn cf-btn-primary"
+                disabled={
+                  busy ||
+                  !accounts.data?.length ||
+                  accounts.isError ||
+                  categories.isError
+                }
+              >
+                {busy
+                  ? "Đang xử lý…"
+                  : mode === "transfer"
+                    ? "Xác nhận chuyển tiền"
+                    : "Lưu giao dịch"}
               </button>
             </div>
-          )}
-        </div>
-
-      </div>
+          </form>
+        </Modal>
+      )}
+      {deleting && (
+        <Modal
+          title="Xóa giao dịch"
+          onClose={() => setDeleting(null)}
+          busy={busy}
+        >
+          <div className="cf-form">
+            {error && <Alert onDismiss={() => setError("")}>{error}</Alert>}
+            <p>
+              Xóa “{deleting.description}” với số tiền{" "}
+              {money(deleting.amount, account(deleting.account_id)?.currency)}?
+              Số dư tài khoản sẽ được hoàn lại.
+            </p>
+            <div className="cf-form-actions">
+              <button
+                className="cf-btn"
+                onClick={() => setDeleting(null)}
+                disabled={busy}
+              >
+                Hủy
+              </button>
+              <button
+                className="cf-btn cf-btn-danger"
+                onClick={remove}
+                disabled={busy}
+              >
+                {busy ? "Đang xóa…" : "Xóa giao dịch"}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

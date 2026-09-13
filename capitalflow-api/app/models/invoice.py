@@ -1,7 +1,8 @@
+from sqlalchemy import Unicode, UnicodeText
 import uuid
 from decimal import Decimal
 from datetime import datetime, date
-from sqlalchemy import String, Numeric, DateTime, Date, BigInteger, ForeignKey, func, Uuid, Index, Text
+from sqlalchemy import Unicode, UnicodeText, String, Numeric, DateTime, Date, BigInteger, ForeignKey, func, Uuid, Index, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 
@@ -17,11 +18,11 @@ class Invoice(Base):
     source: Mapped[str] = mapped_column(String(20), default="UPLOAD")
     status: Mapped[str] = mapped_column(String(30), default="UPLOADED")
     
-    merchant_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    merchant_address: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    merchant_tax_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    merchant_name: Mapped[str | None] = mapped_column(Unicode(255), nullable=True)
+    merchant_address: Mapped[str | None] = mapped_column(Unicode(500), nullable=True)
+    merchant_tax_code: Mapped[str | None] = mapped_column(Unicode(100), nullable=True)
     
-    invoice_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    invoice_number: Mapped[str | None] = mapped_column(Unicode(100), nullable=True)
     invoice_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     
     subtotal_amount: Mapped[Decimal | None] = mapped_column(Numeric(19, 2), nullable=True)
@@ -30,18 +31,18 @@ class Invoice(Base):
     total_amount: Mapped[Decimal | None] = mapped_column(Numeric(19, 2), nullable=True)
     currency: Mapped[str] = mapped_column(String(3), default="VND")
     
-    original_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    storage_key: Mapped[str | None] = mapped_column(String(1000), nullable=True)
-    mime_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    original_filename: Mapped[str | None] = mapped_column(Unicode(255), nullable=True)
+    storage_key: Mapped[str | None] = mapped_column(Unicode(1000), nullable=True)
+    mime_type: Mapped[str | None] = mapped_column(Unicode(100), nullable=True)
     file_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     
-    ocr_provider: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    ocr_model: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    ocr_provider: Mapped[str | None] = mapped_column(Unicode(100), nullable=True)
+    ocr_model: Mapped[str | None] = mapped_column(Unicode(150), nullable=True)
     ocr_confidence: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
-    ocr_raw_text: Mapped[str | None] = mapped_column(Text, nullable=True)
-    extracted_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ocr_raw_text: Mapped[str | None] = mapped_column(UnicodeText, nullable=True)
+    extracted_json: Mapped[str | None] = mapped_column(UnicodeText, nullable=True)
     
-    note: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    note: Mapped[str | None] = mapped_column(Unicode(1000), nullable=True)
     
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.sysutcdatetime())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.sysutcdatetime(), onupdate=func.sysutcdatetime())

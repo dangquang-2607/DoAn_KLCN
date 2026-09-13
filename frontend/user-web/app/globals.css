@@ -1,10 +1,18 @@
 @import "tailwindcss";
+@import "./swiss.css";
 
 :root {
-  --background: #f1f5f9; /* slate-100 — nền tổng thể */
-  --foreground: #0f172a; /* slate-900 — chữ chính */
-  --surface: #ffffff;    /* nền card/panel */
-  --muted: #475569;      /* slate-600 — chữ phụ */
+  --background: #f8fafc; /* slate-50 — nền Swiss Platinum dịu mắt */
+  --foreground: #0f172a; /* slate-900 — chữ chính sắc nét */
+  --surface: #ffffff;    /* nền card/panel Pearl White */
+  --muted: #64748b;      /* slate-500 — chữ phụ */
+  --cobalt-50: #eff6ff;
+  --cobalt-100: #dbeafe;
+  --cobalt-500: #3b82f6;
+  --cobalt-600: #2563eb;
+  --cobalt-700: #1d4ed8;
+  --cobalt-800: #1e40af;
+  --cobalt-900: #1e3a8a;
 }
 
 @theme inline {
@@ -15,5 +23,38 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Inter, system-ui, Arial, Helvetica, sans-serif;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* Custom sleek scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Tabular numbers for financial currencies */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Micro-shake animation for form validation */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+.animate-shake {
+  animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }

@@ -1,240 +1,407 @@
-'use client';
+"use client";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  LayoutDashboard,
+  Wallet,
+  ArrowLeftRight,
+  PieChart,
+  ScanLine,
+  Tags,
+  ChartNoAxesCombined,
+  Settings,
+  HelpCircle,
+  LogOut,
+  Menu,
+  X,
+  ChevronRight,
+  ChevronLeft,
+  UserRound,
+  Activity,
+Command,
+} from "lucide-react";
+import api from "@/lib/api";
+import { Brand, Loading, ErrorState } from "./ui";
+import SecuritySettings from "./SecuritySettings";
+import type { Profile } from "@/lib/finance";
 
-import { useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
-import api from '@/lib/api';
-import { 
-  LayoutDashboard, Wallet, Receipt, PieChart, FileScan, 
-  Layers, BarChart3, Settings, HelpCircle, LogOut, Menu, X, 
-  Search, Bell, Activity 
-} from 'lucide-react';
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  shortcut?: string;
+  isAi?: boolean;
+}
 
-const MENU_TOP = [
-  { href: '/', label: 'Bảng điều khiển của tôi', icon: LayoutDashboard },
-  { href: '/accounts', label: 'Ví & Tài khoản', icon: Wallet },
-  { href: '/transactions', label: 'Giao dịch', icon: Receipt },
-  { href: '/budgets', label: 'Ngân sách', icon: PieChart },
-  { href: '/ocr', label: 'Hóa đơn & Nhận dạng', icon: FileScan },
-  { href: '/categories', label: 'Danh mục', icon: Layers },
-  { href: '/analytics', label: 'Phân tích', icon: BarChart3 },
+const groups: { label: string; items: NavItem[] }[] = [
+  {
+    label: "Không gian tài chính",
+    items: [
+      { href: "/", label: "Tổng quan", icon: LayoutDashboard, shortcut: "Ctrl+1" },
+      { href: "/accounts", label: "Ví & tài khoản", icon: Wallet, shortcut: "Ctrl+2" },
+      { href: "/transactions", label: "Giao dịch", icon: ArrowLeftRight, shortcut: "Ctrl+3" },
+      { href: "/budgets", label: "Ngân sách", icon: PieChart, shortcut: "Ctrl+4" },
+    ],
+  },
+  {
+    label: "Phân tích & quản lý",
+    items: [
+      { href: "/ocr", label: "Hóa đơn AI", icon: ScanLine, isAi: true, shortcut: "Ctrl+5" },
+      {
+        href: "/analytics",
+        label: "Báo cáo tài chính",
+        icon: ChartNoAxesCombined,
+        shortcut: "Ctrl+6",
+      },
+      { href: "/categories", label: "Danh mục", icon: Tags, shortcut: "Ctrl+7" },
+    ],
+  },
+  {
+    label: "Tài khoản",
+    items: [
+      { href: "/settings", label: "Cài đặt & bảo mật", icon: Settings, shortcut: "Ctrl+8" },
+      { href: "/support", label: "Trung tâm hỗ trợ", icon: HelpCircle, shortcut: "Ctrl+9" },
+    ],
+  },
 ];
 
-const MENU_BOTTOM = [
-  { href: '/settings', label: 'Cài đặt', icon: Settings },
-  { href: '/support', label: 'Hỗ trợ', icon: HelpCircle },
-];
-
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
-  const [user, setUser] = useState<{ full_name: string; email: string; role: string } | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const router = useRouter();
+  const cache = useQueryClient();
 
+  // Mobile drawer state
+  const [open, setOpen] = useState(false);
+
+  // Desktop collapsible state with localStorage persistence
+  const [collapsed, setCollapsed] = useState(false);
+  const [hoveredHref, setHoveredHref] = useState<string | null>(null);
+  const [tooltipData, setTooltipData] = useState<{
+    label: string;
+    isAi?: boolean;
+    shortcut?: string;
+    top: number;
+    left: number;
+  } | null>(null);
+  const [showKeyToast, setShowKeyToast] = useState(false);
+
+  // Read saved collapsed state
   useEffect(() => {
-    api.get('/auth/me')
-      .then(res => {
-        if (res.data.is_banned) throw new Error('Banned');
-        setUser(res.data);
-      })
-      .catch(() => {
-        sessionStorage.removeItem('user_access_token');
-        router.push('/login');
-      })
-      .finally(() => setLoading(false));
-  }, [router]);
+    const saved = localStorage.getItem("cf_sidebar_collapsed");
+    if (saved !== null) {
+      setCollapsed(saved === "true");
+    }
+  }, []);
 
-  const handleLogout = () => {
-    sessionStorage.removeItem('user_access_token');
-    router.push('/login');
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("cf_sidebar_collapsed", String(next));
+      return next;
+    });
   };
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      router.push(`/transactions?q=${encodeURIComponent(searchQuery.trim())}`);
+  // Keyboard shortcut Ctrl+B / Cmd+B and Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        toggleCollapsed();
+        setShowKeyToast(true);
+        setTimeout(() => setShowKeyToast(false), 1500);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const profile = useQuery<Profile>({
+    queryKey: ["user-me"],
+    queryFn: async () => (await api.get("/auth/me")).data,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (!sessionStorage.getItem("user_access_token")) router.replace("/login");
+  }, [router]);
+
+  const logout = async () => {
+    const token = sessionStorage.getItem("user_refresh_token");
+    try {
+      if (token) await api.post("/auth/logout", { refresh_token: token });
+    } catch {
+    } finally {
+      sessionStorage.removeItem("user_access_token");
+      sessionStorage.removeItem("user_refresh_token");
+      cache.clear();
+      router.replace("/login");
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Activity className="w-8 h-8 text-indigo-600 animate-spin" />
-      </div>
-    );
-  }
-
-  if (!user) return null;
-
-  const renderNavItems = (items: typeof MENU_TOP) => (
-    <nav className="px-4 space-y-1">
-      {items.map(item => {
-        const active = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
-        return (
-          <Link key={item.href} href={item.href} onClick={() => setMobileMenuOpen(false)}>
-            <div className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-              active 
-                ? 'bg-[#e2e8f0] text-[#1e293b] font-semibold' // Light grayish-blue bg for active, dark text
-                : 'text-slate-400 hover:bg-[#1e293b] hover:text-slate-200'
-            }`}>
-              <item.icon className={`w-5 h-5 ${active ? 'text-[#1e293b]' : 'text-slate-400'}`} />
-              <span className="text-sm">{item.label}</span>
-            </div>
-          </Link>
-        );
-      })}
-    </nav>
-  );
+  if (profile.isPending) return <Loading />;
+  if (profile.isError) return <ErrorState retry={() => profile.refetch()} />;
+  const user = profile.data;
+  const title =
+    groups.flatMap((g) => g.items).find((i) => i.href === pathname)?.label ||
+    "CapitalFlow";
 
   return (
-    <div className="min-h-screen flex bg-slate-50 font-sans text-slate-800">
-      {/* Sidebar Desktop */}
-      <aside className="hidden md:flex flex-col w-64 bg-[#0f172a] text-slate-300 fixed inset-y-0 z-10 shadow-xl border-r border-[#1e293b]">
-        {/* Logo */}
-        <div className="p-6 pb-2">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center">
-              <Activity className="text-[#0f172a] w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="font-bold text-xl text-white tracking-tight leading-none">CapitalFlow</h1>
-              <p className="text-[11px] text-slate-400 mt-1 uppercase font-semibold tracking-wider">Tài chính Doanh nghiệp</p>
-            </div>
+    <div className="cf-app">
+      <a href="#main-content" className="cf-skip">
+        Chuyển đến nội dung
+      </a>
+
+      {/* Floating shortcut toast notification */}
+      <AnimatePresence>
+        {showKeyToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            transition={{ duration: 0.18 }}
+            className="cf-shortcut-toast"
+          >
+            <Command size={14} />
+            <span>
+              Phím tắt <strong>Ctrl + B</strong> kích hoạt ({collapsed ? "Thu gọn 72px" : "Mở rộng 244px"})
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Mobile backdrop scrim */}
+      {open && (
+        <button
+          className="cf-scrim"
+          aria-label="Đóng điều hướng"
+          onClick={() => setOpen(false)}
+        />
+      )}
+
+      {/* Modern Collapsible Sidebar */}
+      <aside className={`cf-sidebar ${open ? "open" : ""} ${collapsed ? "collapsed" : ""}`}>
+        {/* Border rail knob toggle button with rotating chevron */}
+        <button
+          className="cf-rail-toggle-btn"
+          onClick={toggleCollapsed}
+          title={collapsed ? "Mở rộng menu (Ctrl + B)" : "Thu gọn menu (Ctrl + B)"}
+          aria-label="Thu gọn thanh điều hướng"
+        >
+          <motion.div
+            animate={{ rotate: collapsed ? 180 : 0 }}
+            transition={{ duration: 0.24, ease: "easeInOut" }}
+            style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            <ChevronLeft size={14} />
+          </motion.div>
+        </button>
+
+        {/* Brand header - Luôn hiển thị (khi thu gọn 72px sẽ căn giữa logo mark) */}
+        <Link
+          href="/"
+          aria-label="CapitalFlow tổng quan"
+          className={`cf-brand ${collapsed ? "collapsed" : ""}`}
+        >
+          <span className="cf-brand-mark" title="CapitalFlow">
+            <Activity size={20} aria-hidden="true" />
+          </span>
+          {!collapsed && (
+            <span className="cf-brand-name">
+              CapitalFlow<span style={{ color: "var(--cf-blue)" }}>.</span>
+            </span>
+          )}
+        </Link>
+
+        {/* Workspace preview card */}
+        <div className="cf-workspace">
+          <span className="cf-icon" style={{ width: 32, height: 32, flexShrink: 0 }}>
+            <Wallet size={16} />
+          </span>
+          <div>
+            Tài chính cá nhân<small>Không gian của bạn</small>
           </div>
         </div>
-        
-        {/* Navigation */}
-        <div className="flex-1 overflow-y-auto py-6 flex flex-col gap-8 custom-scrollbar">
-          {renderNavItems(MENU_TOP)}
-          <div className="mt-auto">
-            {renderNavItems(MENU_BOTTOM)}
-          </div>
+
+        {/* Navigation list with Fluid Sliding Pill Indicator */}
+        <nav className="cf-nav" aria-label="Điều hướng chính">
+          {groups.map((g) => (
+            <div className="cf-nav-group" key={g.label}>
+              <div className="cf-nav-label">{g.label}</div>
+              {g.items.map((i) => {
+                const isActive = pathname === i.href;
+                const Icon = i.icon;
+
+                return (
+                  <div
+                    key={i.href}
+                    style={{ position: "relative" }}
+                    onMouseEnter={(e) => {
+                      setHoveredHref(i.href);
+                      if (collapsed) {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setTooltipData({
+                          label: i.label,
+                          isAi: i.isAi,
+                          shortcut: i.shortcut,
+                          top: rect.top + rect.height / 2,
+                          left: rect.right + 12,
+                        });
+                      }
+                    }}
+                    onMouseLeave={() => {
+                      setHoveredHref(null);
+                      setTooltipData(null);
+                    }}
+                  >
+                    <Link
+                      href={i.href}
+                      onClick={() => setOpen(false)}
+                      aria-current={isActive ? "page" : undefined}
+                      className={`cf-nav-link ${isActive ? "active" : ""}`}
+                    >
+                      {/* Fluid Sliding Pill Indicator */}
+                      {isActive && (
+                        <motion.div
+                          layoutId="cfNavActivePill"
+                          className="cf-nav-sliding-pill"
+                          transition={{
+                            type: "spring",
+                            stiffness: 380,
+                            damping: 30,
+                          }}
+                        />
+                      )}
+
+                      <Icon />
+                      <span className="cf-nav-label-text">{i.label}</span>
+
+                      {i.isAi && (
+                        <span
+                          className="cf-badge info"
+                          style={{ marginLeft: "auto" }}
+                        >
+                          AI
+                        </span>
+                      )}
+                    </Link>
+
+                    {/* Tooltip rendered fixed globally */}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </nav>
+
+        {/* Sidebar Footer */}
+        <div className="cf-nav-foot">
+          <button className="cf-btn cf-btn-ghost" onClick={logout} title="Đăng xuất">
+            <LogOut />
+            <span>Đăng xuất</span>
+          </button>
+          <p>CapitalFlow · Personal workspace</p>
         </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 md:ml-64 flex flex-col min-h-screen">
-        {/* Top Header */}
-        <header className="h-20 bg-white border-b border-slate-200 px-6 lg:px-10 flex items-center justify-between sticky top-0 z-20">
-          {/* Mobile Menu Toggle & Logo */}
-          <div className="md:hidden flex items-center gap-4">
-            <button onClick={() => setMobileMenuOpen(true)} className="text-slate-600">
-              <Menu className="w-6 h-6" />
-            </button>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-md bg-[#0f172a] flex items-center justify-center">
-                <Activity className="text-white w-4 h-4" />
-              </div>
-            </div>
-          </div>
-
-          {/* Search Bar */}
-          <div className="hidden md:flex flex-1 max-w-xl">
-            <form onSubmit={handleSearch} className="w-full relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-4 w-4 text-slate-400" />
-              </div>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-lg leading-5 bg-slate-50 placeholder-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-all"
-                placeholder="Tìm kiếm giao dịch, tài khoản..."
-              />
-            </form>
-          </div>
-
-          {/* Right Header Actions */}
-          <div className="flex items-center gap-4 md:gap-6 ml-auto">
-            <button className="text-slate-400 hover:text-slate-600 transition-colors relative">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
-            </button>
-            <button className="text-slate-400 hover:text-slate-600 transition-colors hidden md:block">
-              <HelpCircle className="w-5 h-5" />
-            </button>
-            
-            <div className="h-8 w-px bg-slate-200 hidden md:block"></div>
-            
-            <div className="flex items-center gap-3 cursor-pointer group relative">
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-semibold text-slate-700 leading-none">{user.full_name}</p>
-                <p className="text-[11px] text-slate-500 mt-1">{user.role === 'ADMIN' ? 'Quản trị viên' : 'Thành viên'}</p>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold overflow-hidden shadow-sm">
-                <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name)}&background=e0e7ff&color=4338ca`} alt="Avatar" />
-              </div>
-
-              {/* Simple dropdown for logout on hover */}
-              <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all pointer-events-none group-hover:pointer-events-auto z-50">
-                <button 
-                  onClick={handleLogout}
-                  className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-slate-50 rounded-xl flex items-center gap-2"
-                >
-                  <LogOut className="w-4 h-4" /> Đăng xuất
-                </button>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {/* Mobile Menu Overlay */}
+              {/* Fixed Floating Tooltip on collapsed rail */}
         <AnimatePresence>
-          {mobileMenuOpen && (
-            <>
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-slate-900/60 z-40 md:hidden backdrop-blur-sm"
-                onClick={() => setMobileMenuOpen(false)}
-              />
-              <motion.aside
-                initial={{ x: '-100%' }}
-                animate={{ x: 0 }}
-                exit={{ x: '-100%' }}
-                transition={{ type: 'spring', bounce: 0, duration: 0.4 }}
-                className="fixed inset-y-0 left-0 w-64 bg-[#0f172a] z-50 flex flex-col shadow-2xl md:hidden text-slate-300"
-              >
-                <div className="p-6 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center">
-                      <Activity className="text-[#0f172a] w-4 h-4" />
-                    </div>
-                    <span className="font-bold text-lg text-white">CapitalFlow</span>
-                  </div>
-                  <button onClick={() => setMobileMenuOpen(false)} className="text-slate-400">
-                    <X className="w-6 h-6" />
-                  </button>
-                </div>
-                <div className="flex-1 overflow-y-auto py-2 flex flex-col gap-8">
-                  {renderNavItems(MENU_TOP)}
-                  <div className="mt-auto">
-                    {renderNavItems(MENU_BOTTOM)}
-                  </div>
-                </div>
-              </motion.aside>
-            </>
+          {collapsed && tooltipData && (
+            <motion.div
+              initial={{ opacity: 0, x: -6, scale: 0.95 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: -6, scale: 0.95 }}
+              transition={{ duration: 0.15 }}
+              style={{
+                position: "fixed",
+                top: tooltipData.top,
+                left: tooltipData.left,
+                transform: "translateY(-50%)",
+                zIndex: 9999,
+                pointerEvents: "none",
+              }}
+              className="cf-floating-tooltip"
+            >
+              <span>{tooltipData.label}</span>
+              {tooltipData.isAi && <span className="cf-badge info" style={{ padding: "1px 4px", fontSize: 9 }}>AI</span>}
+              {tooltipData.shortcut && <kbd>{tooltipData.shortcut}</kbd>}
+            </motion.div>
           )}
         </AnimatePresence>
+      </aside>
 
-        {/* Page Content */}
-        <div className="flex-1 p-6 lg:p-10 w-full relative">
-          <motion.div
-            key={pathname}
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -15 }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
-            className="max-w-[1400px] mx-auto w-full"
+      {/* Dynamic Main Workspace Content */}
+      <div className={`cf-main ${collapsed ? "collapsed" : ""}`}>
+        <header className="cf-header">
+          {/* Mobile hamburger toggle */}
+          <button
+            className="cf-icon-btn cf-mobile-toggle"
+            aria-label="Mở điều hướng"
+            aria-expanded={open}
+            onClick={() => setOpen(!open)}
           >
-            {children}
-          </motion.div>
-        </div>
-      </main>
+            {open ? <X size={18} /> : <Menu size={18} />}
+          </button>
+
+          
+
+          <div className="cf-crumb">
+            <span>Không gian cá nhân</span>
+            <ChevronRight size={14} />
+            <strong>{title}</strong>
+          </div>
+
+          <div className="cf-spacer" />
+
+          
+
+          <Link href="/settings" className="cf-profile">
+            <span className="cf-avatar">
+              {(user.full_name || user.email).slice(0, 2).toUpperCase()}
+            </span>
+            <span>
+              {user.full_name || user.email}
+              <small>Tài khoản cá nhân</small>
+            </span>
+            <UserRound size={16} />
+          </Link>
+        </header>
+
+        {/* Main Content with Fluid View Transitions */}
+        <main id="main-content" className="cf-content">
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={pathname}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="cf-route-scene"
+            >
+              {user.must_change_password ? (
+                <div className="cf-stack">
+                  <div className="cf-alert">
+                    Đặt mật khẩu riêng trước khi bắt đầu sử dụng tài khoản.
+                  </div>
+                  <SecuritySettings
+                    firstTime
+                    onComplete={() => profile.refetch()}
+                  />
+                </div>
+              ) : (
+                children
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </main>
+      </div>
     </div>
   );
 }

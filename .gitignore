@@ -1,24 +1,53 @@
+# Environment variables (Bảo mật - KHÔNG commit!)
+.env
+.env.*
+.env*.local
+!.env.example
+!.env.docker.example
+
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
+*.class
+*.so
+.Python
 .venv/
 venv/
 ENV/
 env/
-.env
 
-# Node / Javascript / Frontend
+# Node / Frontend
 node_modules/
 .next/
 dist/
 build/
+out/
+.vercel/
+
+# Logs & Debug
+logs/
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# IDE / OS
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+coverage/
+
+# Uploads (File hóa đơn test, ảnh test của user)
+uploads/*
+!uploads/.gitkeep
+**/uploads/*
+!**/uploads/.gitkeep
+
+# Typescript
+*.tsbuildinfo
+
+# IDE & OS
 .vscode/
 .idea/
 *.suo

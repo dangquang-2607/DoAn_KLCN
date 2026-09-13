@@ -1,70 +1,87 @@
-from fastapi.testclient import TestClient
+from datetime import date
+from decimal import Decimal
+from uuid import UUID
+from sqlalchemy import select
+from app.models.account import Account
+from app.models.transaction import Transaction
 
-def test_create_account(client: TestClient, user_token):
-    # 1. Tạo tài khoản
-    res_account = client.post("/api/accounts", json={
-        "name": "Test Bank",
-        "account_type": "bank",
-        "balance": 1000000,
-        "currency": "VND"
-    }, headers={"Authorization": f"Bearer {user_token}"})
-    
-    assert res_account.status_code == 201
-    account_id = res_account.json()["id"]
 
-    # 2. Kiểm tra danh sách tài khoản
-    res_list = client.get("/api/accounts", headers={"Authorization": f"Bearer {user_token}"})
-    assert res_list.status_code == 200
-    assert len(res_list.json()) == 1
-    assert res_list.json()[0]["id"] == account_id
+def headers(token): return {"Authorization": f"Bearer {token}"}
 
-    # 3. Tạo danh mục (chạy dưới quyền Admin vì system category)
-    # Nhưng category có thể cần tạo trước bằng admin token.
-    # Trong test này ta chỉ test mock category hoặc tạo 1 user category.
-    # User API chưa có POST /categories (chỉ admin), nên ta phải login admin để tạo.
 
-def test_create_transaction_updates_balance(client: TestClient, user_token, admin_token):
-    # 1. Tạo Category bằng Admin
-    res_cat = client.post("/api/admin/categories", json={
-        "name": "Lương",
-        "type": "income",
-        "icon": "💰"
-    }, headers={"Authorization": f"Bearer {admin_token}"})
-    assert res_cat.status_code == 201
-    cat_id = res_cat.json()["id"]
+def account(client, token, name, balance):
+    response = client.post("/api/v1/accounts", headers=headers(token), json={"name": name, "account_type": "BANK", "balance": balance})
+    assert response.status_code == 201, response.text
+    return response.json()["id"]
 
-    # 2. Tạo Account bằng User (Số dư ban đầu 0)
-    res_acc = client.post("/api/accounts", json={
-        "name": "Ví Tiền Mặt",
-        "account_type": "cash",
-        "balance": 0,
-        "currency": "VND"
-    }, headers={"Authorization": f"Bearer {user_token}"})
-    assert res_acc.status_code == 201
-    acc_id = res_acc.json()["id"]
 
-    # 3. Tạo Giao dịch Thu Nhập 500k
-    res_txn = client.post("/api/transactions", json={
-        "account_id": acc_id,
-        "category_id": cat_id,
-        "amount": 500000,
-        "type": "income",
-        "description": "Nhận lương",
-        "transaction_date": "2026-08-24"
-    }, headers={"Authorization": f"Bearer {user_token}"})
-    assert res_txn.status_code == 201
-    assert float(res_txn.json()["amount"]) == 500000
+def test_normal_transaction_lifecycle(client, user_token):
+    acc = account(client, user_token, "A", 0)
+    response = client.post("/api/v1/transactions", headers=headers(user_token), json={"account_id": acc, "type": "INCOME", "amount": 500000, "transaction_date": str(date.today())})
+    assert response.status_code == 201, response.text
+    tx = response.json()["id"]
+    assert client.patch(f"/api/v1/transactions/{tx}", headers=headers(user_token), json={"amount": 200000}).status_code == 200
+    assert Decimal(client.get("/api/v1/accounts", headers=headers(user_token)).json()[0]["balance"]) == 200000
+    assert client.delete(f"/api/v1/transactions/{tx}", headers=headers(user_token)).status_code == 204
+    assert Decimal(client.get("/api/v1/accounts", headers=headers(user_token)).json()[0]["balance"]) == 0
 
-    # 4. Kiểm tra số dư Account đã tăng lên 500k chưa
-    res_acc_check = client.get("/api/accounts", headers={"Authorization": f"Bearer {user_token}"})
-    updated_acc = next(a for a in res_acc_check.json() if a["id"] == acc_id)
-    assert float(updated_acc["balance"]) == 500000
 
-    # 5. Xóa Giao dịch, kiểm tra số dư giảm lại 0
-    txn_id = res_txn.json()["id"]
-    res_del = client.delete(f"/api/transactions/{txn_id}", headers={"Authorization": f"Bearer {user_token}"})
-    assert res_del.status_code == 204
+def test_transfer_cannot_mint_money_or_distort_reports(client, user_token, db):
+    a, b = account(client, user_token, "A", 1000000), account(client, user_token, "B", 0)
+    budget = client.post("/api/v1/budgets", headers=headers(user_token), json={"name":"Total", "amount_limit":100, "start_date":str(date.today()), "end_date":str(date.today())})
+    assert budget.status_code == 201, budget.text
+    response = client.post("/api/v1/transactions/transfer", headers=headers(user_token), json={"from_account_id":a,"to_account_id":b,"amount":1000000})
+    assert response.status_code == 201, response.text
+    pair = response.json()
+    for key in ("transfer_out_id", "transfer_in_id"):
+        tx = pair[key]
+        assert client.delete(f"/api/v1/transactions/{tx}",headers=headers(user_token)).status_code == 409
+        assert client.patch(f"/api/v1/transactions/{tx}",headers=headers(user_token),json={"amount":1}).status_code == 409
+    wallets=client.get("/api/v1/accounts",headers=headers(user_token)).json()
+    assert sum(Decimal(w["balance"]) for w in wallets)==1000000
+    legs=db.scalars(select(Transaction).where(Transaction.kind=="TRANSFER")).all()
+    assert len(legs)==2 and legs[0].transfer_id==legs[1].transfer_id
+    assert client.get("/api/v1/analytics",headers=headers(user_token)).json()["summary"]=={"income":0,"expense":0,"net":0}
+    progress=client.get("/api/v1/budgets",headers=headers(user_token)).json()[0]
+    assert Decimal(progress["spent_amount"])==0
+    dashboard=client.get("/api/v1/dashboard",headers=headers(user_token)).json()
+    assert dashboard["net_worth"]==1000000 and dashboard["expense_this_month"]==0
 
-    res_acc_check2 = client.get("/api/accounts", headers={"Authorization": f"Bearer {user_token}"})
-    updated_acc2 = next(a for a in res_acc_check2.json() if a["id"] == acc_id)
-    assert float(updated_acc2["balance"]) == 0
+
+def test_adjustment_is_immutable_and_reconciles(client,user_token,db):
+    a=account(client,user_token,"A",100)
+    response=client.patch(f"/api/v1/accounts/{a}",headers=headers(user_token),json={"balance":250})
+    assert response.status_code==200,response.text
+    entries=db.scalars(select(Transaction).where(Transaction.account_id==UUID(a))).all()
+    assert sum(t.amount for t in entries)==250
+    assert all(t.kind=="ADJUSTMENT" for t in entries)
+    assert any("100" in t.note and "250" in t.note for t in entries)
+    assert client.delete(f"/api/v1/transactions/{entries[-1].id}",headers=headers(user_token)).status_code==409
+
+
+def test_failed_transfer_preserves_balances(client,user_token):
+    a,b=account(client,user_token,"A",100),account(client,user_token,"B",0)
+    response=client.post("/api/v1/transactions/transfer",headers=headers(user_token),json={"from_account_id":a,"to_account_id":b,"amount":101})
+    assert response.status_code==400
+    assert sum(Decimal(w["balance"]) for w in client.get("/api/v1/accounts",headers=headers(user_token)).json())==100
+
+
+
+def test_expense_can_move_wallets_and_change_type(client,user_token):
+    a,b=account(client,user_token,"A",100),account(client,user_token,"B",100)
+    tx=client.post("/api/v1/transactions",headers=headers(user_token),json={"account_id":a,"amount":40,"type":"EXPENSE","transaction_date":str(date.today())}).json()["id"]
+    response=client.patch(f"/api/v1/transactions/{tx}",headers=headers(user_token),json={"account_id":b,"amount":20,"type":"INCOME"})
+    assert response.status_code==200,response.text
+    balances={w["id"]:Decimal(w["balance"]) for w in client.get("/api/v1/accounts",headers=headers(user_token)).json()}
+    assert balances[a]==100 and balances[b]==120
+
+
+def test_create_and_update_reject_invalid_amount_through_api(client,user_token):
+    a=account(client,user_token,"A",0)
+    payload={"account_id":a,"amount":1,"type":"INCOME","transaction_date":str(date.today())}
+    response=client.post("/api/v1/transactions",headers=headers(user_token),json=payload)
+    tx=response.json()["id"]
+    for amount in [0,-1]:
+        assert client.post("/api/v1/transactions",headers=headers(user_token),json={**payload,"amount":amount}).status_code==422
+        assert client.patch(f"/api/v1/transactions/{tx}",headers=headers(user_token),json={"amount":amount}).status_code==422
+    assert Decimal(client.get("/api/v1/accounts",headers=headers(user_token)).json()[0]["balance"])==1

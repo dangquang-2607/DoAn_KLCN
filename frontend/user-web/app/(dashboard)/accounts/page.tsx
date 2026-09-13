@@ -1,128 +1,318 @@
-'use client';
-
-import { useQuery } from '@tanstack/react-query';
-import api from '@/lib/api';
-import { motion } from 'framer-motion';
-import { 
-  Plus, MoreVertical, RefreshCw, TrendingUp, TrendingDown, Inbox
-} from 'lucide-react';
-import { getAccountIcon } from '@/lib/ui-helpers';
-
-export default function AccountsPage() {
-  const { data: accountsData, isLoading } = useQuery({
-    queryKey: ['accounts'],
-    queryFn: async () => {
-      const res = await api.get('/accounts');
-      return res.data;
-    }
+"use client";
+import { useState } from "react";
+import Link from "next/link";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, Wallet, Pencil, Trash2, ArrowRight } from "lucide-react";
+import api from "@/lib/api";
+import {
+  PageHead,
+  Panel,
+  Field,
+  Modal,
+  Alert,
+  Loading,
+  ErrorState,
+  Empty,
+} from "@/components/ui";
+import { money, accountTypes, errorMessage, type Account } from "@/lib/finance";
+export default function Accounts() {
+  const cache = useQueryClient();
+  const query = useQuery<Account[]>({
+    queryKey: ["accounts"],
+    queryFn: async () => (await api.get("/accounts")).data,
   });
-
-  const accounts = accountsData?.items || [];
-
+  const [editing, setEditing] = useState<Account | null>(null),
+    [show, setShow] = useState(false),
+    [deleting, setDeleting] = useState<Account | null>(null),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(""),
+    [notice, setNotice] = useState("");
+  const [form, setForm] = useState({
+    name: "",
+    account_type: "CASH",
+    institution_name: "",
+    balance: "0",
+    currency: "VND",
+  });
+  const open = (account?: Account) => {
+    setEditing(account || null);
+    setForm(
+      account
+        ? {
+            name: account.name,
+            account_type: account.account_type,
+            institution_name: account.institution_name || "",
+            balance: String(account.balance),
+            currency: account.currency,
+          }
+        : {
+            name: "",
+            account_type: "CASH",
+            institution_name: "",
+            balance: "0",
+            currency: "VND",
+          },
+    );
+    setError("");
+    setShow(true);
+  };
+  const refresh = () =>
+    Promise.all(
+      ["accounts", "dashboard", "transactions"].map((key) =>
+        cache.invalidateQueries({ queryKey: [key] }),
+      ),
+    );
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const payload = {
+        ...form,
+        name: form.name.trim(),
+        institution_name: form.institution_name.trim() || null,
+      };
+      if (editing) await api.patch("/accounts/" + editing.id, payload);
+      else await api.post("/accounts", payload);
+      await refresh();
+      setShow(false);
+      setNotice(editing ? "Đã cập nhật tài khoản." : "Đã tạo tài khoản.");
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const remove = async () => {
+    if (!deleting) return;
+    setBusy(true);
+    setError("");
+    try {
+      await api.delete("/accounts/" + deleting.id);
+      await refresh();
+      setDeleting(null);
+      setNotice("Đã ngừng sử dụng ví. Lịch sử giao dịch vẫn được lưu.");
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
-    <div className="bg-[#0f172a] -m-6 lg:-m-10 p-6 lg:p-10 min-h-[calc(100vh-80px)] text-white rounded-tl-3xl shadow-inner">
-      <div className="max-w-6xl mx-auto space-y-8">
-        
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Ví & Tài khoản</h1>
-            <p className="text-slate-400 mt-1">Quản lý các tổ chức đã kết nối và số dư thủ công.</p>
-          </div>
-          <button className="text-sm font-semibold hover:text-indigo-300 transition-colors flex items-center gap-2">
-            <Plus className="w-4 h-4" /> Liên kết Tài khoản
+    <div className="cf-stack">
+      <PageHead
+        eyebrow="TÀI KHOẢN"
+        title="Ví & tài khoản"
+        description="Theo dõi số dư tiền mặt, ngân hàng và các tài khoản của bạn."
+        actions={
+          <button className="cf-btn cf-btn-primary" onClick={() => open()}>
+            <Plus />
+            Thêm tài khoản
           </button>
-        </div>
-
-        {/* Cards Grid */}
-        {isLoading ? (
-          <div className="text-center py-12 text-slate-400 animate-pulse">
-            Đang tải dữ liệu tài khoản...
-          </div>
-        ) : accounts.length === 0 ? (
-          <div className="bg-slate-800/50 border border-slate-700/50 rounded-3xl p-12 flex flex-col items-center justify-center text-center">
-            <div className="w-16 h-16 bg-slate-700/50 rounded-full flex items-center justify-center mb-4">
-              <Inbox className="w-8 h-8 text-slate-400" />
-            </div>
-            <h2 className="text-xl font-bold text-white mb-2">Chưa có tài khoản nào</h2>
-            <p className="text-slate-400 max-w-md mx-auto mb-6">
-              Bạn chưa liên kết hoặc tạo tài khoản nào. Hãy thêm tài khoản đầu tiên để bắt đầu theo dõi số dư của mình.
-            </p>
-            <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg font-bold transition-colors">
-              Tạo tài khoản đầu tiên
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {accounts.map((acc: { id: string; name: string; account_type?: string; balance: number }, index: number) => {
-              const Icon = getAccountIcon(acc.account_type || acc.name);
-              // Provide some defaults for missing properties
-              const bank = acc.account_type || 'Tài khoản Nội bộ';
-              const trendUp: boolean | null = acc.id ? true : (acc.name ? false : null); // Placeholder since API might not return this
-              const trend = '+0.0% so với tháng trước'; // Placeholder
-              const iconBg = 'bg-blue-100';
-              const iconColor = 'text-blue-600';
-              const cardBg = 'bg-gradient-to-br from-white to-slate-50';
-              const syncTime = 'Vừa cập nhật';
-
-              return (
-                <motion.div
-                  key={acc.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className={`relative overflow-hidden rounded-3xl ${cardBg} text-slate-900 p-8 shadow-lg border border-white/20`}
+        }
+      />
+      {notice && <Alert kind="success" onDismiss={() => setNotice("")}>{notice}</Alert>}
+      {query.isPending ? (
+        <Loading />
+      ) : query.isError ? (
+        <ErrorState retry={() => query.refetch()} />
+      ) : !query.data?.length ? (
+        <Panel>
+          <Empty
+            title="Một nơi cho mọi tài khoản"
+            description="Thêm tài khoản và nhập số dư ban đầu. Bạn sẽ tự ghi nhận giao dịch để cập nhật số dư."
+            action={
+              <button className="cf-btn cf-btn-primary" onClick={() => open()}>
+                <Plus />
+                Tạo tài khoản đầu tiên
+              </button>
+            }
+          />
+        </Panel>
+      ) : (
+        <div className="cf-grid">
+          {query.data.map((a) => (
+            <Panel key={a.id} className="cf-wallet-card">
+              <div className="cf-panel-body">
+                <div className="cf-row cf-between">
+                  <span className="cf-icon">
+                    <Wallet />
+                  </span>
+                  <span className="cf-badge">
+                    {accountTypes[a.account_type] || a.account_type}
+                  </span>
+                </div>
+                <h2 style={{ margin: "24px 0 4px", fontSize: 19 }}>{a.name}</h2>
+                <p className="cf-muted" style={{ fontSize: 13 }}>
+                  {a.institution_name || "Tài khoản theo dõi thủ công"}
+                </p>
+                <div
+                  className="cf-number"
+                  style={{ fontSize: 30, fontWeight: 650, margin: "22px 0" }}
                 >
-                  {/* Decorative blob */}
-                  <div className="absolute top-0 right-0 -mr-8 -mt-8 w-40 h-40 rounded-full bg-slate-200/50 blur-3xl pointer-events-none"></div>
-
-                  <div className="relative z-10">
-                    <div className="flex justify-between items-start mb-8">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${iconBg}`}>
-                          <Icon className={`w-6 h-6 ${iconColor}`} />
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-sm tracking-widest text-slate-500 uppercase">{acc.name}</h3>
-                          <p className="text-slate-700 font-medium">{bank}</p>
-                        </div>
-                      </div>
-                      <button className="text-slate-400 hover:text-slate-700">
-                        <MoreVertical className="w-5 h-5" />
-                      </button>
-                    </div>
-
-                    <div className="mb-8">
-                      <h2 className="text-5xl font-extrabold tracking-tight mb-3">
-                        ${acc.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                      </h2>
-                      <div className={`text-sm font-semibold flex items-center gap-1.5 ${
-                        trendUp ? 'text-emerald-600' : 
-                        trendUp === false ? 'text-rose-600' : 'text-slate-500'
-                      }`}>
-                        {trendUp && <TrendingUp className="w-4 h-4" />}
-                        {trendUp === false && <TrendingDown className="w-4 h-4" />}
-                        {trendUp === null && <span className="text-lg leading-none">-</span>}
-                        {trend}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2 text-slate-500 font-medium">
-                        <RefreshCw className="w-4 h-4" /> {syncTime}
-                      </div>
-                      <button className="font-bold text-slate-900 hover:text-indigo-600 transition-colors">
-                        Xem chi tiết
-                      </button>
-                    </div>
+                  {money(a.balance, a.currency)}
+                </div>
+                <div className="cf-row cf-between">
+                  <Link
+                    href={`/transactions?account_id=${a.id}`}
+                    className="cf-inline-link"
+                  >
+                    Giao dịch{" "}
+                    <ArrowRight size={14} style={{ display: "inline" }} />
+                  </Link>
+                  <div className="cf-row">
+                    <button
+                      className="cf-icon-btn"
+                      aria-label={`Sửa ${a.name}`}
+                      onClick={() => open(a)}
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      className="cf-icon-btn"
+                      aria-label={`Ngừng sử dụng ${a.name}`}
+                      onClick={() => {
+                        setDeleting(a);
+                        setError("");
+                      }}
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
-                </motion.div>
-              );
-            })}
+                </div>
+              </div>
+            </Panel>
+          ))}
+        </div>
+      )}
+      {show && (
+        <Modal
+          title={editing ? "Chỉnh sửa tài khoản" : "Thêm tài khoản"}
+          onClose={() => setShow(false)}
+          busy={busy}
+        >
+          <form className="cf-form" onSubmit={save}>
+            {error && <Alert onDismiss={() => setError("")}>{error}</Alert>}
+            <Field label="Tên tài khoản">
+              <input
+                className="cf-input"
+                required
+                maxLength={150}
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="Ví tiền mặt, tài khoản lương…"
+              />
+            </Field>
+            <div className="cf-form-grid">
+              <Field label="Loại tài khoản">
+                <select
+                  className="cf-input"
+                  value={form.account_type}
+                  onChange={(e) =>
+                    setForm({ ...form, account_type: e.target.value })
+                  }
+                >
+                  {Object.entries(accountTypes).map(([v, l]) => (
+                    <option key={v} value={v}>
+                      {l}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Tiền tệ">
+                <select
+                  className="cf-input"
+                  value={form.currency}
+                  onChange={(e) =>
+                    setForm({ ...form, currency: e.target.value })
+                  }
+                >
+                  {["VND"].map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+            <Field label="Tổ chức / ngân hàng (tùy chọn)">
+              <input
+                className="cf-input"
+                maxLength={150}
+                value={form.institution_name}
+                onChange={(e) =>
+                  setForm({ ...form, institution_name: e.target.value })
+                }
+              />
+            </Field>
+            <Field
+              label={editing ? "Số dư điều chỉnh" : "Số dư ban đầu"}
+              hint={
+                editing
+                  ? "Thay đổi số dư sẽ tạo bản ghi điều chỉnh, lưu số dư trước/sau và không tính vào thu/chi."
+                  : undefined
+              }
+            >
+              <input
+                className="cf-input"
+                required
+                type="number"
+                step="0.01"
+                value={form.balance}
+                onChange={(e) => setForm({ ...form, balance: e.target.value })}
+              />
+            </Field>
+            <div className="cf-form-actions">
+              <button
+                type="button"
+                className="cf-btn"
+                onClick={() => setShow(false)}
+                disabled={busy}
+              >
+                Hủy
+              </button>
+              <button className="cf-btn cf-btn-primary" disabled={busy}>
+                {busy ? "Đang lưu…" : "Lưu tài khoản"}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+      {deleting && (
+        <Modal
+          title="Ngừng sử dụng tài khoản"
+          onClose={() => setDeleting(null)}
+          busy={busy}
+        >
+          <div className="cf-form">
+            {error && <Alert onDismiss={() => setError("")}>{error}</Alert>}
+            <p>
+              Ngừng sử dụng <strong>{deleting.name}</strong>? Lịch sử giao dịch
+              vẫn được giữ lại.
+            </p>
+            {Number(deleting.balance) !== 0 && (
+              <Alert kind="info">
+                Ví còn {money(deleting.balance, deleting.currency)}. Chuyển hoặc
+                điều chỉnh số dư về 0 trước khi tiếp tục.
+              </Alert>
+            )}
+            <div className="cf-form-actions">
+              <button
+                className="cf-btn"
+                onClick={() => setDeleting(null)}
+                disabled={busy}
+              >
+                Hủy
+              </button>
+              <button
+                className="cf-btn cf-btn-danger"
+                onClick={remove}
+                disabled={busy || Number(deleting.balance) !== 0}
+              >
+                {busy ? "Đang xử lý…" : "Ngừng sử dụng"}
+              </button>
+            </div>
           </div>
-        )}
-
-      </div>
+        </Modal>
+      )}
     </div>
   );
 }

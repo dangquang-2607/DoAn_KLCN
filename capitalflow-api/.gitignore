@@ -12,7 +12,9 @@ env/
 
 # Environment variables (API keys — KHÔNG commit!)
 .env
+.env.*
 !.env.example
+!.env.docker.example
 
 # Distribution / packaging
 dist/

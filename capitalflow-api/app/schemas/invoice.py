@@ -2,7 +2,7 @@ from decimal import Decimal
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class InvoiceItemOut(BaseModel):
@@ -52,6 +52,9 @@ class InvoiceOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     confirmed_at: datetime | None
+    # Trường phát hiện trùng lặp — backend điền sau khi quét OCR
+    is_duplicate: bool = False
+    duplicate_reason: str | None = None
     # Danh sách sản phẩm chi tiết — trả về khi load đầy đủ hóa đơn
     items: list[InvoiceItemOut] = []
 
@@ -78,10 +81,32 @@ class InvoiceListOut(BaseModel):
 
 
 class InvoiceConfirm(BaseModel):
-    """Xác nhận hóa đơn và liên kết với tài khoản/danh mục."""
+    """
+    Xác nhận hóa đơn và liên kết vào tài khoản/danh mục.
+    Bổ sung các trường người dùng có thể đã chỉnh sửa trên form OCR
+    để lưu lại đúng dữ liệu cuối cùng vào Invoice và tạo giao dịch chính xác.
+    """
     account_id: UUID
     category_id: UUID | None = None
-    note: str | None = None
+    note: str | None = Field(default=None, max_length=1000)
+    # Các trường chỉnh sửa tùy chọn (người dùng sửa trên form OCR)
+    merchant_name: str | None = Field(default=None, max_length=255)
+    invoice_date: date | None = None
+    invoice_number: str | None = Field(default=None, max_length=100)
+    merchant_tax_code: str | None = Field(default=None, max_length=100)
+    subtotal_amount: Decimal | None = Field(default=None, ge=0, max_digits=19, decimal_places=2)
+    tax_amount: Decimal | None = Field(default=None, ge=0, max_digits=19, decimal_places=2)
+    total_amount: Decimal | None = Field(default=None, gt=0, max_digits=19, decimal_places=2)
+
+
+class InvoiceBatchDelete(BaseModel):
+    """Xóa tối đa 100 hóa đơn mỗi yêu cầu."""
+    invoice_ids: list[UUID] = Field(min_length=1, max_length=100)
+
+
+class InvoiceBatchOcr(BaseModel):
+    """Quét AI hàng loạt — tối đa 5 hóa đơn mỗi lần để tránh spam/lạm dụng."""
+    invoice_ids: list[UUID] = Field(min_length=1, max_length=5)
 
 
 class InvoicePage(BaseModel):

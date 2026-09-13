@@ -1,4 +1,10 @@
-FROM python:3.12-slim
+FROM python:3.12-slim-bookworm
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates unixodbc \
+    && curl -fsSLo /tmp/packages-microsoft-prod.deb https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb \
+    && dpkg -i /tmp/packages-microsoft-prod.deb \
+    && apt-get update && ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql18 \
+    && rm -f /tmp/packages-microsoft-prod.deb && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

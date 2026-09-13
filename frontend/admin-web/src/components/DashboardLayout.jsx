@@ -1,116 +1,395 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
-import { TrendingUp, LayoutDashboard, Users, Tags, Settings, Bell, Search, LogOut, ChevronDown, HelpCircle, ClipboardList, BarChart2, ScanLine } from 'lucide-react';
-import api from '../services/api';
+import { useState, useEffect } from "react";
+import {
+  Outlet,
+  NavLink,
+  Link,
+  useNavigate,
+  useLocation,
+} from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  LayoutDashboard,
+  Users,
+  Tags,
+  Settings,
+  LogOut,
+  ClipboardList,
+  ChartNoAxesCombined,
+  ScanLine,
+  Mail,
+  ShieldCheck,
+  Activity,
+  Menu,
+  X,
+  ChevronRight,
+  ChevronLeft,
+  Search,
+Command,
+} from "lucide-react";
+import api from "../services/api";
+import { Brand, Loading, ErrorState } from "./design";
+import SecuritySettings from "./SecuritySettings";
 
-const navItems = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Bảng điều khiển' },
-  { to: '/users', icon: Users, label: 'Quản lý Người dùng' },
-  { to: '/categories', icon: Tags, label: 'Danh mục Hệ thống' },
-  { section: 'Hệ thống' },
-  { to: '/system-analytics', icon: BarChart2, label: 'System Analytics' },
-  { to: '/ocr-monitor', icon: ScanLine, label: 'OCR Monitor' },
-  { to: '/audit-logs', icon: ClipboardList, label: 'Nhật ký Quản trị' },
-  { to: '/settings', icon: Settings, label: 'Cài đặt' },
+const groups = [
+  {
+    label: "Tổng quan",
+    items: [
+      { to: "/dashboard", label: "Bảng điều khiển", icon: LayoutDashboard, shortcut: "Ctrl+1" },
+      {
+        to: "/system-analytics",
+        label: "Phân tích vận hành",
+        icon: ChartNoAxesCombined,
+        shortcut: "Ctrl+2",
+      },
+    ],
+  },
+  {
+    label: "Quản lý",
+    items: [
+      { to: "/users", label: "Người dùng", icon: Users, shortcut: "Ctrl+3" },
+      { to: "/categories", label: "Danh mục hệ thống", icon: Tags, shortcut: "Ctrl+4" },
+      { to: "/ocr-monitor", label: "Giám sát hóa đơn", icon: ScanLine, shortcut: "Ctrl+5" },
+    ],
+  },
+  {
+    label: "Vận hành & bảo mật",
+    items: [
+      { to: "/audit-logs", label: "Nhật ký quản trị", icon: ClipboardList, shortcut: "Ctrl+6" },
+      { to: "/email-logs", label: "Email & cấu hình", icon: Mail, shortcut: "Ctrl+7" },
+      { to: "/settings", label: "Cài đặt & bảo mật", icon: Settings, shortcut: "Ctrl+8" },
+    ],
+  },
 ];
 
 export default function DashboardLayout() {
-  const navigate = useNavigate();
-  const [search, setSearch] = useState('');
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [collapsed, setCollapsed] = useState(false);
+  const [hoveredTo, setHoveredTo] = useState(null);
+  const [tooltipData, setTooltipData] = useState(null);
+  const [showKeyToast, setShowKeyToast] = useState(false);
+
+  const nav = useNavigate();
+  const location = useLocation();
+  const cache = useQueryClient();
+
+  // Load saved state
+  useEffect(() => {
+    const saved = localStorage.getItem("cf_admin_sidebar_collapsed");
+    if (saved !== null) {
+      setCollapsed(saved === "true");
+    }
+  }, []);
+
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("cf_admin_sidebar_collapsed", String(next));
+      return next;
+    });
+  };
+
+  // Keyboard shortcut Ctrl+B and Escape
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") setOpen(false);
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        toggleCollapsed();
+        setShowKeyToast(true);
+        setTimeout(() => setShowKeyToast(false), 1500);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const profile = useQuery({
+    queryKey: ["admin-me"],
+    queryFn: async () => (await api.get("/auth/me")).data,
+    retry: false,
+  });
+
+  const logout = async () => {
+    try {
+      const token = sessionStorage.getItem("admin_refresh_token");
+      if (token) await api.post("/auth/logout", { refresh_token: token });
+    } catch {
+    } finally {
+      sessionStorage.removeItem("admin_access_token");
+      sessionStorage.removeItem("admin_refresh_token");
+      cache.clear();
+      nav("/login", { replace: true });
+    }
+  };
+
+  if (profile.isPending)
+    return (
+      <div className="cf-app cf-admin">
+        <Loading />
+      </div>
+    );
+  if (profile.isError)
+    return (
+      <div className="cf-app cf-admin">
+        <ErrorState retry={() => profile.refetch()} />
+      </div>
+    );
+  const user = profile.data;
+  if (user.role?.toUpperCase() !== "ADMIN")
+    return (
+      <div className="cf-app cf-admin">
+        <div className="cf-state">
+          <h1>Không có quyền truy cập</h1>
+          <p>Tài khoản này không có quyền quản trị hệ thống.</p>
+          <button className="cf-btn" onClick={logout}>
+            Quay lại đăng nhập
+          </button>
+        </div>
+      </div>
+    );
+  const title =
+    groups.flatMap((g) => g.items).find((i) => i.to === location.pathname)
+      ?.label || "Quản trị";
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+    <div className="cf-app cf-admin">
+      <a href="#main-content" className="cf-skip">
+        Chuyển đến nội dung
+      </a>
 
-      {/* ── SIDEBAR ── */}
-      <aside className="sidebar">
-        {/* Logo */}
-        <div className="d-flex align-items-center gap-2 px-3 py-3" style={{ borderBottom: '1px solid #21262d' }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #1f6feb, #8250df)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <TrendingUp size={18} color="white" strokeWidth={2.5} />
-          </div>
-          <div>
-            <div style={{ color: 'white', fontWeight: 700, fontSize: 14, lineHeight: 1.2 }}>CapitalFlow</div>
-            <div style={{ color: '#8b949e', fontSize: 11 }}>Admin Panel</div>
-          </div>
-        </div>
+      {/* Shortcut Toast */}
+      <AnimatePresence>
+        {showKeyToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            transition={{ duration: 0.18 }}
+            className="cf-shortcut-toast"
+          >
+            <Command size={14} />
+            <span>
+              Phím tắt <strong>Ctrl + B</strong> kích hoạt ({collapsed ? "Thu gọn 72px" : "Mở rộng 244px"})
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-        {/* Nav */}
-        <nav className="flex-fill px-2 py-3 d-flex flex-column gap-1 overflow-auto">
-          {navItems.map((item, idx) =>
-            item.section ? (
-              <div key={idx} style={{ color: '#8b949e', fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '12px 12px 4px', marginTop: 4 }}>
-                {item.section}
-              </div>
-            ) : (
-              <NavLink key={item.to} to={item.to} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-                <item.icon size={16} strokeWidth={2} />
-                {item.label}
-              </NavLink>
-            )
+      {open && (
+        <button
+          className="cf-scrim"
+          aria-label="Đóng điều hướng"
+          onClick={() => setOpen(false)}
+        />
+      )}
+
+      {/* Modern Collapsible Sidebar */}
+      <aside className={`cf-sidebar ${open ? "open" : ""} ${collapsed ? "collapsed" : ""}`}>
+        {/* Border rail knob toggle button */}
+        <button
+          className="cf-rail-toggle-btn"
+          onClick={toggleCollapsed}
+          title={collapsed ? "Mở rộng menu (Ctrl + B)" : "Thu gọn menu (Ctrl + B)"}
+          aria-label="Thu gọn thanh điều hướng"
+        >
+          <motion.div
+            animate={{ rotate: collapsed ? 180 : 0 }}
+            transition={{ duration: 0.24, ease: "easeInOut" }}
+            style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            <ChevronLeft size={14} />
+          </motion.div>
+        </button>
+
+        {/* Brand header - Luôn hiển thị (khi thu gọn 72px sẽ căn giữa logo mark) */}
+        <Link
+          to="/dashboard"
+          aria-label="CapitalFlow quản trị"
+          className={`cf-brand ${collapsed ? "collapsed" : ""}`}
+        >
+          <span className="cf-brand-mark" title="CapitalFlow">
+            <Activity size={20} aria-hidden="true" />
+          </span>
+          {!collapsed && (
+            <span className="cf-brand-name">
+              CapitalFlow<span style={{ color: "var(--cf-blue)" }}>.</span>
+            </span>
           )}
-        </nav>
-
-        {/* Bottom */}
-        <div className="px-2 py-3 d-flex flex-column gap-1" style={{ borderTop: '1px solid #21262d' }}>
-          <button className="nav-link border-0 bg-transparent w-100 text-start">
-            <HelpCircle size={16} strokeWidth={2} />
-            Hỗ trợ
-          </button>
-          <button
-            onClick={async () => {
-              const refreshToken = sessionStorage.getItem('admin_refresh_token');
-              if (refreshToken) {
-                try { await api.post('/auth/logout', { refresh_token: refreshToken }); } catch {}
-              }
-              sessionStorage.removeItem('admin_access_token');
-              sessionStorage.removeItem('admin_refresh_token');
-              navigate('/');
-            }}
-            className="nav-link border-0 bg-transparent w-100 text-start"
-            style={{ color: '#f85149' }}
-            onMouseEnter={e => { e.currentTarget.style.color = '#ff7b72'; e.currentTarget.style.background = 'rgba(248,81,73,0.1)'; }}
-            onMouseLeave={e => { e.currentTarget.style.color = '#f85149'; e.currentTarget.style.background = 'transparent'; }}>
-            <LogOut size={16} strokeWidth={2} />
-            Đăng xuất
-          </button>
+        </Link>
+        <div className="cf-workspace">
+          <span className="cf-icon" style={{ width: 32, height: 32, flexShrink: 0 }}>
+            <ShieldCheck size={16} />
+          </span>
+          <div>
+            Không gian quản trị<small>Quản lý hệ thống</small>
+          </div>
         </div>
+
+        {/* Navigation list with Fluid Sliding Pill Indicator */}
+        <nav className="cf-nav" aria-label="Điều hướng quản trị">
+          {groups.map((g) => (
+            <div className="cf-nav-group" key={g.label}>
+              <div className="cf-nav-label">{g.label}</div>
+              {g.items.map((i) => {
+                const isActive = location.pathname === i.to;
+                const Icon = i.icon;
+
+                return (
+                  <div
+                    key={i.to}
+                    style={{ position: "relative" }}
+                    onMouseEnter={(e) => {
+                      setHoveredTo(i.to);
+                      if (collapsed) {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setTooltipData({
+                          label: i.label,
+                          shortcut: i.shortcut,
+                          top: rect.top + rect.height / 2,
+                          left: rect.right + 12,
+                        });
+                      }
+                    }}
+                    onMouseLeave={() => {
+                      setHoveredTo(null);
+                      setTooltipData(null);
+                    }}
+                  >
+                    <NavLink
+                      to={i.to}
+                      onClick={() => setOpen(false)}
+                      className={`cf-nav-link ${isActive ? "active" : ""}`}
+                    >
+                      {/* Fluid Sliding Pill Indicator */}
+                      {isActive && (
+                        <motion.div
+                          layoutId="cfAdminNavActivePill"
+                          className="cf-nav-sliding-pill"
+                          transition={{
+                            type: "spring",
+                            stiffness: 380,
+                            damping: 30,
+                          }}
+                        />
+                      )}
+
+                      <Icon />
+                      <span className="cf-nav-label-text">{i.label}</span>
+                    </NavLink>
+
+                    {/* Fixed tooltip */}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </nav>
+        <div className="cf-nav-foot">
+          <button className="cf-btn cf-btn-ghost" onClick={logout} title="Đăng xuất">
+            <LogOut />
+            <span>Đăng xuất</span>
+          </button>
+          <p>CapitalFlow · Admin workspace</p>
+        </div>
+              {/* Fixed Floating Tooltip on collapsed rail */}
+        <AnimatePresence>
+          {collapsed && tooltipData && (
+            <motion.div
+              initial={{ opacity: 0, x: -6, scale: 0.95 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: -6, scale: 0.95 }}
+              transition={{ duration: 0.15 }}
+              style={{
+                position: "fixed",
+                top: tooltipData.top,
+                left: tooltipData.left,
+                transform: "translateY(-50%)",
+                zIndex: 9999,
+                pointerEvents: "none",
+              }}
+              className="cf-floating-tooltip"
+            >
+              <span>{tooltipData.label}</span>
+              {tooltipData.shortcut && <kbd>{tooltipData.shortcut}</kbd>}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </aside>
 
-      {/* ── MAIN ── */}
-      <div className="flex-fill d-flex flex-column" style={{ minWidth: 0, overflow: 'hidden' }}>
-        {/* Header */}
-        <header className="main-header">
-          <div className="input-icon-wrap flex-fill" style={{ maxWidth: 400 }}>
-            <Search size={14} className="icon" />
-            <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-              className="form-control form-control-sm"
-              placeholder="Tìm kiếm tài khoản, giao dịch..."
-              style={{ borderRadius: 8, fontSize: 13, background: '#f6f8fa' }} />
-          </div>
+      {/* Dynamic Main Workspace Content */}
+      <div className={`cf-main ${collapsed ? "collapsed" : ""}`}>
+        <header className="cf-header">
+          <button
+            className="cf-icon-btn cf-mobile-toggle"
+            aria-expanded={open}
+            aria-label="Mở điều hướng"
+            onClick={() => setOpen(!open)}
+          >
+            {open ? <X /> : <Menu />}
+          </button>
 
-          <div className="d-flex align-items-center gap-2 ms-auto">
-            <button className="btn btn-sm btn-light position-relative" style={{ borderRadius: 8, width: 36, height: 36, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Bell size={17} />
-              <span className="position-absolute top-0 end-0 translate-middle badge rounded-pill bg-danger" style={{ fontSize: 8, padding: '2px 4px' }}>3</span>
-            </button>
-            <button className="btn btn-sm btn-light" style={{ borderRadius: 8, width: 36, height: 36, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <HelpCircle size={17} />
-            </button>
-            <div className="vr" />
-            <button className="btn btn-sm btn-light d-flex align-items-center gap-2" style={{ borderRadius: 8 }}>
-              <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg, #1f6feb, #8250df)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 11, fontWeight: 700 }}>AD</div>
-              <div className="text-start d-none d-md-block">
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#0d1117', lineHeight: 1.2 }}>Quản trị Hệ thống</div>
-                <div style={{ fontSize: 11, color: '#8b949e' }}>admin@cashflow.vn</div>
-              </div>
-              <ChevronDown size={13} style={{ color: '#8b949e' }} />
-            </button>
+          
+
+          <div className="cf-crumb">
+            <span>Quản trị</span>
+            <ChevronRight size={14} />
+            <strong>{title}</strong>
           </div>
+          <form
+            className="cf-search"
+            onSubmit={(e) => {
+              e.preventDefault();
+              nav("/users?search=" + encodeURIComponent(search.trim()));
+            }}
+          >
+            <Search />
+            <input
+              className="cf-input"
+              aria-label="Tìm người dùng"
+              placeholder="Tìm người dùng…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </form>
+          <Link to="/settings" className="cf-profile">
+            <span className="cf-avatar">
+              {(user.full_name || user.email).slice(0, 2).toUpperCase()}
+            </span>
+            <span>
+              {user.full_name || user.email}
+              <small>Quản trị viên</small>
+            </span>
+          </Link>
         </header>
 
-        {/* Content */}
-        <main className="flex-fill overflow-auto p-4">
-          <Outlet />
+        {/* Main Content with Fluid View Transitions */}
+        <main id="main-content" className="cf-content">
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="cf-route-scene"
+            >
+              {user.must_change_password ? (
+                <div className="cf-stack">
+                  <div className="cf-alert">
+                    Đặt mật khẩu riêng trước khi bắt đầu sử dụng tài khoản.
+                  </div>
+                  <SecuritySettings
+                    firstTime
+                    onComplete={() => profile.refetch()}
+                  />
+                </div>
+              ) : (
+                <Outlet />
+              )}
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
     </div>

@@ -1,28 +1,92 @@
-'use client';
-
-import { HelpCircle, Mail } from 'lucide-react';
-
-export default function SupportPage() {
+"use client";
+import Link from "next/link";
+import { Wallet, ArrowLeftRight, ScanLine } from "lucide-react";
+import { PageHead, Panel } from "@/components/ui";
+const guides = [
+  {
+    title: "Bắt đầu với một tài khoản",
+    icon: Wallet,
+    description: "Tạo ví và nhập số dư ban đầu để theo dõi dòng tiền.",
+    href: "/accounts",
+    action: "Quản lý tài khoản",
+  },
+  {
+    title: "Ghi lại khoản thu, chi",
+    icon: ArrowLeftRight,
+    description:
+      "Chọn ví, danh mục và số tiền. Số dư được cập nhật khi bạn lưu.",
+    href: "/transactions",
+    action: "Mở sổ giao dịch",
+  },
+  {
+    title: "Ghi nhận từ hóa đơn",
+    icon: ScanLine,
+    description:
+      "Tải tệp, quét AI, kiểm tra kết quả và chọn tài khoản thanh toán.",
+    href: "/ocr",
+    action: "Quét hóa đơn",
+  },
+];
+const faqs = [
+  [
+    "CapitalFlow có tự kết nối ngân hàng không?",
+    "Các tài khoản hiện được theo dõi thủ công. Bạn tạo tài khoản, nhập số dư ban đầu và ghi nhận thu chi hoặc chuyển tiền trong hệ thống.",
+  ],
+  [
+    "Quét hóa đơn có tự trừ tiền trong ví không?",
+    "Chưa. Sau khi quét, bạn cần kiểm tra thông tin, chọn ví và xác nhận hóa đơn. Bước xác nhận mới tạo giao dịch chi tiêu và cập nhật số dư.",
+  ],
+  [
+    "Có thể tải lên những loại tệp nào?",
+    "Ảnh JPG, JPEG, PNG, WEBP và tài liệu PDF; mỗi tệp tối đa 10 MB. Bạn có thể chọn tối đa 5 hóa đơn để quét AI cùng lúc.",
+  ],
+  [
+    "Làm gì khi muốn sửa một khoản chi?",
+    "Mở Giao dịch, chọn nút sửa cạnh khoản chi và lưu thông tin mới. Hệ thống hoàn lại số dư cũ rồi áp dụng giá trị mới.",
+  ],
+  [
+    "Xóa tài khoản có mất lịch sử không?",
+    "Bạn cần đưa số dư về 0 trước khi ngừng sử dụng ví. Các giao dịch đã ghi nhận vẫn được giữ lại.",
+  ],
+  [
+    "Làm thế nào để đổi mật khẩu?",
+    "Mở Cài đặt & bảo mật, nhập mật khẩu hiện tại và mật khẩu mới. Nếu quên mật khẩu, dùng chức năng khôi phục tại trang đăng nhập.",
+  ],
+];
+export default function Support() {
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Hỗ trợ</h1>
-          <p className="text-slate-500 mt-1">Trung tâm trợ giúp và liên hệ hỗ trợ khách hàng.</p>
-        </div>
-        <button className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-lg font-medium transition-colors flex items-center gap-2 shadow-sm">
-          <Mail className="w-4 h-4" /> Gửi Yêu cầu
-        </button>
+    <div className="cf-stack">
+      <PageHead
+        eyebrow="TRỢ GIÚP"
+        title="Bạn muốn bắt đầu từ đâu?"
+        description="Hướng dẫn những thao tác thường dùng trong CapitalFlow."
+      />
+      <div className="cf-grid">
+        {guides.map((g) => (
+          <Panel key={g.href}>
+            <div className="cf-panel-body cf-stack" style={{ gap: 16 }}>
+              <span className="cf-icon">
+                <g.icon />
+              </span>
+              <h2>{g.title}</h2>
+              <p className="cf-muted" style={{ fontSize: 14, margin: 0 }}>
+                {g.description}
+              </p>
+              <Link className="cf-inline-link" href={g.href}>
+                {g.action} →
+              </Link>
+            </div>
+          </Panel>
+        ))}
       </div>
-
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 flex flex-col items-center justify-center text-center">
-        <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4">
-          <HelpCircle className="w-8 h-8 text-blue-500" />
-        </div>
-        <h2 className="text-xl font-bold text-slate-900 mb-2">Tính năng đang được phát triển</h2>
-        <p className="text-slate-500 max-w-md mx-auto">
-          Trung tâm hỗ trợ khách hàng đang được hoàn thiện. Vui lòng quay lại sau hoặc liên hệ trực tiếp qua email: support@capitalflow.vn
-        </p>
+      <h2 style={{ fontSize: 20, margin: 0 }}>Câu hỏi thường gặp</h2>
+      <div className="cf-stack cf-help" style={{ gap: 12 }}>
+        {faqs.map(([q, a]) => (
+          <details key={q}>
+            <summary>{q}</summary>
+            <p>{a}</p>
+          </details>
+        ))}
       </div>
     </div>
   );

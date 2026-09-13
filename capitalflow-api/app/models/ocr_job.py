@@ -1,3 +1,4 @@
+from sqlalchemy import Unicode, UnicodeText
 """
 OcrJob model — theo dõi quá trình xử lý OCR hóa đơn bằng Gemini AI.
 Đồng bộ 100% với CSDL.sql: thêm model_name, attempt_count, progress_percent,
@@ -20,9 +21,9 @@ class OcrJob(Base):
 
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="QUEUED")
     # Tên nhà cung cấp AI (VD: "google_gemini")
-    provider: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    provider: Mapped[str | None] = mapped_column(Unicode(100), nullable=True)
     # Tên model cụ thể (VD: "gemini-2.0-flash")
-    model_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    model_name: Mapped[str | None] = mapped_column(Unicode(150), nullable=True)
 
     # Số lần thử lại (retry count)
     attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -30,12 +31,12 @@ class OcrJob(Base):
     progress_percent: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
 
     # Thông tin lỗi
-    error_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error_code: Mapped[str | None] = mapped_column(Unicode(100), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(UnicodeText, nullable=True)
 
     # Payload gửi đi và nhận về (JSON text)
-    request_json: Mapped[str | None] = mapped_column(Text, nullable=True)
-    response_json: Mapped[str | None] = mapped_column(Text, nullable=True)  # đổi từ raw_response
+    request_json: Mapped[str | None] = mapped_column(UnicodeText, nullable=True)
+    response_json: Mapped[str | None] = mapped_column(UnicodeText, nullable=True)  # đổi từ raw_response
 
     # Timestamps
     started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

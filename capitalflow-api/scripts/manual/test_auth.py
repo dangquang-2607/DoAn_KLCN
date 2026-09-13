@@ -15,7 +15,7 @@ def post(path, data):
         return e.code, json.loads(e.read())
 
 # 1. Register
-status, data = post("/api/auth/register", {
+status, data = post("/api/v1/auth/register", {
     "email": "admin@capitalflow.vn",
     "password": "Admin123!",
     "full_name": "Admin"
@@ -23,7 +23,7 @@ status, data = post("/api/auth/register", {
 print(f"Register: {status}  {data}")
 
 # 2. Login
-status, data = post("/api/auth/login", {
+status, data = post("/api/v1/auth/login", {
     "email": "admin@capitalflow.vn",
     "password": "Admin123!"
 })
@@ -32,7 +32,7 @@ print(f"Login: {status}  token={token[:40]}...")
 
 # 3. /auth/me
 req = urllib.request.Request(
-    BASE + "/api/auth/me",
+    BASE + "/api/v1/auth/me",
     headers={"Authorization": f"Bearer {token}"}
 )
 r = urllib.request.urlopen(req)

@@ -1,5 +1,6 @@
 services:
   postgres:
+    profiles: [legacy-postgres]
     image: postgres:17
     container_name: capitalflow-postgres
     restart: unless-stopped
@@ -7,7 +8,7 @@ services:
     environment:
       POSTGRES_DB: capitalflow
       POSTGRES_USER: capitalflow
-      POSTGRES_PASSWORD: capitalflow_dev
+      POSTGRES_PASSWORD: ${LEGACY_POSTGRES_PASSWORD:-}
 
     ports:
       - "5433:5432"
@@ -15,5 +16,34 @@ services:
     volumes:
       - capitalflow_pgdata:/var/lib/postgresql/data
 
+  capitalflow-api:
+    build: .
+    container_name: capitalflow-api
+    restart: unless-stopped
+    env_file:
+      - ${CAPITALFLOW_ENV_FILE:-.env}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=15)"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 20s
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persistent volume: đảm bảo file ảnh hóa đơn không bị mất khi restart/redeploy container
+      - capitalflow_uploads:/app/uploads
+
+  capitalflow-worker:
+    build: .
+    restart: unless-stopped
+    command: ["python", "-m", "app.services.worker"]
+    env_file:
+      - ${CAPITALFLOW_ENV_FILE:-.env}
+    volumes:
+      - capitalflow_uploads:/app/uploads
+
 volumes:
   capitalflow_pgdata:
+  # Volume lưu trữ tệp hóa đơn vĩnh viễn (không bị mất khi redeploy)
+  capitalflow_uploads:

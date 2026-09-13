@@ -45,3 +45,5 @@ watchfiles==1.2.0
 websockets==17.0.1
 slowapi==0.1.9
 pyodbc
+
+cryptography==50.0.1

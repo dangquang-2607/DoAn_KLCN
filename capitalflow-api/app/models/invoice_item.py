@@ -1,3 +1,4 @@
+from sqlalchemy import Unicode, UnicodeText
 """
 InvoiceItem model — từng dòng sản phẩm trong hóa đơn.
 Đồng bộ 100% với CSDL.sql: đổi tên item_name→name, sku_code→sku, total_price→line_total;
@@ -20,11 +21,11 @@ class InvoiceItem(Base):
     # Số thứ tự dòng trong hóa đơn (bắt đầu từ 1)
     line_no: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     # Tên hàng hóa/dịch vụ — đúng tên cột trong DB
-    name: Mapped[str] = mapped_column(String(500), nullable=False)
+    name: Mapped[str] = mapped_column(Unicode(500), nullable=False)
     # Mã SKU hàng hóa
-    sku: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    sku: Mapped[str | None] = mapped_column(Unicode(100), nullable=True)
     # Đơn vị tính (cái, kg, lít, chiếc...)
-    unit: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    unit: Mapped[str | None] = mapped_column(Unicode(50), nullable=True)
 
     quantity: Mapped[Decimal | None] = mapped_column(Numeric(18, 4), nullable=True)
     unit_price: Mapped[Decimal | None] = mapped_column(Numeric(19, 2), nullable=True)
@@ -36,7 +37,7 @@ class InvoiceItem(Base):
     # Độ tin cậy của OCR cho dòng này (0.0 – 1.0)
     confidence: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
     # Văn bản thô OCR đọc được trước khi xử lý
-    raw_text: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    raw_text: Mapped[str | None] = mapped_column(Unicode(1000), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.sysutcdatetime())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.sysutcdatetime(), onupdate=func.sysutcdatetime())

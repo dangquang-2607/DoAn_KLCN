@@ -1,91 +1,94 @@
+"""Offline integration fixtures: isolated SQLite DB, no SMTP/AI/external sockets."""
+import socket
+from datetime import datetime, timezone
+from unittest.mock import MagicMock
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
+from fastapi import Request
 from uuid import uuid4
-from decimal import Decimal
-from datetime import date
-
-from app.main import app
+from app.main import app as application
 from app.models.base import Base
 from app.api.dependencies import get_db
-from app.models.user import User, UserRole
+from app.models.user import User
 from app.core.security import hash_password, create_access_token
+from app.core.limiter import limiter
+import app.models
 
-# Test database URL - using a separate database for safety
-TEST_DATABASE_URL = "postgresql+psycopg://capitalflow:capitalflow_dev@localhost:5433/capitalflow_test"
 
-engine = create_engine(TEST_DATABASE_URL)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+@pytest.fixture(autouse=True)
+def offline(monkeypatch):
+    original_connect = socket.socket.connect
+    def blocked(sock, address):
+        # Windows asyncio implements its internal socketpair using loopback TCP.
+        import inspect
+        if any(frame.function == "_fallback_socketpair" and frame.filename.endswith("socket.py") for frame in inspect.stack()):
+            return original_connect(sock, address)
+        raise AssertionError("External network is forbidden in automated tests")
+    monkeypatch.setattr(socket.socket, "connect", blocked)
+    monkeypatch.setattr(socket.socket, "connect_ex", blocked)
+    from app.services.email_service import EmailService
+    sender = MagicMock(return_value=True)
+    monkeypatch.setattr(EmailService, "send_email_sync", sender)
+    from app.api.middleware import audit_middleware
+    monkeypatch.setattr(audit_middleware, "_write_audit_log", MagicMock())
+    limiter.reset()
+    yield sender
 
-@pytest.fixture(scope="session")
-def setup_db():
-    # Create all tables
-    Base.metadata.create_all(bind=engine)
-    yield
-    # Drop all tables after tests
-    Base.metadata.drop_all(bind=engine)
-
-@pytest.fixture
-def db(setup_db):
-    # Truncate tables before each test to ensure isolation
-    with engine.connect() as conn:
-        conn.execute(text("TRUNCATE TABLE users, accounts, categories, transactions, invoices CASCADE"))
-        conn.commit()
-
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 @pytest.fixture
-def client(db):
-    def override_get_db():
-        try:
-            yield db
-        finally:
-            pass
-    app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as c:
+def db():
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    @event.listens_for(engine, "connect")
+    def configure(connection, _):
+        connection.create_function("sysutcdatetime", 0, lambda: datetime.now(timezone.utc).replace(tzinfo=None).isoformat(" "))
+        connection.execute("PRAGMA foreign_keys=ON")
+    Base.metadata.create_all(engine)
+    session = sessionmaker(bind=engine, autoflush=False)()
+    yield session
+    session.close()
+    engine.dispose()
+
+
+@pytest.fixture
+def client(db, monkeypatch):
+    def request_db(request: Request):
+        db.info["request"] = request
+        return db
+    application.dependency_overrides[get_db] = request_db
+    # Background budget checking opens a separate session in production.
+    from app.api.routes import transactions
+    class BorrowedSession:
+        def __getattr__(self, name): return getattr(db, name)
+        def close(self): pass
+    monkeypatch.setattr(transactions, "SessionLocal", BorrowedSession)
+    with TestClient(application) as c:
+        c.event_hooks["request"].append(lambda r: r.headers.setdefault("Idempotency-Key", str(uuid4())))
         yield c
-    app.dependency_overrides.clear()
+    application.dependency_overrides.clear()
+
 
 @pytest.fixture
 def test_user(db):
-    user = User(
-        email="testuser@example.com",
-        password_hash=hash_password("password123"),
-        full_name="Test User",
-        role=UserRole.USER,
-        is_active=True
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    user = User(email="testuser@example.com", full_name="Test User", password_hash=hash_password("password123"), role="USER", is_active=True)
+    db.add(user); db.commit(); db.refresh(user)
     return user
+
 
 @pytest.fixture
 def test_admin(db):
-    admin = User(
-        email="admin@example.com",
-        password_hash=hash_password("admin123"),
-        full_name="Admin",
-        role=UserRole.ADMIN,
-        is_active=True
-    )
-    db.add(admin)
-    db.commit()
-    db.refresh(admin)
-    return admin
+    user = User(email="admin@example.com", full_name="Admin", password_hash=hash_password("admin123"), role="ADMIN", is_active=True)
+    db.add(user); db.commit(); db.refresh(user)
+    return user
+
 
 @pytest.fixture
 def user_token(test_user):
-    return create_access_token(str(test_user.id), role=test_user.role)
+    return create_access_token(str(test_user.id), test_user.role, test_user.token_version)
+
 
 @pytest.fixture
 def admin_token(test_admin):
-    return create_access_token(str(test_admin.id), role=test_admin.role)
-
-# Need text from sqlalchemy
-from sqlalchemy import text
+    return create_access_token(str(test_admin.id), test_admin.role, test_admin.token_version)

@@ -41,7 +41,7 @@ s, d = req("GET", "/health")
 check("/health", s, 200, d)
 
 # 2. Register user
-s, d = req("POST", "/api/auth/register", {
+s, d = req("POST", "/api/v1/auth/register", {
     "email": "testuser@capitalflow.vn",
     "password": "Test123!",
     "full_name": "Test User"
@@ -49,7 +49,7 @@ s, d = req("POST", "/api/auth/register", {
 check("Register user", s, 201, d)
 
 # 3. Login
-s, d = req("POST", "/api/auth/login", {
+s, d = req("POST", "/api/v1/auth/login", {
     "email": "testuser@capitalflow.vn",
     "password": "Test123!"
 })
@@ -57,12 +57,12 @@ d = check("Login", s, 200, d)
 token = d["access_token"]
 
 # 4. /auth/me
-s, d = req("GET", "/api/auth/me", token=token)
+s, d = req("GET", "/api/v1/auth/me", token=token)
 d = check("/auth/me", s, 200, d)
 print(f"         role={d['role']}, email={d['email']}")
 
 # 5. Create account
-s, d = req("POST", "/api/accounts", {
+s, d = req("POST", "/api/v1/accounts", {
     "name": "Ví chính",
     "account_type": "cash",
     "balance": "1000000",
@@ -72,7 +72,7 @@ d = check("Create account", s, 201, d)
 account_id = d["id"]
 
 # 6. Create category
-s, d = req("POST", "/api/categories", {
+s, d = req("POST", "/api/v1/categories", {
     "name": "Ăn uống",
     "type": "expense",
     "icon": "🍜"
@@ -81,7 +81,7 @@ d = check("Create category", s, 201, d)
 cat_id = d["id"]
 
 # 7. Create transaction
-s, d = req("POST", "/api/transactions", {
+s, d = req("POST", "/api/v1/transactions", {
     "account_id": account_id,
     "category_id": cat_id,
     "description": "Phở bò Hà Nội",
@@ -92,12 +92,12 @@ s, d = req("POST", "/api/transactions", {
 check("Create transaction", s, 201, d)
 
 # 8. Dashboard
-s, d = req("GET", "/api/dashboard", token=token)
+s, d = req("GET", "/api/v1/dashboard", token=token)
 d = check("Dashboard", s, 200, d)
 print(f"         net_worth={d['net_worth']}, expense={d['expense_this_month']}")
 
 # 9. Admin endpoint rejected for normal user
-s, d = req("GET", "/api/admin/dashboard/stats", token=token)
+s, d = req("GET", "/api/v1/admin/dashboard/stats", token=token)
 check("Admin blocked for user", s, 403, d)
 
 print("\n=== ALL TESTS PASSED ===\n")

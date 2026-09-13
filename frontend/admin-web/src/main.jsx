@@ -8,6 +8,7 @@ import 'bootstrap/dist/js/bootstrap.bundle.min.js'
 
 // Custom overrides
 import './index.css'
+import './swiss.css'
 import App from './App.jsx'
 
 const queryClient = new QueryClient({

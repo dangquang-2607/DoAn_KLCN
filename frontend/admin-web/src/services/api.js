@@ -1,6 +1,8 @@
-import axios from 'axios';
+import axios from "axios";
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000")
+  .replace(/\/+$/, "")
+  .replace(/\/api(?:\/v1)?$/, "");
 
 const api = axios.create({
   baseURL: `${BASE_URL}/api/v1`,
@@ -8,8 +10,8 @@ const api = axios.create({
 
 // ─── Request interceptor: gắn JWT ────────────────────────────────────────────
 api.interceptors.request.use((config) => {
-  const token = sessionStorage.getItem('admin_access_token');
-  if (token) {
+  const token = sessionStorage.getItem("admin_access_token");
+  if (token && !config.headers.Authorization) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -26,12 +28,17 @@ api.interceptors.response.use(
 
     // Không refresh nếu là chính endpoint auth
     const isAuthEndpoint =
-      originalReq?.url?.includes('/auth/login') ||
-      originalReq?.url?.includes('/auth/refresh') ||
-      originalReq?.url?.includes('/auth/register');
+      originalReq?.url?.includes("/auth/login") ||
+      originalReq?.url?.includes("/auth/refresh") ||
+      originalReq?.url?.includes("/auth/register");
 
-    if (err.response?.status === 401 && !isAuthEndpoint && !originalReq._retry) {
-      const refreshToken = sessionStorage.getItem('admin_refresh_token');
+    if (
+      err.response?.status === 401 &&
+      !isAuthEndpoint &&
+      originalReq &&
+      !originalReq._retry
+    ) {
+      const refreshToken = sessionStorage.getItem("admin_refresh_token");
 
       if (!refreshToken) {
         // Không có refresh token → logout
@@ -39,6 +46,7 @@ api.interceptors.response.use(
         return Promise.reject(err);
       }
 
+      originalReq._retry = true;
       if (isRefreshing) {
         // Đang refresh → xếp hàng đợi
         return new Promise((resolve, reject) => {
@@ -49,7 +57,6 @@ api.interceptors.response.use(
         });
       }
 
-      originalReq._retry = true;
       isRefreshing = true;
 
       try {
@@ -58,7 +65,9 @@ api.interceptors.response.use(
         });
 
         const newToken = data.access_token;
-        sessionStorage.setItem('admin_access_token', newToken);
+        sessionStorage.setItem("admin_access_token", newToken);
+        if (data.refresh_token)
+          sessionStorage.setItem("admin_refresh_token", data.refresh_token);
 
         // Giải phóng hàng đợi
         refreshQueue.forEach(({ resolve }) => resolve(newToken));
@@ -78,18 +87,20 @@ api.interceptors.response.use(
     }
 
     return Promise.reject(err);
-  }
+  },
 );
 
 function _doLogout() {
-  const refreshToken = sessionStorage.getItem('admin_refresh_token');
+  const refreshToken = sessionStorage.getItem("admin_refresh_token");
   if (refreshToken) {
     // Fire-and-forget logout để revoke token trên server
-    axios.post(`${BASE_URL}/api/v1/auth/logout`, { refresh_token: refreshToken }).catch(() => {});
+    axios
+      .post(`${BASE_URL}/api/v1/auth/logout`, { refresh_token: refreshToken })
+      .catch(() => {});
   }
-  sessionStorage.removeItem('admin_access_token');
-  sessionStorage.removeItem('admin_refresh_token');
-  window.location.href = '/';
+  sessionStorage.removeItem("admin_access_token");
+  sessionStorage.removeItem("admin_refresh_token");
+  window.location.href = "/";
 }
 
 export default api;

@@ -1,265 +1,964 @@
-/* eslint-disable @next/next/no-img-element */
-'use client';
-
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '@/lib/api';
-import { 
-  Upload, Sparkles, Trash2, CheckCircle2, ChevronDown, 
-  Calendar as CalendarIcon, Filter, FileText
-} from 'lucide-react';
-
+"use client";
+import { OcrSteps } from "@/components/Motion";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import Link from "next/link";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Upload,
+  ScanLine,
+  Trash2,
+  RefreshCw,
+  FileText,
+  ZoomIn,
+  ZoomOut,
+  RotateCw,
+  Check,
+  Plus,
+  ExternalLink,
+} from "lucide-react";
+import api from "@/lib/api";
+import {
+  PageHead,
+  Panel,
+  Field,
+  Modal,
+  Alert,
+  Loading,
+  ErrorState,
+  Empty,
+  Pagination,
+} from "@/components/ui";
+import {
+  money,
+  localDate,
+  errorMessage,
+  type Account,
+  type Category,
+  type Money,
+} from "@/lib/finance";
+interface InvoiceItem {
+  id: string;
+  name: string;
+  quantity: Money;
+  unit_price: Money;
+  line_total: Money;
+}
 interface Invoice {
   id: string;
-  vendor: string;
-  date: string;
-  amount: number;
+  merchant_name: string | null;
+  merchant_tax_code: string | null;
+  invoice_number: string | null;
+  invoice_date: string | null;
+  total_amount: Money | null;
+  tax_amount: Money | null;
+  currency: string;
+  original_filename: string;
+  mime_type: string;
   status: string;
-  image: string | null;
-  tax: number;
-  time: string;
-  category: string;
+  account_id?: string;
+  category_id?: string;
+  note?: string;
+  is_duplicate?: boolean;
+  duplicate_reason?: string;
+  items?: InvoiceItem[];
 }
-
-export default function OCRPage() {
-  const queryClient = useQueryClient();
-  const [uploading, setUploading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'pending' | 'processed'>('pending');
-  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
-
-  const { data: invoicesData } = useQuery({
-    queryKey: ['invoices'],
-    queryFn: async () => {
-      const res = await api.get('/invoices');
-      return res.data;
-    }
+const statuses: Record<string, string> = {
+  UPLOADED: "Chưa quét",
+  PROCESSING: "Đang xử lý",
+  REVIEW_REQUIRED: "Chờ kiểm tra",
+  CONFIRMED: "Đã xác nhận",
+  FAILED: "Thất bại",
+};
+function Status({ value }: { value: string }) {
+  return (
+    <span
+      className={`cf-badge ${value === "CONFIRMED" ? "success" : value === "FAILED" ? "danger" : value === "REVIEW_REQUIRED" ? "warning" : "info"}`}
+    >
+      {statuses[value] || value}
+    </span>
+  );
+}
+function InvoiceForm({
+  invoice,
+  busy,
+  onConfirm,
+}: {
+  invoice: Invoice;
+  busy: boolean;
+  onConfirm: (payload: Record<string, unknown>) => Promise<void>;
+}) {
+  const cache = useQueryClient();
+  const accounts = useQuery<Account[]>({
+    queryKey: ["accounts"],
+    queryFn: async () => (await api.get("/accounts")).data,
   });
-
-  const uploadMutation = useMutation({
-    mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append('file', file);
-      await api.post('/invoices', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+  const categories = useQuery<Category[]>({
+    queryKey: ["categories"],
+    queryFn: async () => (await api.get("/categories")).data,
+  });
+  const [form, setForm] = useState({
+    merchant_name: invoice.merchant_name || "",
+    merchant_tax_code: invoice.merchant_tax_code || "",
+    invoice_number: invoice.invoice_number || "",
+    invoice_date: invoice.invoice_date || localDate(),
+    total_amount: String(invoice.total_amount ?? ""),
+    tax_amount: String(invoice.tax_amount ?? 0),
+    account_id: invoice.account_id || "",
+    category_id: invoice.category_id || "",
+    note: invoice.note || "",
+  });
+  const [tab, setTab] = useState("form"),
+    [duplicateAccepted, setDuplicateAccepted] = useState(false),
+    [newCategory, setNewCategory] = useState(""),
+    [adding, setAdding] = useState(false),
+    [categoryBusy, setCategoryBusy] = useState(false),
+    [error, setError] = useState("");
+  const locked =
+    invoice.status === "CONFIRMED" || invoice.status === "PROCESSING" || busy;
+  const field = (key: string, value: string) =>
+    setForm((f) => ({ ...f, [key]: value }));
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError("");
+    if (Number(form.total_amount) <= 0) {
+      setError("Tổng thanh toán phải lớn hơn 0.");
+      return;
+    }
+    if (invoice.is_duplicate && !duplicateAccepted) {
+      setError("Xác nhận đã kiểm tra cảnh báo trùng lặp trước khi lưu.");
+      return;
+    }
+    const account = accounts.data?.find((a) => a.id === form.account_id);
+    if (account && account.currency !== (invoice.currency || "VND")) {
+      setError("Chọn tài khoản cùng loại tiền với hóa đơn.");
+      return;
+    }
+    await onConfirm({
+      ...form,
+      total_amount: Number(form.total_amount),
+      tax_amount: Number(form.tax_amount),
+      category_id: form.category_id || null,
+    });
+  };
+  const addCategory = async () => {
+    if (!newCategory.trim()) return;
+    setCategoryBusy(true);
+    setError("");
+    try {
+      const { data } = await api.post("/categories", {
+        name: newCategory.trim(),
+        type: "EXPENSE",
       });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      setUploading(false);
-    }
-  });
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setUploading(true);
-      uploadMutation.mutate(e.target.files[0]);
+      await cache.invalidateQueries({ queryKey: ["categories"] });
+      field("category_id", data.id);
+      setAdding(false);
+      setNewCategory("");
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setCategoryBusy(false);
     }
   };
-
-  const displayInvoices = invoicesData?.items?.length ? invoicesData.items.map((inv: {
-    id: string;
-    filename?: string;
-    status: string;
-  }) => ({
-    id: inv.id,
-    vendor: inv.filename || 'Tài liệu không tên',
-    date: 'Hôm nay',
-    amount: 0,
-    status: inv.status === 'SUCCESS' ? 'ĐÃ XỬ LÝ' : 'CHỜ XỬ LÝ',
-    image: null,
-    tax: 0,
-    time: '',
-    category: ''
-  })) : [];
-
-  const filteredInvoices = displayInvoices.filter((inv: { status: string }) => 
-    activeTab === 'pending' ? inv.status === 'CHỜ XỬ LÝ' : inv.status === 'ĐÃ XỬ LÝ'
-  );
-
-  const selected = selectedInvoice || (filteredInvoices.length > 0 ? filteredInvoices[0] : null);
-
   return (
-    <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-120px)]">
-      
-      {/* Left Column: Uploads List */}
-      <div className="w-full lg:w-80 flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden shrink-0">
-        <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-slate-900">Tải lên</h2>
-          <button className="text-slate-400 hover:text-slate-600"><Filter className="w-5 h-5" /></button>
-        </div>
-
-        <div className="p-4 bg-slate-50 border-b border-slate-100">
-          <div className="flex bg-slate-200/50 p-1 rounded-lg">
-            <button 
-              onClick={() => setActiveTab('pending')}
-              className={`flex-1 text-sm py-1.5 px-2 rounded font-semibold transition-colors ${activeTab === 'pending' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              Chờ xem xét
-            </button>
-            <button 
-              onClick={() => setActiveTab('processed')}
-              className={`flex-1 text-sm py-1.5 px-2 rounded font-semibold transition-colors ${activeTab === 'processed' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              Đã xử lý
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {filteredInvoices.map((inv: Invoice) => (
-            <div 
-              key={inv.id} 
-              onClick={() => setSelectedInvoice(inv)}
-              className={`flex gap-3 p-3 rounded-xl cursor-pointer border transition-all ${
-                selected?.id === inv.id 
-                  ? 'bg-indigo-50 border-indigo-200 shadow-sm' 
-                  : 'bg-white border-slate-100 hover:border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <div className="w-12 h-16 bg-slate-200 rounded object-cover overflow-hidden flex items-center justify-center shrink-0">
-                {inv.image ? <img src={inv.image} alt="receipt" className="w-full h-full object-cover opacity-80" /> : <FileText className="w-5 h-5 text-slate-400" />}
-              </div>
-              <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-                <div className="flex justify-between items-start mb-1">
-                  <h3 className="font-bold text-slate-900 text-sm truncate pr-2">{inv.vendor}</h3>
-                  <span className="font-bold text-slate-900 text-sm">${inv.amount.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center mt-auto">
-                  <span className="text-xs text-slate-500 font-medium">{inv.date}</span>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
-                    inv.status === 'CHỜ XỬ LÝ' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'
-                  }`}>
-                    {inv.status}
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))}
-          {filteredInvoices.length === 0 && (
-            <div className="text-center py-10 text-sm text-slate-500">Không có hóa đơn nào.</div>
-          )}
-        </div>
-
-        <div className="p-4 border-t border-slate-100 bg-white">
-          <label className="cursor-pointer w-full flex items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-xl py-3 text-slate-600 font-bold hover:bg-slate-50 hover:border-slate-300 transition-colors">
-            <Upload className="w-4 h-4" />
-            {uploading ? 'Đang tải lên...' : 'Tải lên Mới'}
-            <input type="file" className="hidden" accept="image/*,application/pdf" onChange={handleFileChange} disabled={uploading} />
-          </label>
-        </div>
+    <div className="cf-panel-body cf-stack" style={{ gap: 18 }}>
+      <div className="cf-tabs" role="tablist" aria-label="Thông tin hóa đơn">
+        <button
+          role="tab"
+          aria-selected={tab === "form"}
+          onClick={() => setTab("form")}
+        >
+          Thông tin
+        </button>
+        <button
+          role="tab"
+          aria-selected={tab === "items"}
+          onClick={() => setTab("items")}
+        >
+          Mặt hàng ({invoice.items?.length || 0})
+        </button>
       </div>
-
-      {/* Right Column: Extracted Data & Preview */}
-      <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-        <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900">Kiểm tra dữ liệu trích xuất</h2>
-            <p className="text-sm text-slate-500 mt-1">Xác minh thông tin được điền tự động trước khi lưu vào sổ cái.</p>
+      {tab === "items" ? (
+        <>
+          {!invoice.items?.length ? (
+            <Empty title="Chưa có mặt hàng được nhận diện" />
+          ) : (
+            <div className="cf-table-wrap">
+              <table className="cf-table">
+                <thead>
+                  <tr>
+                    <th>Mặt hàng</th>
+                    <th>SL</th>
+                    <th className="right">Thành tiền</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {invoice.items.map((item) => (
+                    <tr key={item.id}>
+                      <td style={{ whiteSpace: "normal" }}>{item.name}</td>
+                      <td>{Number(item.quantity || 0)}</td>
+                      <td className="right cf-number">
+                        {money(item.line_total || 0, invoice.currency)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="cf-muted" style={{ fontSize: 12 }}>
+            Kiểm tra tổng thanh toán tại tab Thông tin trước khi xác nhận.
+          </p>
+        </>
+      ) : (
+        <form className="cf-form" onSubmit={submit}>
+          {error && <Alert onDismiss={() => setError("")}>{error}</Alert>}
+          {invoice.is_duplicate && invoice.status !== "CONFIRMED" && (
+            <Alert kind="info">
+              <strong>Hóa đơn có thể bị trùng.</strong>
+              <br />
+              {invoice.duplicate_reason}
+              <label className="cf-row" style={{ marginTop: 10 }}>
+                <input
+                  type="checkbox"
+                  checked={duplicateAccepted}
+                  onChange={(e) => setDuplicateAccepted(e.target.checked)}
+                  required
+                />
+                Tôi đã kiểm tra và vẫn muốn ghi nhận.
+              </label>
+            </Alert>
+          )}
+          <fieldset
+            disabled={locked}
+            style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}
+          >
+            <div className="cf-form">
+              <Field label="Đơn vị bán hàng">
+                <input
+                  className="cf-input"
+                  required
+                  maxLength={255}
+                  value={form.merchant_name}
+                  onChange={(e) => field("merchant_name", e.target.value)}
+                />
+              </Field>
+              <div className="cf-form-grid">
+                <Field label="Mã số thuế">
+                  <input
+                    className="cf-input"
+                    value={form.merchant_tax_code}
+                    onChange={(e) => field("merchant_tax_code", e.target.value)}
+                  />
+                </Field>
+                <Field label="Số hóa đơn">
+                  <input
+                    className="cf-input"
+                    value={form.invoice_number}
+                    onChange={(e) => field("invoice_number", e.target.value)}
+                  />
+                </Field>
+                <Field label="Ngày hóa đơn">
+                  <input
+                    className="cf-input"
+                    type="date"
+                    required
+                    value={form.invoice_date}
+                    onChange={(e) => field("invoice_date", e.target.value)}
+                  />
+                </Field>
+                <Field label={`Thuế (${invoice.currency || "VND"})`}>
+                  <input
+                    className="cf-input"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    required
+                    value={form.tax_amount}
+                    onChange={(e) => field("tax_amount", e.target.value)}
+                  />
+                </Field>
+              </div>
+              <Field
+                label={`Tổng thanh toán (${invoice.currency || "VND"})`}
+                hint="Tổng tiền đã bao gồm thuế. Đây là số tiền ghi nhận vào khoản chi."
+              >
+                <input
+                  className="cf-input cf-number"
+                  style={{ fontSize: 22, fontWeight: 600 }}
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  required
+                  value={form.total_amount}
+                  onChange={(e) => field("total_amount", e.target.value)}
+                />
+              </Field>
+              <Field label="Tài khoản thanh toán">
+                <select
+                  className="cf-input"
+                  required
+                  value={form.account_id}
+                  onChange={(e) => field("account_id", e.target.value)}
+                >
+                  <option value="">Chọn tài khoản</option>
+                  {accounts.data?.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name} · {money(a.balance, a.currency)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              {accounts.isError ? (
+                <Alert persistent>Không thể tải tài khoản. Vui lòng thử lại.</Alert>
+              ) : (
+                accounts.isSuccess &&
+                !accounts.data?.length && (
+                  <Link className="cf-inline-link" href="/accounts">
+                    Tạo tài khoản trước khi ghi nhận →
+                  </Link>
+                )
+              )}
+              <Field label="Danh mục chi tiêu">
+                <select
+                  className="cf-input"
+                  value={form.category_id}
+                  onChange={(e) => field("category_id", e.target.value)}
+                >
+                  <option value="">Chưa phân loại</option>
+                  {categories.data
+                    ?.filter((c) => c.type === "EXPENSE")
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                </select>
+              </Field>
+              {adding ? (
+                <div className="cf-row">
+                  <input
+                    className="cf-input"
+                    aria-label="Tên danh mục mới"
+                    style={{ flex: 1 }}
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    placeholder="Tên danh mục mới"
+                  />
+                  <button
+                    type="button"
+                    className="cf-btn cf-btn-sm"
+                    disabled={categoryBusy || !newCategory.trim()}
+                    onClick={addCategory}
+                  >
+                    Tạo
+                  </button>
+                  <button
+                    type="button"
+                    className="cf-btn cf-btn-ghost cf-btn-sm"
+                    onClick={() => setAdding(false)}
+                  >
+                    Hủy
+                  </button>
+                </div>
+              ) : (
+                !locked && (
+                  <button
+                    type="button"
+                    className="cf-btn cf-btn-ghost cf-btn-sm"
+                    style={{ alignSelf: "flex-start" }}
+                    onClick={() => setAdding(true)}
+                  >
+                    <Plus />
+                    Thêm danh mục
+                  </button>
+                )
+              )}
+              <Field label="Ghi chú">
+                <textarea
+                  className="cf-input"
+                  rows={2}
+                  value={form.note}
+                  onChange={(e) => field("note", e.target.value)}
+                />
+              </Field>
+            </div>
+          </fieldset>
+          {invoice.status === "CONFIRMED" ? (
+            <Alert persistent kind="success">
+              Hóa đơn đã được ghi nhận. Xem khoản chi tại trang Giao dịch.
+            </Alert>
+          ) : (
+            <button
+              className="cf-btn cf-btn-primary"
+              disabled={
+                locked ||
+                accounts.isError ||
+                !accounts.data?.length ||
+                categoryBusy
+              }
+            >
+              <Check />
+              {busy ? "Đang lưu…" : "Xác nhận & ghi nhận khoản chi"}
+            </button>
+          )}
+        </form>
+      )}
+    </div>
+  );
+}
+export default function Ocr() {
+  const cache = useQueryClient(),
+    uploadInput = useRef<HTMLInputElement>(null);
+  const [page, setPage] = useState(1),
+    [status, setStatus] = useState(""),
+    [selectedId, setSelectedId] = useState<string | null>(null),
+    [checked, setChecked] = useState<string[]>([]),
+    [busy, setBusy] = useState(""),
+    [error, setError] = useState(""),
+    [notice, setNotice] = useState(""),
+    [deleting, setDeleting] = useState<string[] | null>(null),
+    [version, setVersion] = useState(0),
+    [blob, setBlob] = useState(""),
+    [previewBusy, setPreviewBusy] = useState(false),
+    [previewError, setPreviewError] = useState(false),
+    [previewVersion, setPreviewVersion] = useState(0),
+    [zoom, setZoom] = useState(1),
+    [rotation, setRotation] = useState(0);
+  const query = useQuery<{ items: Invoice[]; total: number }>({
+    queryKey: ["invoices", page, status],
+    queryFn: async () =>
+      (
+        await api.get("/invoices", {
+          params: { page, page_size: 15, status: status || undefined },
+        })
+      ).data,
+    refetchInterval: (q) =>
+      q.state.data?.items.some((i) => i.status === "PROCESSING") ? 4000 : false,
+  });
+  const detail = useQuery<Invoice>({
+    queryKey: ["invoice", selectedId],
+    queryFn: async () => (await api.get("/invoices/" + selectedId)).data,
+    enabled: !!selectedId,
+    refetchOnWindowFocus: false,
+    refetchInterval: (q) => q.state.data?.status === "PROCESSING" ? 4000 : false,
+  });
+  const list = query.data?.items || [];
+  useEffect(() => {
+    if (!selectedId && list.length) setSelectedId(list[0].id);
+  }, [list, selectedId]);
+  useEffect(() => {
+    let active = true,
+      url = "";
+    setBlob("");
+    setPreviewError(false);
+    setZoom(1);
+    setRotation(0);
+    if (!selectedId) return;
+    setPreviewBusy(true);
+    api
+      .get("/invoices/" + selectedId + "/file", { responseType: "blob" })
+      .then((res) => {
+        if (active) {
+          url = URL.createObjectURL(res.data);
+          setBlob(url);
+        }
+      })
+      .catch(() => {
+        if (active) setPreviewError(true);
+      })
+      .finally(() => {
+        if (active) setPreviewBusy(false);
+      });
+    return () => {
+      active = false;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [selectedId, previewVersion]);
+  const invalidate = async () => {
+    await Promise.all(
+      [
+        "invoices",
+        "invoice",
+        "accounts",
+        "transactions",
+        "dashboard",
+        "budgets",
+        "analytics",
+      ].map((key) => cache.invalidateQueries({ queryKey: [key] })),
+    );
+  };
+  const upload = async (files: FileList | null) => {
+    if (!files?.length || busy) return;
+    const valid = Array.from(files);
+    const unsupported = valid.find(
+      (f) =>
+        f.size > 10 * 1024 * 1024 || !/\.(jpe?g|png|webp|pdf)$/i.test(f.name),
+    );
+    if (unsupported) {
+      setError(
+        `Tệp “${unsupported.name}” không hợp lệ. Chỉ nhận JPG, PNG, WEBP, PDF tối đa 10 MB/tệp.`,
+      );
+      return;
+    }
+    setBusy("upload");
+    setError("");
+    setNotice("");
+    let count = 0;
+    try {
+      for (const file of valid) {
+        const data = new FormData();
+        data.append("file", file);
+        const res = await api.post("/invoices", data);
+        count++;
+        setSelectedId(res.data.id);
+      }
+      setStatus("");
+      setPage(1);
+      setChecked([]);
+      setNotice(`Đã tải ${count} hóa đơn. Chọn Quét AI để nhận diện nội dung.`);
+    } catch (e) {
+      setError(`Đã tải ${count}/${valid.length} tệp. ${errorMessage(e)}`);
+    } finally {
+      await cache.invalidateQueries({ queryKey: ["invoices"] });
+      setBusy("");
+      if (uploadInput.current) uploadInput.current.value = "";
+    }
+  };
+  const scan = async (ids: string[]) => {
+    if (!ids.length) return;
+    if (ids.length > 5) {
+      setError("Mỗi lần quét tối đa 5 hóa đơn.");
+      return;
+    }
+    setBusy("scan");
+    setError("");
+    setNotice("");
+    try {
+      if (ids.length === 1) {
+        await api.post("/invoices/" + ids[0] + "/ocr");
+        setNotice(
+          "Đã xếp hàng nhận diện. Kết quả sẽ tự cập nhật khi xử lý xong.",
+        );
+      } else {
+        const { data } = await api.post("/invoices/batch-ocr", {
+          invoice_ids: ids,
+        });
+        const failed = data.results.filter(
+          (r: { success: boolean }) => !r.success,
+        );
+        setNotice(
+          `Đã xếp hàng ${data.results.length - failed.length}/${data.results.length} hóa đơn.`,
+        );
+        if (failed.length)
+          setError(failed.map((r: { error: string }) => r.error).join("; "));
+      }
+      await invalidate();
+      setVersion((v) => v + 1);
+      setChecked([]);
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy("");
+    }
+  };
+  const confirm = async (payload: Record<string, unknown>) => {
+    if (!selectedId) return;
+    setBusy("confirm");
+    setError("");
+    setNotice("");
+    try {
+      await api.post("/invoices/" + selectedId + "/confirm", payload);
+      await invalidate();
+      setVersion((v) => v + 1);
+      setNotice("Đã xác nhận hóa đơn và cập nhật khoản chi trong tài khoản.");
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy("");
+    }
+  };
+  const remove = async () => {
+    if (!deleting) return;
+    setBusy("delete");
+    setError("");
+    try {
+      const { data } = await api.post("/invoices/batch-delete", {
+        invoice_ids: deleting,
+      });
+      const removedCurrent = deleting.includes(selectedId || "");
+      setChecked([]);
+      setDeleting(null);
+      await invalidate();
+      if (removedCurrent) setSelectedId(null);
+      setNotice(
+        `Đã xóa ${data.deleted} hóa đơn. Các giao dịch đã ghi nhận vẫn được giữ lại.`,
+      );
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy("");
+    }
+  };
+  const eligible = checked.filter((id) =>
+    list.some(
+      (i) => i.id === id && !["CONFIRMED", "PROCESSING"].includes(i.status),
+    ),
+  );
+  const inv = detail.data;
+  return (
+    <div className="cf-stack">
+      <PageHead
+        eyebrow="HÓA ĐƠN AI"
+        title="Từ hóa đơn đến khoản chi"
+        description="01 Tải lên · 02 Quét và kiểm tra · 03 Xác nhận giao dịch"
+        actions={
+          <>
+            <button
+              className="cf-btn"
+              onClick={() => query.refetch()}
+              disabled={!!busy}
+            >
+              <RefreshCw />
+              Làm mới
+            </button>
+            <button
+              className="cf-btn cf-btn-primary"
+              onClick={() => uploadInput.current?.click()}
+              disabled={!!busy}
+            >
+              <Upload />
+              {busy === "upload" ? "Đang tải…" : "Tải hóa đơn"}
+            </button>
+            <input
+              type="file"
+              ref={uploadInput}
+              accept=".jpg,.jpeg,.png,.webp,.pdf"
+              multiple
+              hidden
+              onChange={(e) => upload(e.target.files)}
+            />
+          </>
+        }
+      />
+      {error && <Alert onDismiss={() => setError("")}>{error}</Alert>}
+      {notice && <Alert kind="success" onDismiss={() => setNotice("")}>{notice}</Alert>}
+      <div
+        className="cf-ocr-drop"
+        onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("is-dragging"); }}
+        onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) e.currentTarget.classList.remove("is-dragging"); }}
+        onDrop={(e) => {
+          e.preventDefault();
+          e.currentTarget.classList.remove("is-dragging");
+          upload(e.dataTransfer.files);
+        }}
+      >
+        <Upload size={20} />
+        <span>Kéo thả hóa đơn vào đây, hoặc</span>
+        <button
+          className="cf-btn cf-btn-sm"
+          disabled={!!busy}
+          onClick={() => uploadInput.current?.click()}
+        >
+          Chọn tệp
+        </button>
+        <span className="cf-muted">JPG, PNG, WEBP, PDF · Tối đa 10 MB</span>
+      </div>
+      <div className="cf-ocr-grid">
+        <Panel className="cf-ocr-list" title="Tài liệu">
+          <div className="cf-panel-body" style={{ padding: 16 }}>
+            <Field label="Trạng thái">
+              <select
+                className="cf-input"
+                value={status}
+                disabled={!!busy}
+                onChange={(e) => {
+                  setStatus(e.target.value);
+                  setPage(1);
+                  setSelectedId(null);
+                  setChecked([]);
+                }}
+              >
+                <option value="">Tất cả hóa đơn</option>
+                {Object.entries(statuses).map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </Field>
           </div>
-          <button className="p-2 text-slate-400 hover:text-rose-600 transition-colors"><Trash2 className="w-5 h-5" /></button>
-        </div>
-
-        {selected ? (
-          <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-            {/* Form Area */}
-            <div className="w-full md:w-1/2 p-6 overflow-y-auto border-r border-slate-100">
-              <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 flex gap-3 mb-6">
-                <Sparkles className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="font-bold text-indigo-900 text-sm mb-1">Độ tin cậy khớp cao</h4>
-                  <p className="text-sm text-indigo-700/80 leading-relaxed">Hầu hết các trường được trích xuất thành công. Vui lòng kiểm tra các mục được làm nổi bật.</p>
-                </div>
-              </div>
-
-              <div className="space-y-5">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1.5">Tên Đơn vị bán</label>
-                  <input type="text" defaultValue={selected.vendor} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium text-slate-900" />
-                </div>
-
-                <div className="flex gap-4">
-                  <div className="flex-1">
-                    <label className="block text-xs font-bold text-slate-500 mb-1.5">Ngày</label>
-                    <div className="relative">
-                      <CalendarIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input type="text" defaultValue="2023-10-24" className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium text-slate-900" />
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-xs font-bold text-slate-500 mb-1.5">Thời gian</label>
-                    <input type="text" defaultValue={selected.time} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium text-slate-900" />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1.5">Danh mục</label>
-                  <div className="relative">
-                    <select className="w-full pl-3 pr-9 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium text-slate-900 appearance-none bg-white">
-                      <option>{selected.category || 'Chọn danh mục'}</option>
-                      <option>Bữa ăn & Giải trí</option>
-                      <option>Đi lại</option>
-                      <option>Thiết bị văn phòng</option>
-                    </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  </div>
-                </div>
-
-                <div className="flex gap-4">
-                  <div className="flex-1">
-                    <label className="block text-xs font-bold text-slate-500 mb-1.5">Tiền thuế</label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-medium">$</span>
-                      <input type="text" defaultValue={selected.tax?.toFixed(2)} className="w-full pl-7 pr-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium text-slate-900" />
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-xs font-bold text-slate-900 mb-1.5">Tổng số tiền</label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-900 font-bold">$</span>
-                      <input type="text" defaultValue={selected.amount?.toFixed(2)} className="w-full pl-7 pr-3 py-2 border-2 border-indigo-100 bg-indigo-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-slate-900 shadow-sm" />
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-1.5">Ghi chú (Tùy chọn)</label>
-                  <textarea rows={3} placeholder="Thêm mục đích kinh doanh..." className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-slate-900 resize-none"></textarea>
-                </div>
-              </div>
-
-              <div className="mt-8 flex gap-3">
-                <button className="px-4 py-2.5 border border-slate-200 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors">Hủy</button>
-                <button className="flex-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-colors shadow-md">
-                  <CheckCircle2 className="w-4 h-4" /> Xác nhận & Lưu
+          {checked.length > 0 && (
+            <div
+              className="cf-panel-body"
+              style={{ padding: 12, borderTop: "1px solid var(--cf-line)" }}
+            >
+              <div className="cf-row">
+                <strong style={{ fontSize: 13 }}>
+                  {checked.length} đã chọn
+                </strong>
+                <button
+                  className="cf-btn cf-btn-sm"
+                  disabled={!!busy || !eligible.length || eligible.length > 5}
+                  onClick={() => scan(eligible)}
+                >
+                  <ScanLine />
+                  Quét {eligible.length}/5
+                </button>
+                <button
+                  className="cf-icon-btn"
+                  disabled={!!busy}
+                  aria-label="Xóa các hóa đơn đã chọn"
+                  onClick={() => setDeleting(checked)}
+                >
+                  <Trash2 size={16} />
                 </button>
               </div>
             </div>
-
-            {/* Preview Area */}
-            <div className="w-full md:w-1/2 bg-slate-50 p-6 flex flex-col">
-              <div className="flex-1 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex items-center justify-center relative group cursor-crosshair">
-                {selected.image ? (
-                  <img src={selected.image} alt="Receipt Preview" className="max-w-full max-h-full object-contain" />
-                ) : (
-                  <div className="text-center text-slate-400">
-                    <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm font-medium">Không có hình ảnh xem trước</p>
-                  </div>
-                )}
-              </div>
-              <div className="mt-4 text-center">
-                <p className="text-xs font-medium text-slate-400 flex items-center justify-center gap-1.5">
-                  <Sparkles className="w-3 h-3" /> Di chuột qua hình ảnh để kiểm tra các hộp giới hạn OCR thô
-                </p>
-              </div>
+          )}
+          {query.isPending ? (
+            <Loading />
+          ) : query.isError ? (
+            <ErrorState retry={() => query.refetch()} />
+          ) : !list.length ? (
+            <Empty
+              title="Chưa có hóa đơn"
+              description="Tải ảnh hoặc PDF, tối đa 10 MB mỗi tệp."
+            />
+          ) : (
+            <div className="cf-ocr-documents">
+              {list.map((i) => (
+                <div
+                  key={i.id}
+                  className={`cf-ocr-document ${selectedId === i.id ? "selected" : ""}`}
+                >
+                  <input
+                    type="checkbox"
+                    aria-label={`Chọn ${i.original_filename}`}
+                    disabled={!!busy || i.status === "PROCESSING"}
+                    checked={checked.includes(i.id)}
+                    onChange={(e) =>
+                      setChecked((ids) =>
+                        e.target.checked
+                          ? [...ids, i.id]
+                          : ids.filter((id) => id !== i.id),
+                      )
+                    }
+                  />
+                  <button
+                    className="cf-ocr-document-button"
+                    disabled={!!busy}
+                    onClick={() => setSelectedId(i.id)}
+                  >
+                    <span
+                      style={{ display: "flex", gap: 10, alignItems: "center" }}
+                    >
+                      <FileText size={20} />
+                      <strong>{i.merchant_name || i.original_filename}</strong>
+                    </span>
+                    <span
+                      className="cf-row cf-between"
+                      style={{ marginTop: 12 }}
+                    >
+                      <Status value={i.status} />
+                      <span className="cf-number">
+                        {i.total_amount
+                          ? money(i.total_amount, i.currency)
+                          : "—"}
+                      </span>
+                    </span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <Pagination
+            page={page}
+            pageSize={15}
+            total={query.data?.total || 0}
+            onChange={(p) => {
+              if (busy) return;
+              setPage(p);
+              setSelectedId(null);
+              setChecked([]);
+            }}
+          />
+        </Panel>
+        <Panel
+          title="Kiểm tra thông tin"
+          action={inv && <Status value={inv.status} />}
+        >
+          {!selectedId ? (
+            <Empty
+              title="Chọn một hóa đơn"
+              description="Thông tin nhận diện sẽ xuất hiện ở đây."
+            />
+          ) : detail.isPending ? (
+            <Loading />
+          ) : detail.isError ? (
+            <ErrorState retry={() => detail.refetch()} />
+          ) : (
+            inv && (
+              <>
+                <div
+                  className="cf-panel-body cf-row cf-between"
+                  style={{ paddingBottom: 0 }}
+                >
+                  {!["CONFIRMED", "PROCESSING"].includes(inv.status) && (
+                    <button
+                      className="cf-btn cf-btn-primary cf-btn-sm"
+                      disabled={!!busy}
+                      onClick={() => scan([inv.id])}
+                    >
+                      <ScanLine />
+                      {busy === "scan"
+                        ? "Đang nhận diện…"
+                        : inv.status === "REVIEW_REQUIRED"
+                          ? "Quét lại"
+                          : "Quét AI"}
+                    </button>
+                  )}
+                  <button
+                    className="cf-btn cf-btn-ghost cf-btn-sm"
+                    disabled={!!busy || inv.status === "PROCESSING"}
+                    onClick={() => setDeleting([inv.id])}
+                  >
+                    <Trash2 />
+                    Xóa hóa đơn
+                  </button>
+                </div>
+                <InvoiceForm
+                  key={inv.id + ":" + inv.status + ":" + version}
+                  invoice={inv}
+                  busy={!!busy}
+                  onConfirm={confirm}
+                />
+              </>
+            )
+          )}
+        </Panel>
+        <Panel
+          title="Bản gốc"
+          className="cf-ocr-preview"
+          action={
+            <div className="cf-row" style={{ gap: 4 }}>
+              <button
+                className="cf-icon-btn"
+                disabled={!blob || inv?.mime_type === "application/pdf"}
+                aria-label="Thu nhỏ"
+                onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
+              >
+                <ZoomOut size={16} />
+              </button>
+              <button
+                className="cf-icon-btn"
+                disabled={!blob || inv?.mime_type === "application/pdf"}
+                aria-label="Phóng to"
+                onClick={() => setZoom((z) => Math.min(3, z + 0.25))}
+              >
+                <ZoomIn size={16} />
+              </button>
+              <button
+                className="cf-icon-btn"
+                disabled={!blob || inv?.mime_type === "application/pdf"}
+                aria-label="Xoay ảnh"
+                onClick={() => setRotation((r) => r + 90)}
+              >
+                <RotateCw size={16} />
+              </button>
+            </div>
+          }
+        >
+          {inv && <OcrSteps status={inv.status} />}
+          <div className={`cf-ocr-preview-body ${inv?.status === "PROCESSING" ? "is-processing" : ""}`}>
+            {!selectedId ? (
+              <Empty title="Chưa chọn tài liệu" />
+            ) : previewBusy ? (
+              <Loading />
+            ) : previewError ? (
+              <ErrorState retry={() => setPreviewVersion((v) => v + 1)} />
+            ) : blob ? (
+              inv?.mime_type === "application/pdf" ? (
+                <object
+                  data={blob}
+                  type="application/pdf"
+                  className="cf-pdf"
+                  aria-label="Bản gốc hóa đơn PDF"
+                >
+                  <a
+                    className="cf-btn"
+                    href={blob}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Mở PDF
+                  </a>
+                </object>
+              ) : (
+                <div className="cf-image-scroll">
+                  <img
+                    src={blob}
+                    alt={inv?.original_filename || "Bản gốc hóa đơn"}
+                    style={{
+                      width: `${zoom * 100}%`,
+                      maxWidth: "none",
+                      transform: `rotate(${rotation}deg)`,
+                      transformOrigin: "center",
+                    }}
+                  />
+                </div>
+              )
+            ) : null}
+          </div>
+          {blob && (
+            <div className="cf-panel-body">
+              <a
+                className="cf-btn cf-btn-sm"
+                href={blob}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <ExternalLink size={15} />
+                Mở bản gốc
+              </a>
+            </div>
+          )}
+        </Panel>
+      </div>
+      <p className="cf-muted" style={{ fontSize: 12 }}>
+        Nhận JPG, PNG, WEBP và PDF tối đa 10 MB/tệp. Mỗi lần quét hàng loạt tối
+        đa 5 hóa đơn.
+      </p>
+      {deleting && (
+        <Modal
+          title="Xóa hóa đơn"
+          onClose={() => setDeleting(null)}
+          busy={!!busy}
+        >
+          <div className="cf-form">
+            {error && <Alert onDismiss={() => setError("")}>{error}</Alert>}
+            <p>
+              Xóa vĩnh viễn {deleting.length} hóa đơn và tệp gốc? Các khoản chi
+              đã được ghi nhận vẫn được giữ lại trong sổ giao dịch.
+            </p>
+            <div className="cf-form-actions">
+              <button
+                className="cf-btn"
+                disabled={!!busy}
+                onClick={() => setDeleting(null)}
+              >
+                Hủy
+              </button>
+              <button
+                className="cf-btn cf-btn-danger"
+                disabled={!!busy}
+                onClick={remove}
+              >
+                {busy ? "Đang xóa…" : "Xóa hóa đơn"}
+              </button>
             </div>
           </div>
-        ) : (
-          <div className="flex-1 flex items-center justify-center text-slate-400 font-medium">
-            Chọn một hóa đơn bên trái để kiểm tra
-          </div>
-        )}
-      </div>
+        </Modal>
+      )}
     </div>
   );
 }

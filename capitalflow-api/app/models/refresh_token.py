@@ -1,3 +1,4 @@
+from sqlalchemy import Unicode, UnicodeText
 """
 RefreshToken model — quản lý phiên đăng nhập với Family Rotation.
 Thêm parent_token_id, revocation_reason, device_name, user_agent, last_used_at
@@ -25,12 +26,12 @@ class RefreshToken(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     # Lý do bị revoke (logout, reuse_attack, expired, admin_action...)
-    revocation_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    revocation_reason: Mapped[str | None] = mapped_column(Unicode(255), nullable=True)
 
     # Thông tin thiết bị — dùng cho trang "Quản lý phiên đăng nhập"
-    device_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    device_name: Mapped[str | None] = mapped_column(Unicode(150), nullable=True)
     ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
-    user_agent: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    user_agent: Mapped[str | None] = mapped_column(Unicode(1000), nullable=True)
     # Lần cuối token này được dùng để refresh
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 

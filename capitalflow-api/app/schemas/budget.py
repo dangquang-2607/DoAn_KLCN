@@ -1,3 +1,4 @@
+from typing import Literal
 from decimal import Decimal
 from datetime import date, datetime
 from uuid import UUID
@@ -11,7 +12,7 @@ class BudgetCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=150, description="Tên ngân sách")
     category_id: UUID | None = None
     amount_limit: Decimal = Field(..., gt=0, description="Hạn mức chi tiêu")
-    currency: str = Field(default="VND", max_length=3)
+    currency: Literal["VND"] = "VND"
     period_type: BudgetPeriod = BudgetPeriod.MONTHLY
     start_date: date
     end_date: date
@@ -21,7 +22,7 @@ class BudgetCreate(BaseModel):
 class BudgetUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=150)
     amount_limit: Decimal | None = Field(default=None, gt=0)
-    currency: str | None = Field(default=None, max_length=3)
+    currency: Literal["VND"] | None = None
     period_type: BudgetPeriod | None = None
     start_date: date | None = None
     end_date: date | None = None

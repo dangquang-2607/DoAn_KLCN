@@ -19,7 +19,7 @@ def verify_password(password: str, hashed_password: str) -> bool:
     return password_hash.verify(password, hashed_password)
 
 
-def create_access_token(user_id: str, role: str) -> str:
+def create_access_token(user_id: str, role: str, token_version: int = 0) -> str:
     """Tạo JWT access token với thời hạn theo config."""
     expire = datetime.now(timezone.utc) + timedelta(
         minutes=settings.access_token_expire_minutes
@@ -28,6 +28,7 @@ def create_access_token(user_id: str, role: str) -> str:
         "sub": user_id,
         "role": role,
         "type": "access",
+        "ver": token_version,
         "exp": expire,
     }
     return jwt.encode(
@@ -39,8 +40,13 @@ def create_access_token(user_id: str, role: str) -> str:
 
 def decode_token(token: str) -> dict:
     """Decode và validate JWT. Raise jwt.InvalidTokenError nếu lỗi."""
-    return jwt.decode(
+    payload = jwt.decode(
         token,
         settings.jwt_secret_key,
         algorithms=[settings.jwt_algorithm],
+        options={"require": ["sub", "exp", "type", "ver"]},
     )
+
+    if payload.get("type") != "access" or type(payload.get("ver")) is not int:
+        raise jwt.InvalidTokenError("Invalid access token claims")
+    return payload
