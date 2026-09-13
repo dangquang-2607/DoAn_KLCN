@@ -12,7 +12,7 @@ Hệ thống đã thiết lập sẵn tài khoản Quản trị viên (Admin) m�
 | Cổng dịch vụ | Địa chỉ URL | Email đăng nhập | Mật khẩu mặc định | Quyền hạn |
 | :--- | :--- | :--- | :--- | :--- |
 | **Bảng điều khiển Admin** | [http://localhost:5173](http://localhost:5173) | `admin@capitalflow.vn` *(hoặc `admin@cashflow.vn`)* | `CapitalFlow@2026` | **Quản trị viên toàn quyền (ADMIN)** |
-| **Cổng người dùng User** | [http://localhost:3010](http://localhost:3010) | `admin@capitalflow.vn` | `CapitalFlow@2026` | Đăng nhập được cả 2 cổng |
+| **Cổng người dùng User** | [http://localhost:3010](http://localhost:3010) |  |  |  |
 
 *💡 Bạn cũng có thể bấm nút **"Đăng ký tài khoản mới"** tại cổng User để trải nghiệm đầy đủ quy trình của người dùng thông thường.*
 
