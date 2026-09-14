@@ -8,9 +8,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
 
 WORKDIR /app
 
+# 1. Install dependencies first (layer cache)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+# 2. Copy only runtime artifacts
+# scripts/ docs/ tests/ dummy SQL do NOT belong in production image
+COPY app/ ./app/
+COPY alembic/ ./alembic/
+COPY alembic.ini .
+COPY migrations/ ./migrations/
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

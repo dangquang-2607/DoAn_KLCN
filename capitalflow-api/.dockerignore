@@ -7,3 +7,19 @@ __pycache__
 uploads
 email_previews
 .git
+
+# Dev-only scripts and generated code — not needed at runtime
+scripts/
+tests/
+docs/
+
+# IDE / editor configs
+.vscode/
+.idea/
+pyrightconfig.json
+pytest.ini
+
+# Docs and summaries
+*.md
+index_summary.md
+technical_manifest.md
