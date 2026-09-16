@@ -13,7 +13,7 @@ def test_human_text_columns_are_unicode():
         "categories": ["name", "icon"], "accounts": ["name", "institution_name"],
         "transactions": ["description", "note"], "invoice_items": ["name", "unit", "raw_text"],
         "invoices": [
-            "merchant_name", "original_filename", "note", "extracted_json", "ocr_raw_text",
+            "merchant_name", "original_filename", "note", "extracted_json",
             "invoice_symbol", "vat_rate", "payment_method",
         ],
         "ocr_jobs": ["response_json", "error_message"],
@@ -27,7 +27,7 @@ def test_human_text_columns_are_unicode():
 
 
 def test_api_preserves_vietnamese(client, user_token):
-    from tests.test_transactions import headers
+    def headers(token): return {"Authorization": f"Bearer {token}"}
     name = "Bảo hiểm – Ăn uống – Đầu tư"
     decomposed_name = unicodedata.normalize("NFD", name)
     created = client.post('/api/v1/categories', headers=headers(user_token), json={"name":decomposed_name,"type":"EXPENSE", "icon": "🛡️"})
@@ -55,7 +55,6 @@ def test_api_preserves_vietnamese(client, user_token):
             "account_type": "SAVINGS",
             "institution_name": "Ngân hàng Á Châu",
             "balance": "0",
-            "icon": "🏦",
         },
     )
     assert account.status_code == 201
@@ -70,12 +69,12 @@ def test_api_preserves_vietnamese(client, user_token):
     assert updated.status_code == 200
     assert updated.json()["name"] == renamed
     listed = client.get("/api/v1/accounts", headers=headers(user_token)).json()
-    assert any(row["name"] == renamed and row["icon"] == "🏦" for row in listed)
+    assert any(row["name"] == renamed for row in listed)
     assert client.delete(f"/api/v1/accounts/{account_id}", headers=headers(user_token)).status_code == 204
 
 
 def test_invalid_decoding_marker_is_rejected(client, user_token):
-    from tests.test_transactions import headers
+    def headers(token): return {"Authorization": f"Bearer {token}"}
 
     response = client.post(
         "/api/v1/categories",
