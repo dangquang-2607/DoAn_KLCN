@@ -1,5 +1,5 @@
 "use client";
-import { useMotionAllowed } from "@/components/Motion";
+import { useMotionAllowed } from "@/hooks/useMotionAllowed";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -15,6 +15,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import { Download } from "lucide-react";
 import api from "@/lib/api";
 import {
   PageHead,
@@ -27,7 +28,9 @@ import {
 } from "@/components/ui";
 import { money } from "@/lib/finance";
 interface Analytics {
+  period: { start_date: string; end_date: string };
   summary: { income: number; expense: number; net: number };
+  previous_summary: { income: number; expense: number; net: number };
   expense_by_category: Record<string, number>;
   trend: Array<{ month: string; income: number; expense: number }>;
 }
@@ -45,31 +48,50 @@ export default function Analytics() {
     () =>
       `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`,
   );
+  const [mode, setMode] = useState<"MONTH" | "CUSTOM">("MONTH");
+  const [startDate, setStartDate] = useState(() => `${new Date().getFullYear()}-01-01`);
+  const [endDate, setEndDate] = useState(() => new Date().toISOString().slice(0, 10));
   const query = useQuery<Analytics>({
-    queryKey: ["analytics", period],
+    queryKey: ["analytics", mode, period, startDate, endDate],
     queryFn: async () =>
       (
         await api.get("/analytics", {
-          params: {
-            year: Number(period.slice(0, 4)),
-            month: Number(period.slice(5)),
-          },
+          params: mode === "MONTH" ? {
+            year: Number(period.slice(0, 4)), month: Number(period.slice(5)),
+          } : { start_date: startDate, end_date: endDate },
         })
       ).data,
-    enabled: !!period,
+    enabled: mode === "MONTH" ? !!period : Boolean(startDate && endDate && startDate <= endDate),
   });
   const data = query.data;
   const parts = Object.entries(data?.expense_by_category || {}).map(
     ([name, value]) => ({ name, value }),
   );
+  const periodLabel = data ? `${data.period.start_date} → ${data.period.end_date}` : period;
+  const exportReport = async () => {
+    if (!data) return;
+    const response = await api.get("/analytics/export.csv", {
+      params: { start_date: data.period.start_date, end_date: data.period.end_date },
+      responseType: "blob",
+    });
+    const url = URL.createObjectURL(response.data);
+    const link = document.createElement("a");
+    link.href = url; link.download = `bao-cao-${data.period.start_date}-${data.period.end_date}.csv`; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
   return (
     <div className="cf-stack">
       <PageHead
         eyebrow="BÁO CÁO"
         title="Phân tích tài chính"
         description="Hiểu cơ cấu chi tiêu và xu hướng dòng tiền."
-        actions={
-          <Field label="Kỳ báo cáo">
+        actions={<>
+          <Field label="Phạm vi">
+            <select className="cf-input" value={mode} onChange={(e) => setMode(e.target.value as "MONTH" | "CUSTOM")}>
+              <option value="MONTH">Theo tháng</option><option value="CUSTOM">Khoảng ngày</option>
+            </select>
+          </Field>
+          {mode === "MONTH" ? <Field label="Kỳ báo cáo">
             <input
               className="cf-input"
               type="month"
@@ -79,8 +101,9 @@ export default function Analytics() {
                 if (e.target.value) setPeriod(e.target.value);
               }}
             />
-          </Field>
-        }
+          </Field> : <><Field label="Từ ngày"><input className="cf-input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></Field><Field label="Đến ngày"><input className="cf-input" type="date" min={startDate} value={endDate} onChange={(e) => setEndDate(e.target.value)} /></Field></>}
+          <button className="cf-btn" disabled={!data} onClick={exportReport}><Download />Xuất CSV</button>
+        </>}
       />
       {query.isPending ? (
         <Loading />
@@ -93,12 +116,12 @@ export default function Analytics() {
               <Stat
                 label="Tổng thu nhập"
                 value={money(data.summary.income)}
-                note={`Kỳ ${period}`}
+                note={`Kỳ ${periodLabel} · kỳ trước ${money(data.previous_summary.income)}`}
               />
               <Stat
                 label="Tổng chi tiêu"
                 value={money(data.summary.expense)}
-                note={`Kỳ ${period}`}
+                note={`Kỳ ${periodLabel} · kỳ trước ${money(data.previous_summary.expense)}`}
               />
               <Stat
                 label="Dòng tiền thuần"
@@ -170,7 +193,7 @@ export default function Analytics() {
               </Panel>
               <Panel
                 title="Cơ cấu chi tiêu"
-                description={`Theo danh mục · ${period}`}
+                description={`Theo danh mục · ${periodLabel}`}
               >
                 {!parts.length ? (
                   <Empty title="Chưa có khoản chi trong kỳ" />

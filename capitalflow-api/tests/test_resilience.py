@@ -54,6 +54,7 @@ def test_expired_worker_cannot_complete_new_lease(db):
     first = claim(db)
     job.lease_until = now() - timedelta(seconds=1); db.commit()
     second = claim(db)
+    assert first is not None and second is not None
     assert first[1] != second[1]
     assert owns(db, job.id, first[1]) is None
     assert owns(db, job.id, second[1]) is not None

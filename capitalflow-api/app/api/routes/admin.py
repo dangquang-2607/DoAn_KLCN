@@ -6,10 +6,12 @@ from datetime import date, datetime, timedelta, timezone
 from uuid import UUID
 import uuid
 import secrets
+from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
-from pydantic import BaseModel, EmailStr
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, Response, status as http_status
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import func, select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_db, require_admin
@@ -17,16 +19,21 @@ from app.core.config import settings
 from app.core.security import hash_password
 from app.models.audit_log import AuditLog
 from app.models.invoice import Invoice
+from app.models.category import Category
+from app.models.budget import Budget
 from app.models.ocr_job import OcrJob
 from app.models.transaction import Transaction
 from app.models.user import User, UserRole
 from app.models.refresh_token import RefreshToken
 from app.models.email_log import EmailLog
 from app.models.system_setting import SystemSetting
-from app.services.email_service import EmailService
-from app.services.jobs import enqueue_email
+from app.models.user_deletion import UserDeletionFile, UserDeletionRequest
+from app.services.email_service import EmailService, SMTPConfig
+from app.services.jobs import enqueue, enqueue_email
 from app.services.sessions import revoke_sessions
 from app.core.secrets_store import seal, unseal
+from app.services.user_deletion import deleted_email_alias, email_fingerprint, original_email
+from app.schemas.category import AdminCategoryCreate, CategoryOut, CategoryReorder, CategoryUpdate
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -50,6 +57,44 @@ class BulkBanRequest(BaseModel):
 
 class BulkUnbanRequest(BaseModel):
     user_ids: list[UUID]
+
+class UserDeleteRequest(BaseModel):
+    mode: Literal["soft", "hard"] = "soft"
+    reason: str = Field(min_length=3, max_length=500)
+    release_email: bool = True
+    confirmation: str | None = Field(default=None, max_length=255)
+
+    @field_validator("reason")
+    @classmethod
+    def normalize_reason(cls, value: str) -> str:
+        value = value.strip()
+        if len(value) < 3:
+            raise ValueError("Lý do phải có ít nhất 3 ký tự")
+        return value
+
+class BulkDeleteRequest(BaseModel):
+    user_ids: list[UUID] = Field(min_length=1, max_length=100)
+    reason: str = Field(min_length=3, max_length=500)
+    release_email: bool = True
+
+    @field_validator("reason")
+    @classmethod
+    def normalize_reason(cls, value: str) -> str:
+        value = value.strip()
+        if len(value) < 3:
+            raise ValueError("Lý do phải có ít nhất 3 ký tự")
+        return value
+
+class RestoreUserRequest(BaseModel):
+    reason: str = Field(default="Khôi phục bởi Quản trị viên", min_length=3, max_length=500)
+
+    @field_validator("reason")
+    @classmethod
+    def normalize_reason(cls, value: str) -> str:
+        value = value.strip()
+        if len(value) < 3:
+            raise ValueError("Lý do phải có ít nhất 3 ký tự")
+        return value
 
 class SendTestEmailRequest(BaseModel):
     recipient_email: EmailStr
@@ -80,9 +125,10 @@ def admin_overview(
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
-    total_users = db.scalar(select(func.count(User.id))) or 0
-    active_users = db.scalar(select(func.count(User.id)).where(User.is_active == True)) or 0
-    banned_users = db.scalar(select(func.count(User.id)).where(User.is_active == False)) or 0
+    total_users = db.scalar(select(func.count(User.id)).where(User.is_deleted == False)) or 0
+    active_users = db.scalar(select(func.count(User.id)).where(User.is_deleted == False, User.is_active == True)) or 0
+    banned_users = db.scalar(select(func.count(User.id)).where(User.is_deleted == False, User.is_active == False)) or 0
+    deleted_users = db.scalar(select(func.count(User.id)).where(User.is_deleted == True)) or 0
 
     total_invoices = db.scalar(select(func.count(Invoice.id))) or 0
     completed_invoices = (
@@ -104,6 +150,7 @@ def admin_overview(
             "total": total_users,
             "active": active_users,
             "banned": banned_users,
+            "deleted": deleted_users,
         },
         "invoices": {
             "total": total_invoices,
@@ -124,17 +171,23 @@ def _iso_utc(dt):
     s = dt.isoformat()
     return s if s.endswith("Z") or "+" in s else s + "Z"
 
-def _user_out(u: User) -> dict:
+def _user_out(u: User, deletion: UserDeletionRequest | None = None) -> dict:
+    display_email = original_email(u) if u.is_deleted else u.email
     return {
         "id": str(u.id),
-        "email": u.email,
+        "email": display_email,
         "full_name": u.full_name,
         "role": u.role.value if hasattr(u.role, "value") else u.role,
         "is_active": u.is_active,
+        "is_deleted": u.is_deleted,
+        "deletion_status": u.deletion_status,
+        "deleted_at": _iso_utc(u.deleted_at),
+        "is_system_account": u.is_system_account,
         "must_change_password": getattr(u, 'must_change_password', False),
         "created_at": _iso_utc(u.created_at),
         "last_login_at": _iso_utc(u.last_login_at),
         "last_active_at": _iso_utc(getattr(u, 'last_active_at', None)),
+        "deletion": _deletion_request_out(deletion) if deletion else None,
     }
 
 
@@ -148,21 +201,37 @@ def list_users(
     page_size: int = Query(20, ge=1, le=100, description="Số bản ghi mỗi trang"),
     search: str | None = Query(None, description="Tìm theo email hoặc họ tên"),
     role: UserRole | None = Query(None, description="Lọc theo vai trò (USER / ADMIN)"),
-    status: str | None = Query(None, description="Lọc theo trạng thái (active / banned)"),
+    status: str | None = Query(None, pattern="^(active|banned|deleted|purge_pending)$", description="Lọc theo trạng thái"),
+    include_deleted: bool = Query(False, description="Bao gồm tài khoản đã xóa"),
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
     q = select(User)
 
+    if status == "deleted":
+        q = q.where(User.is_deleted == True)
+    elif status == "purge_pending":
+        q = q.where(User.deletion_status == "PURGE_PENDING")
+    elif not include_deleted:
+        q = q.where(User.is_deleted == False)
+
     if search:
-        term = f"%{search}%"
-        q = q.where((User.email.ilike(term)) | (User.full_name.ilike(term)))
+        clean_search = search.strip()
+        term = f"%{clean_search}%"
+        search_predicate = (User.email.ilike(term)) | (User.full_name.ilike(term))
+        if "@" in clean_search:
+            search_predicate = search_predicate | User.id.in_(
+                select(UserDeletionRequest.target_user_id).where(
+                    UserDeletionRequest.target_email_hash == email_fingerprint(clean_search)
+                )
+            )
+        q = q.where(search_predicate)
     if role:
         q = q.where(User.role == role)
     if status == "active":
-        q = q.where(User.is_active == True)
+        q = q.where(User.is_deleted == False, User.is_active == True)
     elif status == "banned":
-        q = q.where(User.is_active == False)
+        q = q.where(User.is_deleted == False, User.is_active == False)
 
     total = db.scalar(select(func.count()).select_from(q.subquery()))
     users = db.scalars(
@@ -170,9 +239,18 @@ def list_users(
         .offset((page - 1) * page_size)
         .limit(page_size)
     ).all()
+    latest_deletions = {}
+    if users:
+        deletion_rows = db.scalars(
+            select(UserDeletionRequest)
+            .where(UserDeletionRequest.target_user_id.in_([u.id for u in users]))
+            .order_by(UserDeletionRequest.created_at.desc(), UserDeletionRequest.id.desc())
+        ).all()
+        for deletion in deletion_rows:
+            latest_deletions.setdefault(deletion.target_user_id, deletion)
 
     return {
-        "items": [_user_out(u) for u in users],
+        "items": [_user_out(u, latest_deletions.get(u.id)) for u in users],
         "total": total,
         "page": page,
         "page_size": page_size,
@@ -200,7 +278,13 @@ def get_user(
         select(func.count(Invoice.id)).where(Invoice.user_id == user_id)
     )
 
-    data = _user_out(user)
+    deletion = db.scalar(
+        select(UserDeletionRequest)
+        .where(UserDeletionRequest.target_user_id == user_id)
+        .order_by(UserDeletionRequest.created_at.desc(), UserDeletionRequest.id.desc())
+        .limit(1)
+    )
+    data = _user_out(user, deletion)
     data["stats"] = {
         "transactions_count": tx_count,
         "invoices_count": inv_count,
@@ -224,7 +308,7 @@ def admin_create_user(
     if existing:
         raise HTTPException(status_code=400, detail="Địa chỉ email này đã được sử dụng trong hệ thống.")
 
-    role_str = str(payload.role).upper()
+    role_str = payload.role.upper()
     role_enum = UserRole.ADMIN if role_str == "ADMIN" else UserRole.USER
 
     # Tạo mật khẩu tạm thời nếu không truyền vào
@@ -263,6 +347,7 @@ def admin_create_user(
         new_user.full_name or "Thành viên mới",
         raw_password,
         role_str,
+        owner_user_id=new_user.id,
     )
     db.commit()
 
@@ -291,6 +376,7 @@ def admin_reset_user_password(
     target_user = _locked_user(db, user_id)
     if not target_user:
         raise HTTPException(status_code=404, detail="Không tìm thấy người dùng.")
+    _ensure_not_deleted(target_user)
 
     new_temp_pass = f"Pass@{secrets.token_hex(3).upper()}!2026"
     target_user.password_hash = hash_password(new_temp_pass)
@@ -311,6 +397,7 @@ def admin_reset_user_password(
         target_user.email,
         target_user.full_name or "Quý khách",
         new_temp_pass,
+        owner_user_id=target_user.id,
     )
     db.commit()
 
@@ -334,7 +421,8 @@ def ban_user(
     user = _locked_user(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="Không tìm thấy người dùng")
-    if user.role == UserRole.ADMIN or user.email in ["admin@capitalflow.vn", "admin@cashflow.vn"]:
+    _ensure_not_deleted(user)
+    if _is_protected_account(user):
         raise HTTPException(status_code=400, detail="Không thể khóa tài khoản Quản trị viên")
 
     user.is_active = False
@@ -346,7 +434,8 @@ def ban_user(
         EmailService.send_account_banned_email,
         user.email,
         user.full_name or "Quý khách",
-        "Tài khoản bị tạm ngưng bởi Quản trị viên"
+        "Tài khoản bị tạm ngưng bởi Quản trị viên",
+        owner_user_id=user.id,
     )
     db.commit()
 
@@ -367,6 +456,7 @@ def unban_user(
     user = _locked_user(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="Không tìm thấy người dùng")
+    _ensure_not_deleted(user)
 
     user.is_active = True
     _write_audit(db, admin.id, "UNBAN_USER", "user", str(user_id))
@@ -375,7 +465,8 @@ def unban_user(
     enqueue_email(db,
         EmailService.send_account_unbanned_email,
         user.email,
-        user.full_name or "Quý khách"
+        user.full_name or "Quý khách",
+        owner_user_id=user.id,
     )
     db.commit()
 
@@ -398,7 +489,8 @@ def update_user_role(
     if not user:
         raise HTTPException(status_code=404, detail="Không tìm thấy người dùng")
 
-    if user.email in ["admin@capitalflow.vn", "admin@cashflow.vn"]:
+    _ensure_not_deleted(user)
+    if user.is_system_account:
         raise HTTPException(status_code=400, detail="Không thể thay đổi vai trò của System Admin")
 
     if user.id == admin.id:
@@ -412,7 +504,8 @@ def update_user_role(
         EmailService.send_role_updated_email,
         user.email,
         user.full_name or "Quý khách",
-        payload.role.value
+        payload.role.value,
+        owner_user_id=user.id,
     )
     db.commit()
 
@@ -433,7 +526,7 @@ def bulk_ban_users(
     banned_ids = []
     for uid in sorted(set(payload.user_ids), key=str):
         u = _locked_user(db, uid)
-        if u and u.id != admin.id and u.email not in ["admin@capitalflow.vn", "admin@cashflow.vn"] and u.role != UserRole.ADMIN:
+        if u and not u.is_deleted and u.id != admin.id and not _is_protected_account(u):
             u.is_active = False
             _revoke_user_sessions(db, u)
             _write_audit(db, admin.id, "BULK_BAN_USER", "user", str(uid))
@@ -442,7 +535,8 @@ def bulk_ban_users(
                 EmailService.send_account_banned_email,
                 u.email,
                 u.full_name or "Quý khách",
-                payload.reason
+                payload.reason,
+                owner_user_id=u.id,
             )
     db.commit()
     return {"success": True, "banned_count": len(banned_ids), "banned_ids": banned_ids}
@@ -462,17 +556,484 @@ def bulk_unban_users(
     unbanned_ids = []
     for uid in sorted(set(payload.user_ids), key=str):
         u = _locked_user(db, uid)
-        if u and u.id != admin.id:
+        if u and not u.is_deleted and u.id != admin.id:
             u.is_active = True
             _write_audit(db, admin.id, "BULK_UNBAN_USER", "user", str(uid))
             unbanned_ids.append(str(uid))
             enqueue_email(db,
                 EmailService.send_account_unbanned_email,
                 u.email,
-                u.full_name or "Quý khách"
+                u.full_name or "Quý khách",
+                owner_user_id=u.id,
             )
     db.commit()
     return {"success": True, "unbanned_count": len(unbanned_ids), "unbanned_ids": unbanned_ids}
+
+
+def _deletion_request_out(request: UserDeletionRequest) -> dict:
+    return {
+        "id": str(request.id),
+        "user_id": str(request.target_user_id),
+        "mode": request.mode,
+        "status": request.status,
+        "checkpoint": request.purge_checkpoint,
+        "file_total": request.file_total,
+        "files_deleted": request.files_deleted,
+        "error_code": request.error_code,
+        "created_at": _iso_utc(request.created_at),
+        "updated_at": _iso_utc(request.updated_at),
+        "completed_at": _iso_utc(request.completed_at),
+    }
+
+
+# ─────────────────────────────────────────────────────────────
+# SYSTEM CATEGORIES
+# ─────────────────────────────────────────────────────────────
+
+def _global_category(db: Session, category_id: UUID, *, lock: bool = False) -> Category:
+    query = select(Category).where(
+        Category.id == category_id,
+        Category.owner_user_id.is_(None),
+    )
+    if lock:
+        query = query.with_hint(
+            Category, "WITH (UPDLOCK, ROWLOCK)", dialect_name="mssql"
+        ).execution_options(populate_existing=True)
+    category = db.scalar(query)
+    if not category:
+        raise HTTPException(status_code=404, detail="Không tìm thấy danh mục hệ thống")
+    return category
+
+
+def _commit_category(db: Session) -> None:
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Danh mục hệ thống cùng tên và loại đã tồn tại",
+        ) from exc
+
+
+@router.get("/categories", response_model=list[CategoryOut])
+def list_system_categories(
+    category_type: str | None = Query(default=None, alias="type", pattern="^(INCOME|EXPENSE)$"),
+    include_inactive: bool = True,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    query = select(Category).where(Category.owner_user_id.is_(None))
+    if category_type:
+        query = query.where(Category.type == category_type)
+    if not include_inactive:
+        query = query.where(Category.is_active == True)
+    return db.scalars(query.order_by(Category.type, Category.sort_order, Category.name)).all()
+
+
+@router.post("/categories", response_model=CategoryOut, status_code=201)
+def create_system_category(
+    payload: AdminCategoryCreate,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    values = payload.model_dump()
+    if "sort_order" not in payload.model_fields_set:
+        current_max = db.scalar(
+            select(func.max(Category.sort_order)).where(
+                Category.owner_user_id.is_(None), Category.type == payload.type
+            )
+        )
+        values["sort_order"] = int(current_max or 0) + 10
+    category = Category(owner_user_id=None, **values)
+    db.add(category)
+    _write_audit(db, admin.id, "CATEGORY_CREATE", "category", str(category.id))
+    _commit_category(db)
+    db.refresh(category)
+    return category
+
+
+@router.patch("/categories/{category_id}", response_model=CategoryOut)
+def update_system_category(
+    category_id: UUID,
+    payload: CategoryUpdate,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    category = _global_category(db, category_id, lock=True)
+    values = payload.model_dump(exclude_unset=True)
+    if any(values.get(key, True) is None for key in ("name", "type", "sort_order", "is_active")):
+        raise HTTPException(status_code=422, detail="Trường bắt buộc không được null")
+    if values.get("type", category.type) != category.type:
+        for model in (Transaction, Budget, Invoice):
+            if db.scalar(select(model.id).where(model.category_id == category.id).limit(1)):
+                raise HTTPException(
+                    status_code=409,
+                    detail="Không thể đổi loại danh mục hệ thống đã được sử dụng",
+                )
+    for key, value in values.items():
+        setattr(category, key, value)
+    _write_audit(db, admin.id, "CATEGORY_UPDATE", "category", str(category.id))
+    _commit_category(db)
+    db.refresh(category)
+    return category
+
+
+@router.put("/categories/reorder", response_model=list[CategoryOut])
+def reorder_system_categories(
+    payload: CategoryReorder,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    categories = db.scalars(
+        select(Category)
+        .where(Category.owner_user_id.is_(None), Category.type == payload.type)
+        .with_hint(Category, "WITH (UPDLOCK, ROWLOCK)", dialect_name="mssql")
+        .execution_options(populate_existing=True)
+    ).all()
+    by_id = {category.id: category for category in categories}
+    if set(payload.ordered_ids) != set(by_id):
+        raise HTTPException(
+            status_code=422,
+            detail="Danh sách sắp xếp phải chứa đầy đủ danh mục của loại đã chọn",
+        )
+    for index, category_id in enumerate(payload.ordered_ids, start=1):
+        by_id[category_id].sort_order = index * 10
+    _write_audit(db, admin.id, "CATEGORY_REORDER", "category")
+    db.commit()
+    return [by_id[category_id] for category_id in payload.ordered_ids]
+
+
+def _validate_deletion_target(target: User, admin: User) -> None:
+    if target.id == admin.id:
+        raise HTTPException(status_code=400, detail="Bạn không thể tự xóa tài khoản của chính mình")
+    if _is_protected_account(target):
+        raise HTTPException(status_code=400, detail="Không thể xóa tài khoản Quản trị viên hoặc tài khoản hệ thống")
+
+
+def _apply_soft_delete(
+    db: Session,
+    target: User,
+    admin: User,
+    reason: str,
+    release_email: bool,
+) -> UserDeletionRequest:
+    _validate_deletion_target(target, admin)
+    if target.is_deleted:
+        raise HTTPException(status_code=409, detail="Tài khoản đã ở trạng thái xóa")
+    timestamp = datetime.now(timezone.utc)
+    email = target.email
+    target.pre_delete_is_active = target.is_active
+    target.email_before_delete_sealed = seal(email)
+    target.email = deleted_email_alias(target.id) if release_email else email
+    target.is_active = False
+    target.is_deleted = True
+    target.deletion_status = "SOFT_DELETED"
+    target.deleted_at = timestamp
+    target.deleted_by = admin.id
+    _revoke_user_sessions(db, target, "admin_soft_delete")
+
+    request = UserDeletionRequest(
+        id=uuid.uuid4(),
+        target_user_id=target.id,
+        requested_by=admin.id,
+        mode="soft",
+        status="SOFT_DELETED",
+        purge_checkpoint="COMPLETE",
+        reason=reason,
+        target_email_hash=email_fingerprint(email),
+        target_email_sealed=seal(email),
+        completed_at=timestamp,
+    )
+    db.add(request)
+    _write_audit(db, admin.id, "SOFT_DELETE_USER", "user", str(target.id))
+    enqueue_email(
+        db,
+        EmailService.send_account_deleted_email,
+        email,
+        target.full_name or "Quý khách",
+        "soft",
+        reason,
+        dedupe_key=f"soft-delete-notice:{request.id}",
+        owner_user_id=target.id,
+    )
+    return request
+
+
+@router.delete(
+    "/users/{user_id}",
+    summary="Xóa mềm hoặc yêu cầu xóa vĩnh viễn người dùng",
+)
+def delete_user(
+    user_id: UUID,
+    payload: UserDeleteRequest,
+    response: Response,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    target = _locked_user(db, user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="Không tìm thấy người dùng")
+    _validate_deletion_target(target, admin)
+
+    if payload.mode == "soft":
+        request = _apply_soft_delete(db, target, admin, payload.reason, payload.release_email)
+        db.commit()
+        db.refresh(request)
+        return {
+            "message": "Đã xóa mềm tài khoản và thu hồi toàn bộ phiên đăng nhập",
+            "deletion": _deletion_request_out(request),
+        }
+
+    if target.deletion_status == "PURGE_PENDING":
+        raise HTTPException(status_code=409, detail="Yêu cầu xóa vĩnh viễn đang được xử lý")
+    try:
+        email = original_email(target, strict=True)
+    except ValueError:
+        raise HTTPException(status_code=409, detail="Không thể đọc email gốc để xác nhận xóa")
+    confirmation = (payload.confirmation or "").strip()
+    valid_phrase = confirmation.casefold() in {"xóa vĩnh viễn", "xoa vinh vien"}
+    if confirmation.casefold() != email.casefold() and not valid_phrase:
+        raise HTTPException(status_code=422, detail="Nội dung xác nhận xóa vĩnh viễn không khớp")
+
+    timestamp = datetime.now(timezone.utc)
+    if not target.is_deleted:
+        target.pre_delete_is_active = target.is_active
+        target.email_before_delete_sealed = seal(email)
+    target.email = deleted_email_alias(target.id)
+    target.is_active = False
+    target.is_deleted = True
+    target.deletion_status = "PURGE_PENDING"
+    target.deleted_at = timestamp
+    target.deleted_by = admin.id
+    _revoke_user_sessions(db, target, "admin_hard_delete")
+
+    request = UserDeletionRequest(
+        id=uuid.uuid4(),
+        target_user_id=target.id,
+        requested_by=admin.id,
+        mode="hard",
+        status="PENDING",
+        purge_checkpoint="REQUESTED",
+        reason=payload.reason,
+        target_email_hash=email_fingerprint(email),
+        target_email_sealed=seal(email),
+    )
+    db.add(request)
+    db.flush()
+    _write_audit(db, admin.id, "HARD_DELETE_USER_REQUESTED", "user", str(target.id))
+    enqueue_email(
+        db,
+        EmailService.send_account_deleted_email,
+        email,
+        target.full_name or "Quý khách",
+        "hard",
+        payload.reason,
+        dedupe_key=f"hard-delete-notice:{request.id}",
+    )
+    enqueue(
+        db,
+        "USER_PURGE",
+        {"request_id": str(request.id), "user_id": str(target.id)},
+        f"user-purge:{request.id}",
+        owner_user_id=target.id,
+    )
+    db.commit()
+    db.refresh(request)
+    response.status_code = http_status.HTTP_202_ACCEPTED
+    return {
+        "message": "Đã khóa tài khoản; worker đang xóa dữ liệu theo checkpoint",
+        "deletion": _deletion_request_out(request),
+    }
+
+
+@router.post(
+    "/users/bulk-delete",
+    summary="Xóa mềm nhiều tài khoản",
+)
+def bulk_delete_users(
+    payload: BulkDeleteRequest,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    deleted_ids = []
+    skipped_ids = []
+    for user_id in sorted(set(payload.user_ids), key=str):
+        target = _locked_user(db, user_id)
+        if not target or target.id == admin.id or _is_protected_account(target) or target.is_deleted:
+            skipped_ids.append(str(user_id))
+            continue
+        _apply_soft_delete(db, target, admin, payload.reason, payload.release_email)
+        deleted_ids.append(str(user_id))
+    db.commit()
+    return {
+        "success": True,
+        "deleted_count": len(deleted_ids),
+        "deleted_ids": deleted_ids,
+        "skipped_ids": skipped_ids,
+    }
+
+
+@router.post(
+    "/users/{user_id}/restore",
+    summary="Khôi phục tài khoản đã xóa mềm",
+)
+def restore_user(
+    user_id: UUID,
+    payload: RestoreUserRequest,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    target = _locked_user(db, user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="Không tìm thấy người dùng")
+    _validate_deletion_target(target, admin)
+    if target.deletion_status != "SOFT_DELETED":
+        raise HTTPException(status_code=409, detail="Chỉ có thể khôi phục tài khoản đã xóa mềm")
+
+    try:
+        email = original_email(target, strict=True)
+    except ValueError:
+        raise HTTPException(status_code=409, detail="Không thể đọc email gốc để khôi phục")
+    collision = db.scalar(
+        select(User.id).where(func.lower(User.email) == email.casefold(), User.id != target.id)
+    )
+    if collision:
+        raise HTTPException(
+            status_code=409,
+            detail="Email cũ đã được đăng ký lại; cần xử lý tài khoản trùng trước khi khôi phục",
+        )
+
+    target.email = email
+    target.is_active = target.pre_delete_is_active if target.pre_delete_is_active is not None else True
+    target.is_deleted = False
+    target.deletion_status = "ACTIVE"
+    target.deleted_at = None
+    target.deleted_by = None
+    target.email_before_delete_sealed = None
+    target.pre_delete_is_active = None
+    _revoke_user_sessions(db, target, "admin_restore")
+    try:
+        db.flush()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Email cũ vừa được một tài khoản khác sử dụng; không thể khôi phục",
+        )
+
+    request = db.scalar(
+        select(UserDeletionRequest)
+        .where(
+            UserDeletionRequest.target_user_id == user_id,
+            UserDeletionRequest.mode == "soft",
+            UserDeletionRequest.status == "SOFT_DELETED",
+        )
+        .order_by(UserDeletionRequest.created_at.desc(), UserDeletionRequest.id.desc())
+        .limit(1)
+    )
+    if request:
+        request.status = "RESTORED"
+        request.purge_checkpoint = "RESTORED"
+        request.target_email_sealed = None
+        request.updated_at = datetime.now(timezone.utc)
+    _write_audit(db, admin.id, "RESTORE_USER", "user", str(target.id))
+    enqueue_email(
+        db,
+        EmailService.send_account_restored_email,
+        email,
+        target.full_name or "Quý khách",
+        dedupe_key=f"restore-user:{target.id}:{target.token_version}",
+        owner_user_id=target.id,
+    )
+    db.commit()
+    return {"message": "Đã khôi phục tài khoản", "user": _user_out(target), "reason": payload.reason}
+
+
+@router.get(
+    "/user-deletions/{request_id}",
+    summary="Theo dõi tiến độ xóa vĩnh viễn",
+)
+def get_user_deletion(
+    request_id: UUID,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    request = db.get(UserDeletionRequest, request_id)
+    if not request:
+        raise HTTPException(status_code=404, detail="Không tìm thấy yêu cầu xóa")
+    return _deletion_request_out(request)
+
+
+@router.post(
+    "/user-deletions/{request_id}/retry-purge",
+    status_code=http_status.HTTP_202_ACCEPTED,
+    summary="Thử lại bước xóa dữ liệu bị lỗi",
+)
+def retry_user_deletion_purge(
+    request_id: UUID,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    request = db.scalar(select(UserDeletionRequest).where(UserDeletionRequest.id == request_id).with_hint(
+        UserDeletionRequest, "WITH (UPDLOCK, ROWLOCK)", dialect_name="mssql"
+    ).execution_options(populate_existing=True))
+    if not request:
+        raise HTTPException(status_code=404, detail="Không tìm thấy yêu cầu xóa")
+    if request.status != "FAILED" or request.purge_checkpoint == "DB_PURGED":
+        raise HTTPException(status_code=409, detail="Yêu cầu không ở trạng thái có thể thử lại bước xóa dữ liệu")
+    target = _locked_user(db, request.target_user_id)
+    if not target or target.deletion_status != "PURGE_PENDING":
+        raise HTTPException(status_code=409, detail="Tài khoản đích không còn ở trạng thái chờ xóa")
+    request.status = "PENDING"
+    request.purge_checkpoint = "REQUESTED"
+    request.error_code = None
+    request.updated_at = datetime.now(timezone.utc)
+    enqueue(
+        db,
+        "USER_PURGE",
+        {"request_id": str(request.id), "user_id": str(target.id)},
+        f"user-purge-retry:{request.id}:{uuid.uuid4()}",
+        owner_user_id=target.id,
+    )
+    _write_audit(db, admin.id, "RETRY_USER_PURGE", "user", str(request.target_user_id))
+    db.commit()
+    return _deletion_request_out(request)
+
+
+@router.post(
+    "/user-deletions/{request_id}/retry-files",
+    status_code=http_status.HTTP_202_ACCEPTED,
+    summary="Thử lại bước xóa file bị lỗi",
+)
+def retry_user_deletion_files(
+    request_id: UUID,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    request = db.scalar(select(UserDeletionRequest).where(UserDeletionRequest.id == request_id).with_hint(
+        UserDeletionRequest, "WITH (UPDLOCK, ROWLOCK)", dialect_name="mssql"
+    ).execution_options(populate_existing=True))
+    if not request:
+        raise HTTPException(status_code=404, detail="Không tìm thấy yêu cầu xóa")
+    if request.status != "FAILED" or request.purge_checkpoint != "DB_PURGED":
+        raise HTTPException(status_code=409, detail="Yêu cầu không ở trạng thái có thể thử lại bước xóa file")
+    failed = db.scalars(select(UserDeletionFile).where(
+        UserDeletionFile.request_id == request_id, UserDeletionFile.status == "FAILED"
+    )).all()
+    if not failed:
+        raise HTTPException(status_code=409, detail="Không có file lỗi để thử lại")
+    for row in failed:
+        row.status = "PENDING"
+        row.attempts = 0
+        row.error_code = None
+    request.status = "FILES_PENDING"
+    request.error_code = None
+    request.updated_at = datetime.now(timezone.utc)
+    enqueue(db, "USER_FILE_PURGE", {"request_id": str(request.id)}, f"user-file-purge-retry:{request.id}:{uuid.uuid4()}")
+    _write_audit(db, admin.id, "RETRY_USER_FILE_PURGE", "user", str(request.target_user_id))
+    db.commit()
+    return _deletion_request_out(request)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -653,22 +1214,36 @@ def _save_smtp_to_db(db: Session, payload, admin_id: UUID):
             db.add(SystemSetting(key=key, value=value, updated_at=now, updated_by=admin_id))
 
 
-def _load_smtp_from_db(db: Session) -> dict | None:
+def _load_smtp_from_db(db: Session) -> SMTPConfig | None:
     """Đọc cấu hình SMTP từ bảng system_settings. Trả về dict hoặc None nếu chưa cấu hình."""
     rows = db.scalars(select(SystemSetting).where(SystemSetting.key.in_(_SMTP_KEYS))).all()
     if not rows:
         return None
-    result = {r.key: (unseal(r.value) if r.key=="smtp_password" else r.value) for r in rows}
+    result: dict[str, str | None] = {
+        row.key: (unseal(row.value) if row.key == "smtp_password" and row.value else row.value)
+        for row in rows
+    }
     if len(result) < 3:  # Chưa đủ cấu hình tối thiểu
         return None
-    # Convert types
-    if "smtp_port" in result:
-        result["smtp_port"] = int(result["smtp_port"]) if result["smtp_port"] else 587
-    if "smtp_tls" in result:
-        result["smtp_tls"] = result["smtp_tls"].lower() in ("true", "1", "yes")
-    if "smtp_ssl" in result:
-        result["smtp_ssl"] = result["smtp_ssl"].lower() in ("true", "1", "yes")
-    return result
+
+    def text_value(key: str, fallback: str) -> str:
+        value = result.get(key)
+        return value if value is not None else fallback
+
+    def bool_value(key: str, fallback: bool) -> bool:
+        value = result.get(key)
+        return value.strip().lower() in {"true", "1", "yes"} if value is not None else fallback
+
+    return {
+        "smtp_host": text_value("smtp_host", settings.smtp_host),
+        "smtp_port": int(result["smtp_port"]) if result.get("smtp_port") else settings.smtp_port,
+        "smtp_user": text_value("smtp_user", settings.smtp_user),
+        "smtp_password": text_value("smtp_password", settings.smtp_password),
+        "smtp_tls": bool_value("smtp_tls", settings.smtp_tls),
+        "smtp_ssl": bool_value("smtp_ssl", settings.smtp_ssl),
+        "emails_from_email": text_value("emails_from_email", settings.emails_from_email),
+        "emails_from_name": text_value("emails_from_name", settings.emails_from_name),
+    }
 
 
 # ─────────────────────────────────────────────────────────────
@@ -789,6 +1364,9 @@ def ocr_monitor(
 
     total_jobs = db.scalar(select(func.count(OcrJob.id))) or 0
     failed_jobs = db.scalar(select(func.count(OcrJob.id)).where(OcrJob.status == "FAILED")) or 0
+    average_processing_ms = db.scalar(
+        select(func.avg(OcrJob.processing_ms)).where(OcrJob.processing_ms.is_not(None))
+    )
 
     recent_failures_q = (
         select(OcrJob.id, OcrJob.status, OcrJob.error_message, OcrJob.created_at)
@@ -819,9 +1397,31 @@ def ocr_monitor(
             "total": total_jobs,
             "failed": failed_jobs,
             "error_rate_pct": round(failed_jobs / total_jobs * 100, 1) if total_jobs else 0.0,
+            "average_processing_ms": round(float(average_processing_ms), 0) if average_processing_ms is not None else None,
         },
         "recent_failures": recent_failures,
     }
+
+
+@router.post("/system/ocr-jobs/{job_id}/retry", status_code=202)
+def retry_failed_ocr_job(
+    job_id: UUID,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    job = db.scalar(
+        select(OcrJob).where(OcrJob.id == job_id).with_hint(
+            OcrJob, "WITH (UPDLOCK, ROWLOCK)", dialect_name="mssql"
+        ).execution_options(populate_existing=True)
+    )
+    if not job or job.status != "FAILED" or not job.invoice_id:
+        raise HTTPException(status_code=404, detail="Không tìm thấy lượt OCR lỗi có thể xử lý lại")
+    from app.api.routes.invoices import _enqueue_ocr
+
+    result = _enqueue_ocr(db, job.invoice_id, job.user_id)
+    _write_audit(db, admin.id, "OCR_RETRY", "ocr_job", str(job.id))
+    db.commit()
+    return result
 
 
 # ─────────────────────────────────────────────────────────────
@@ -849,10 +1449,19 @@ def _write_audit(db: Session, admin_id: UUID, action: str, target_type: str, tar
     db.add(log)
 
 
-def _revoke_user_sessions(db: Session, user: User):
+def _is_protected_account(user: User) -> bool:
+    return user.is_system_account or user.role == UserRole.ADMIN
+
+
+def _ensure_not_deleted(user: User) -> None:
+    if user.is_deleted:
+        raise HTTPException(status_code=409, detail="Tài khoản đã bị xóa hoặc đang chờ xóa vĩnh viễn")
+
+
+def _revoke_user_sessions(db: Session, user: User, reason: str = "admin_ban"):
     user.token_version += 1
     db.query(RefreshToken).filter(RefreshToken.user_id == user.id, RefreshToken.revoked_at.is_(None)).update(
-        {"revoked_at": datetime.now(timezone.utc), "revocation_reason": "admin_ban"}, synchronize_session="fetch"
+        {"revoked_at": datetime.now(timezone.utc), "revocation_reason": reason}, synchronize_session="fetch"
     )
 
 

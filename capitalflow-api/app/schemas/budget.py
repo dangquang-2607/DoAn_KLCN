@@ -11,22 +11,22 @@ from app.models.budget import BudgetPeriod
 class BudgetCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=150, description="Tên ngân sách")
     category_id: UUID | None = None
-    amount_limit: Decimal = Field(..., gt=0, description="Hạn mức chi tiêu")
+    amount_limit: Decimal = Field(..., gt=Decimal("0"), description="Hạn mức chi tiêu")
     currency: Literal["VND"] = "VND"
     period_type: BudgetPeriod = BudgetPeriod.MONTHLY
     start_date: date
     end_date: date
-    warning_percent: Decimal = Field(default=Decimal("80.00"), gt=0, le=100, description="% cảnh báo khi gần chạm hạn mức")
+    warning_percent: Decimal = Field(default=Decimal("80.00"), gt=Decimal("0"), le=Decimal("100"), description="% cảnh báo khi gần chạm hạn mức")
 
 
 class BudgetUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=150)
-    amount_limit: Decimal | None = Field(default=None, gt=0)
+    amount_limit: Decimal | None = Field(default=None, gt=Decimal("0"))
     currency: Literal["VND"] | None = None
     period_type: BudgetPeriod | None = None
     start_date: date | None = None
     end_date: date | None = None
-    warning_percent: Decimal | None = Field(default=None, gt=0, le=100)
+    warning_percent: Decimal | None = Field(default=None, gt=Decimal("0"), le=Decimal("100"))
     is_active: bool | None = None
 
 

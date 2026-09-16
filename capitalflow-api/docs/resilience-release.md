@@ -23,7 +23,7 @@ Chạy API và worker thành hai tiến trình được giám sát, cùng CSDL v
 .\.venv\Scripts\python.exe -m app.services.worker
 ```
 
-Compose có service `capitalflow-worker`; PostgreSQL cũ nằm trong profile `legacy-postgres`, không còn là phụ thuộc mặc định của API dùng SQL Server. Image đã bổ sung ODBC Driver 18; cần cấu hình SQL Server truy cập được từ container và đường dẫn upload dùng chung. Ngày 2026-09-11 đã build thành công cả hai image trên Docker Desktop Linux. Dependency check, 62 test backend, worker CLI với hàng đợi rỗng và HTTP `/health`, `/ready`, `/openapi.json` đều qua với SQLite cô lập và mạng bị chặn.
+Compose chỉ chứa `capitalflow-api` và `capitalflow-worker`; SQL Server được cấp bên ngoài Compose qua biến môi trường. Image có ODBC Driver 18 và hai tiến trình dùng chung volume upload. Ngày 2026-09-14, 83 test backend chạy trên host đã qua; production image được smoke-test riêng với mạng bị chặn, SQLite cô lập, worker rỗng và các endpoint `/health`, `/ready`, `/openapi.json`.
 
 Không chạy worker thật trong kiểm thử tự động: worker có thể gửi email và gọi Gemini. Các kiểm thử dùng CSDL riêng và chặn mạng. Hàng đợi chỉ được xử lý khi worker hoạt động; chạy API đơn lẻ sẽ để email/OCR ở trạng thái chờ.
 
@@ -59,7 +59,7 @@ docker compose build
 .\.venv\Scripts\python.exe -m scripts.verify_docker
 ```
 
-Script dùng credentials thử ngẫu nhiên, SQLite riêng và `--network none`, tự xóa container kiểm tra API. Không tiêu thụ hàng đợi thật hoặc gửi email. Image không chứa `.env` và `.venv`; ODBC Driver 18 tải được. Không có dependency Python bị thiếu hoặc xung đột theo `pip check`.
+Script dùng credentials thử ngẫu nhiên, SQLite riêng và `--network none`, tự xóa container kiểm tra API. Không tiêu thụ hàng đợi thật hoặc gửi email. Image không chứa `.env`, `.venv`, test, script phát triển hoặc tài liệu; ODBC Driver 18 tải được. Kiểm thử pytest phải chạy trên host trước build, còn script này chỉ kiểm tra production artifact và dependency bằng `pip check`.
 
 Kết nối TCP từ container tới SQL Server trên host đã qua tại `host.docker.internal:53588`. Đây là cổng động hiện tại của SQLEXPRESS, có thể đổi khi dịch vụ khởi động lại. Cần cổng TCP ổn định khi triển khai.
 

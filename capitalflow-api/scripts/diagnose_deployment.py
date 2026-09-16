@@ -48,9 +48,9 @@ def diagnose():
             connection.execute(text("SELECT 1"))
             stage = "schema"
             versions = set(connection.scalars(text("SELECT version FROM dbo.schema_migrations")))
-            if not {"20260910_financial_integrity", "20260910_resilience"}.issubset(versions):
+            if not {"20260910_financial_integrity", "20260910_resilience", "20260914_user_deletion"}.issubset(versions):
                 return {"ready": False, "stage": stage, "code": "MIGRATIONS_MISSING"}
-            for table in ("users", "accounts", "transactions", "invoices", "background_jobs", "idempotency_records"):
+            for table in ("users", "accounts", "transactions", "invoices", "background_jobs", "idempotency_records", "user_deletion_requests", "user_deletion_files"):
                 # Identifiers are a fixed internal allowlist, never user input.
                 connection.exec_driver_sql("SELECT TOP (0) * FROM dbo." + table)
         stage = "upload_storage"

@@ -1,21 +1,4 @@
 services:
-  postgres:
-    profiles: [legacy-postgres]
-    image: postgres:17
-    container_name: capitalflow-postgres
-    restart: unless-stopped
-
-    environment:
-      POSTGRES_DB: capitalflow
-      POSTGRES_USER: capitalflow
-      POSTGRES_PASSWORD: ${LEGACY_POSTGRES_PASSWORD:-}
-
-    ports:
-      - "5433:5432"
-
-    volumes:
-      - capitalflow_pgdata:/var/lib/postgresql/data
-
   capitalflow-api:
     build: .
     container_name: capitalflow-api
@@ -44,6 +27,5 @@ services:
       - capitalflow_uploads:/app/uploads
 
 volumes:
-  capitalflow_pgdata:
-  # Volume lưu trữ tệp hóa đơn vĩnh viễn (không bị mất khi redeploy)
+  # Volume lưu trữ tệp hóa đơn dùng chung giữa API và worker.
   capitalflow_uploads:

@@ -9,7 +9,8 @@ from app.models.invoice import Invoice
 from app.api.dependencies import get_current_user, get_db
 from app.models.category import Category
 from app.models.user import User
-from app.schemas.category import CategoryCreate, CategoryOut, CategoryUpdate
+from app.schemas.category import CategoryCreate, CategoryOut, CategoryUpdate, CategorySuggestionRequest, CategorySuggestionOut
+from app.services.category_classifier import suggest_category
 
 router = APIRouter(prefix="/categories", tags=["Categories"])
 
@@ -52,6 +53,22 @@ def create_category(payload: CategoryCreate, db: Session = Depends(get_db), user
     _commit(db)
     db.refresh(cat)
     return cat
+
+
+@router.post("/suggest", response_model=CategorySuggestionOut)
+def suggest_transaction_category(
+    payload: CategorySuggestionRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return suggest_category(
+        db,
+        user.id,
+        payload.type,
+        description=payload.description,
+        note=payload.note,
+        item_names=payload.item_names,
+    ).as_dict()
 
 
 def _commit(db):

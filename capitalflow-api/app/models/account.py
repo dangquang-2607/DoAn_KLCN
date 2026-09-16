@@ -1,4 +1,3 @@
-from sqlalchemy import Unicode, UnicodeText
 import enum
 import uuid
 from decimal import Decimal
@@ -27,7 +26,6 @@ class Account(Base):
     institution_name: Mapped[str | None] = mapped_column(Unicode(150), nullable=True)
     balance: Mapped[Decimal] = mapped_column(Numeric(19, 2), default=0)
     currency: Mapped[str] = mapped_column(String(3), default="VND")
-    icon: Mapped[str | None] = mapped_column(Unicode(100), nullable=True)
     color: Mapped[str | None] = mapped_column(String(20), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.sysutcdatetime())

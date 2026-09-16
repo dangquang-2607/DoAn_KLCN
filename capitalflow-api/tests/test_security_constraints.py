@@ -2,10 +2,11 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from uuid import UUID, uuid4
 from unittest.mock import patch
+from typing import cast
 import jwt
 import pytest
 from pydantic import ValidationError
-from sqlalchemy import select
+from sqlalchemy import Table, select
 from sqlalchemy.schema import CreateIndex
 from sqlalchemy.dialects import mssql
 from app.core.config import settings
@@ -110,7 +111,8 @@ def test_unique_scopes_and_duplicate_budget(client,user_token,admin_token):
 
 def test_mssql_filtered_indexes():
     for model,names in ((Category,["UX_categories_global_name_type","UX_categories_user_name_type"]),(Budget,["UX_budgets_user_category_period","UX_budgets_user_overall_period"])):
-        indexes={idx.name:idx for idx in model.__table__.indexes}
+        table = cast(Table, model.__table__)
+        indexes={str(idx.name):idx for idx in table.indexes if idx.name is not None}
         for name in names:
             sql=str(CreateIndex(indexes[name]).compile(dialect=mssql.dialect()))
             assert "UNIQUE" in sql and "WHERE" in sql

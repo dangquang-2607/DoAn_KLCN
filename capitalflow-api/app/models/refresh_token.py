@@ -1,12 +1,11 @@
-from sqlalchemy import Unicode, UnicodeText
 """
 RefreshToken model — quản lý phiên đăng nhập với Family Rotation.
 Thêm parent_token_id, revocation_reason, device_name, user_agent, last_used_at
-theo CSDL.sql để hỗ trợ tính năng Session Management.
+theo schema SQL Server để hỗ trợ tính năng Session Management.
 """
 import uuid
 from datetime import datetime
-from sqlalchemy import String, DateTime, ForeignKey, func, Uuid, Index
+from sqlalchemy import Unicode, String, DateTime, ForeignKey, func, Uuid, Index
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 

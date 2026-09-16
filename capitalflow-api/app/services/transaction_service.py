@@ -147,6 +147,7 @@ def check_budget_alerts_background(db: Session, user_id: uuid.UUID, txn: Transac
                         budget_amount=float(limit),
                         spent_amount=float(total_spent),
                         percentage=pct,
+                        owner_user_id=user.id,
                         dedupe_key=f"budget:{b.id}:{b.start_date}:{b.end_date}:{100 if pct >= 100 else warn_thresh}"
                     )
         except Exception as e:
@@ -171,7 +172,16 @@ def create_transaction(
     amount = kwargs.get("amount", Decimal("0"))
     tx_type = kwargs.get("type", TransactionType.EXPENSE)
 
-    if not amount.is_finite() or amount <= 0 or amount.as_tuple().exponent < -2:
+    if not isinstance(account_id, uuid.UUID):
+        raise HTTPException(status_code=422, detail="account_id không hợp lệ")
+    amount_exponent = amount.as_tuple().exponent if isinstance(amount, Decimal) else None
+    if (
+        not isinstance(amount, Decimal)
+        or not amount.is_finite()
+        or amount <= 0
+        or not isinstance(amount_exponent, int)
+        or amount_exponent < -2
+    ):
         raise HTTPException(status_code=422, detail="Số tiền phải dương và có tối đa 2 chữ số thập phân")
 
     # IDOR Guard: kiểm tra quyền sở hữu ví
@@ -235,6 +245,10 @@ def update_transaction(
 
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(txn, k, v)
+    if "category_id" in payload.model_fields_set:
+        txn.category_confidence = Decimal("1.0000") if txn.category_id else None
+        txn.category_source = "MANUAL" if txn.category_id else None
+        txn.category_was_auto = False
 
     # Đảm bảo dấu số tiền sau khi cập nhật
     if txn.type == TransactionType.EXPENSE and txn.amount > 0:
@@ -341,6 +355,9 @@ def transfer_money(
     _acc_2 = db.scalar(select(Account).where(Account.id == second_id).with_hint(Account, "WITH (UPDLOCK, ROWLOCK)", dialect_name="mssql").execution_options(populate_existing=True))
     acc_from = _acc_1 if first_id == from_account_id else _acc_2
     acc_to = _acc_2 if first_id == from_account_id else _acc_1
+
+    if acc_from is None or acc_to is None:
+        raise HTTPException(status_code=404, detail="Tài khoản nguồn hoặc tài khoản đích không còn tồn tại")
 
     # Kiểm tra loại tiền tệ — hệ thống chỉ hỗ trợ VND
     if acc_from.currency != "VND" or acc_to.currency != "VND":

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import api from "@/lib/api";
 import { TransferFlow } from "@/components/Motion";
+import { CategoryIcon } from "@/components/CategoryIcon";
 import {
   PageHead,
   Panel,
@@ -42,6 +43,14 @@ const fresh = () => ({
   note: "",
   to_account_id: "",
 });
+type CategorySuggestion = {
+  category_id: string | null;
+  category_name: string | null;
+  confidence: number;
+  source: string;
+  auto_apply: boolean;
+  reason: string;
+};
 export default function Transactions() {
   const cache = useQueryClient();
   const [receipt, setReceipt] = useState<{from: string; to: string; amount: string} | null>(null);
@@ -58,6 +67,8 @@ export default function Transactions() {
     [editing, setEditing] = useState<Transaction | null>(null),
     [deleting, setDeleting] = useState<Transaction | null>(null),
     [form, setForm] = useState(fresh),
+    [suggestion, setSuggestion] = useState<CategorySuggestion | null>(null),
+    [categoryTouched, setCategoryTouched] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
@@ -67,6 +78,26 @@ export default function Transactions() {
     if (params.get("account_id"))
       setFilters((f) => ({ ...f, account_id: params.get("account_id") || "" }));
   }, []);
+  useEffect(() => {
+    if (mode !== "create" || editing || categoryTouched || form.category_id || form.description.trim().length < 2) {
+      setSuggestion(null);
+      return;
+    }
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      try {
+        const { data } = await api.post<CategorySuggestion>("/categories/suggest", {
+          type: form.type,
+          description: form.description.trim(),
+          note: form.note || null,
+        });
+        if (active) setSuggestion(data.category_id ? data : null);
+      } catch {
+        if (active) setSuggestion(null);
+      }
+    }, 350);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [mode, editing, categoryTouched, form.category_id, form.description, form.note, form.type]);
   const accounts = useQuery<Account[]>({
     queryKey: ["accounts"],
     queryFn: async () => (await api.get("/accounts")).data,
@@ -106,6 +137,8 @@ export default function Transactions() {
     setMode(kind);
     setEditing(tx || null);
     setError("");
+    setSuggestion(null);
+    setCategoryTouched(false);
     setForm(
       tx
         ? {
@@ -372,8 +405,16 @@ export default function Transactions() {
                       </div>
                     </td>
                     <td>
-                      <span className="cf-badge">
+                      <span className="cf-row" style={{ gap: 8, flexWrap: "nowrap" }}>
+                        {category(t.category_id) && <CategoryIcon icon={category(t.category_id)?.icon} color={category(t.category_id)?.color} size={28} />}
+                        <span className="cf-badge">
                         {category(t.category_id)?.name || "Chưa phân loại"}
+                        </span>
+                        {t.category_was_auto && (
+                          <span className="cf-badge info" title={`Độ tin cậy ${Math.round(Number(t.category_confidence || 0) * 100)}%`}>
+                            Tự động
+                          </span>
+                        )}
                       </span>
                     </td>
                     <td>
@@ -456,7 +497,7 @@ export default function Transactions() {
                   className="cf-input"
                   value={form.type}
                   onChange={(e) =>
-                    setForm({ ...form, type: e.target.value, category_id: "" })
+                    { setForm({ ...form, type: e.target.value, category_id: "" }); setCategoryTouched(false); }
                   }
                 >
                   <option value="EXPENSE">Chi tiêu</option>
@@ -513,7 +554,7 @@ export default function Transactions() {
                   className="cf-input"
                   value={form.category_id}
                   onChange={(e) =>
-                    setForm({ ...form, category_id: e.target.value })
+                    { setForm({ ...form, category_id: e.target.value }); setCategoryTouched(true); setSuggestion(null); }
                   }
                 >
                   <option value="">Chưa phân loại</option>
@@ -525,6 +566,17 @@ export default function Transactions() {
                       </option>
                     ))}
                 </select>
+                {suggestion && (
+                  <div className="cf-category-suggestion" role="status">
+                    <div>
+                      <strong>Gợi ý: {suggestion.category_name}</strong>
+                      <span>{Math.round(suggestion.confidence * 100)}% · {suggestion.reason}</span>
+                    </div>
+                    <button type="button" className="cf-btn cf-btn-sm" onClick={() => { setForm({ ...form, category_id: suggestion.category_id || "" }); setCategoryTouched(true); setSuggestion(null); }}>
+                      Chọn danh mục
+                    </button>
+                  </div>
+                )}
               </Field>
             )}
             <div className="cf-form-grid">

@@ -1,6 +1,7 @@
 """Add durable jobs/idempotency and protect persisted secrets. Defaults to rollback."""
 import argparse
-from sqlalchemy import text
+from typing import cast
+from sqlalchemy import Table, text
 from app.core.database import engine
 from app.models.idempotency import IdempotencyRecord
 from app.models.background_job import BackgroundJob
@@ -17,8 +18,8 @@ def migrate(apply=False):
             conn.exec_driver_sql("DECLARE @r INT; EXEC @r=sys.sp_getapplock @Resource='capitalflow_schema_migration',@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=15000; IF @r<0 THROW 51000,'Migration busy',1;")
             if conn.scalar(text("SELECT COUNT(*) FROM dbo.schema_migrations WHERE version=:v"),{"v":VERSION}):
                 tx.rollback();return "already_applied"
-            IdempotencyRecord.__table__.create(conn,checkfirst=True)
-            BackgroundJob.__table__.create(conn,checkfirst=True)
+            cast(Table, IdempotencyRecord.__table__).create(conn,checkfirst=True)
+            cast(Table, BackgroundJob.__table__).create(conn,checkfirst=True)
             conn.exec_driver_sql("ALTER TABLE dbo.password_reset_otps ALTER COLUMN otp_code VARCHAR(64) NOT NULL;")
             conn.exec_driver_sql("UPDATE dbo.password_reset_otps SET is_used=1 WHERE is_used=0;")
             rows=conn.execute(text("SELECT [key],value FROM dbo.system_settings WHERE [key]='smtp_password'")).all()

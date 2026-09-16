@@ -1,8 +1,7 @@
-from sqlalchemy import Unicode, UnicodeText
 import enum
 import uuid
 from datetime import datetime
-from sqlalchemy import Unicode, String, Boolean, Integer, DateTime, ForeignKey, func, Uuid, Index, text, text
+from sqlalchemy import Unicode, String, Boolean, Integer, DateTime, ForeignKey, func, Uuid, Index, text
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 
@@ -19,6 +18,7 @@ class Category(Base):
     type: Mapped[CategoryType] = mapped_column(String(20), nullable=False)
     icon: Mapped[str | None] = mapped_column(Unicode(100), nullable=True)
     color: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    keywords: Mapped[str | None] = mapped_column(Unicode(1000), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.sysutcdatetime())

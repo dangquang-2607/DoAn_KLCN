@@ -28,7 +28,7 @@ import {
 Command,
 } from "lucide-react";
 import api from "../services/api";
-import { Brand, Loading, ErrorState } from "./design";
+import { Loading, ErrorState } from "./design";
 import SecuritySettings from "./SecuritySettings";
 
 const groups = [
@@ -65,22 +65,15 @@ const groups = [
 export default function DashboardLayout() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [collapsed, setCollapsed] = useState(false);
-  const [hoveredTo, setHoveredTo] = useState(null);
+  const [collapsed, setCollapsed] = useState(
+    () => localStorage.getItem("cf_admin_sidebar_collapsed") === "true",
+  );
   const [tooltipData, setTooltipData] = useState(null);
   const [showKeyToast, setShowKeyToast] = useState(false);
 
   const nav = useNavigate();
   const location = useLocation();
   const cache = useQueryClient();
-
-  // Load saved state
-  useEffect(() => {
-    const saved = localStorage.getItem("cf_admin_sidebar_collapsed");
-    if (saved !== null) {
-      setCollapsed(saved === "true");
-    }
-  }, []);
 
   const toggleCollapsed = () => {
     setCollapsed((prev) => {
@@ -241,7 +234,6 @@ export default function DashboardLayout() {
                     key={i.to}
                     style={{ position: "relative" }}
                     onMouseEnter={(e) => {
-                      setHoveredTo(i.to);
                       if (collapsed) {
                         const rect = e.currentTarget.getBoundingClientRect();
                         setTooltipData({
@@ -253,7 +245,6 @@ export default function DashboardLayout() {
                       }
                     }}
                     onMouseLeave={() => {
-                      setHoveredTo(null);
                       setTooltipData(null);
                     }}
                   >
@@ -380,10 +371,7 @@ export default function DashboardLayout() {
                   <div className="cf-alert">
                     Đặt mật khẩu riêng trước khi bắt đầu sử dụng tài khoản.
                   </div>
-                  <SecuritySettings
-                    firstTime
-                    onComplete={() => profile.refetch()}
-                  />
+                  <SecuritySettings firstTime />
                 </div>
               ) : (
                 <Outlet />

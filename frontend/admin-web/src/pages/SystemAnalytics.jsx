@@ -1,4 +1,4 @@
-import { useMotionAllowed } from "../components/Motion";
+import { useMotionAllowed } from "../hooks/useMotionAllowed";
 import { useQuery } from "@tanstack/react-query";
 import {
   BarChart,

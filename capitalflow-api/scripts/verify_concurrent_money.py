@@ -46,8 +46,10 @@ def verify():
             if index in grouped:assert grouped[index] == response
             grouped[index] = response
         with SessionLocal() as db:
-            assert db.get(Account, aid).balance == 1000
-            assert db.get(Account, bid).balance == 1000
+            account_a = db.get(Account, aid)
+            account_b = db.get(Account, bid)
+            assert account_a is not None and account_a.balance == 1000
+            assert account_b is not None and account_b.balance == 1000
             assert db.scalar(select(func.count()).select_from(Transaction).where(Transaction.user_id == uid, Transaction.kind == "TRANSFER")) == 40
             assert db.scalar(select(func.count()).select_from(IdempotencyRecord).where(IdempotencyRecord.user_id == uid)) == 20
     finally:

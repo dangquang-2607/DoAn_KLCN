@@ -5,16 +5,29 @@ from datetime import datetime
 from pydantic import BaseModel, Field, field_validator
 
 from app.models.account import AccountType
+from app.core.unicode_text import normalize_unicode_text
 
 
 class AccountCreate(BaseModel):
-    name: str
+    name: str = Field(min_length=1, max_length=150)
     account_type: AccountType
-    institution_name: str | None = None
+    institution_name: str | None = Field(default=None, max_length=150)
     balance: Decimal = Field(default=Decimal("0"), max_digits=19, decimal_places=2)
     currency: str = "VND"
-    icon: str | None = None
     color: str | None = None
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        value = normalize_unicode_text(value, strip=True)
+        if not value:
+            raise ValueError("Tên tài khoản không được rỗng")
+        return value
+
+    @field_validator("institution_name", mode="before")
+    @classmethod
+    def normalize_optional_text(cls, value: str | None) -> str | None:
+        return normalize_unicode_text(value, strip=True) if value is not None else None
 
     @field_validator("currency")
     @classmethod
@@ -25,14 +38,28 @@ class AccountCreate(BaseModel):
 
 
 class AccountUpdate(BaseModel):
-    name: str | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=150)
     account_type: AccountType | None = None
-    institution_name: str | None = None
+    institution_name: str | None = Field(default=None, max_length=150)
     balance: Decimal | None = Field(default=None, max_digits=19, decimal_places=2)
     currency: str | None = None
-    icon: str | None = None
     color: str | None = None
     is_active: bool | None = None
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def validate_name(cls, value: str | None) -> str | None:
+        if value is None:
+            raise ValueError("Tên tài khoản không được null")
+        value = normalize_unicode_text(value, strip=True)
+        if not value:
+            raise ValueError("Tên tài khoản không được rỗng")
+        return value
+
+    @field_validator("institution_name", mode="before")
+    @classmethod
+    def normalize_optional_text(cls, value: str | None) -> str | None:
+        return normalize_unicode_text(value, strip=True) if value is not None else None
 
     @field_validator("currency")
     @classmethod
@@ -50,7 +77,6 @@ class AccountOut(BaseModel):
     institution_name: str | None
     balance: Decimal
     currency: str
-    icon: str | None
     color: str | None
     is_active: bool
     created_at: datetime

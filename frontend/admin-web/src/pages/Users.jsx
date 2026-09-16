@@ -10,6 +10,9 @@ import {
   Unlock,
   KeyRound,
   RefreshCw,
+  Trash2,
+  RotateCcw,
+  ShieldAlert,
 } from "lucide-react";
 import api from "../services/api";
 import {
@@ -24,10 +27,17 @@ import {
   Pagination,
 } from "../components/design";
 import { errorMessage, exportCsv } from "../services/format";
-const protectedAccount = (u) =>
-  ["admin@capitalflow.vn", "admin@cashflow.vn"].includes(
-    u.email?.toLowerCase(),
-  );
+const protectedAccount = (u) => u.is_system_account;
+
+const accountStatus = (u) => {
+  if (u.deletion?.status === "FAILED")
+    return { label: "Xóa bị lỗi", tone: "danger" };
+  if (u.deletion_status === "PURGE_PENDING")
+    return { label: "Đang xóa vĩnh viễn", tone: "danger" };
+  if (u.is_deleted) return { label: "Đã xóa mềm", tone: "warning" };
+  if (u.is_active) return { label: "Hoạt động", tone: "success" };
+  return { label: "Đã khóa", tone: "danger" };
+};
 export default function Users() {
   const [params] = useSearchParams();
   const initialSearch = params.get("search") || "";
@@ -48,6 +58,9 @@ function UsersContent({ initialSearch }) {
       email: "",
       role: "USER",
       reason: "",
+      deletion_mode: "soft",
+      release_email: true,
+      confirmation: "",
     }),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
@@ -82,6 +95,7 @@ function UsersContent({ initialSearch }) {
     (u) =>
       u.id !== me.data?.id &&
       !protectedAccount(u) &&
+      !u.is_deleted &&
       u.role?.toUpperCase() !== "ADMIN",
   );
   const filter = (fn, value) => {
@@ -97,10 +111,21 @@ function UsersContent({ initialSearch }) {
       full_name: "",
       email: "",
       role: user?.role?.toUpperCase() === "ADMIN" ? "USER" : "ADMIN",
-      reason: "",
+      reason: kind === "restore" ? "Khôi phục bởi Quản trị viên" : "",
+      deletion_mode: user?.is_deleted ? "hard" : "soft",
+      release_email: true,
+      confirmation: "",
     });
     if (kind === "create")
-      setForm({ full_name: "", email: "", role: "USER", reason: "" });
+      setForm({
+        full_name: "",
+        email: "",
+        role: "USER",
+        reason: "",
+        deletion_mode: "soft",
+        release_email: true,
+        confirmation: "",
+      });
   };
   const refresh = () =>
     Promise.all(
@@ -126,6 +151,33 @@ function UsersContent({ initialSearch }) {
         });
         message =
           "Đã tạo tài khoản. Yêu cầu gửi thông tin kích hoạt đã được ghi nhận.";
+      } else if (action === "delete") {
+        const { data } = await api.delete("/admin/users/" + target.id, {
+          data: {
+            mode: form.deletion_mode,
+            reason: form.reason.trim(),
+            release_email: form.release_email,
+            confirmation:
+              form.deletion_mode === "hard"
+                ? form.confirmation.trim()
+                : undefined,
+          },
+        });
+        message =
+          form.deletion_mode === "hard"
+            ? `Đã khóa tài khoản. Yêu cầu xóa ${data.deletion?.id || ""} đang được worker xử lý.`
+            : "Đã xóa mềm tài khoản và thu hồi toàn bộ phiên đăng nhập.";
+      } else if (action === "restore") {
+        await api.post("/admin/users/" + target.id + "/restore", {
+          reason: form.reason.trim(),
+        });
+        message = "Đã khôi phục tài khoản. Người dùng cần đăng nhập lại.";
+      } else if (action === "retry-delete") {
+        const filePhase = target.deletion?.checkpoint === "DB_PURGED";
+        await api.post(
+          `/admin/user-deletions/${target.deletion.id}/${filePhase ? "retry-files" : "retry-purge"}`,
+        );
+        message = "Đã xếp lại tác vụ xóa để worker tiếp tục xử lý.";
       } else if (action === "role")
         await api.patch("/admin/users/" + target.id + "/role", {
           role: form.role,
@@ -134,6 +186,13 @@ function UsersContent({ initialSearch }) {
         await api.post("/admin/users/" + target.id + "/reset-password");
         message =
           "Đã cấp mật khẩu tạm thời mới. Kiểm tra nhật ký email để xem trạng thái gửi.";
+      } else if (action === "bulk-delete") {
+        const { data } = await api.post("/admin/users/bulk-delete", {
+          user_ids: selected,
+          reason: form.reason.trim(),
+          release_email: true,
+        });
+        message = `Đã xóa mềm ${data.deleted_count ?? 0} / ${selected.length} tài khoản.`;
       } else if (action?.startsWith("bulk-")) {
         const { data } = await api.post("/admin/users/" + action, {
           user_ids: selected,
@@ -165,7 +224,19 @@ function UsersContent({ initialSearch }) {
     "reset-password": "Cấp lại mật khẩu",
     "bulk-ban": "Khóa tài khoản đã chọn",
     "bulk-unban": "Mở khóa tài khoản đã chọn",
+    delete: "Xóa tài khoản",
+    restore: "Khôi phục tài khoản",
+    "bulk-delete": "Xóa mềm tài khoản đã chọn",
+    "retry-delete": "Thử lại tác vụ xóa",
   };
+  const hardDelete = action === "delete" && form.deletion_mode === "hard";
+  const hardConfirmed =
+    !hardDelete ||
+    [target?.email, "XÓA VĨNH VIỄN", "XOA VINH VIEN"].some(
+      (value) =>
+        value && value.toLocaleLowerCase("vi") === form.confirmation.trim().toLocaleLowerCase("vi"),
+    );
+  const deletionReasonRequired = ["delete", "bulk-delete"].includes(action);
   return (
     <div className="cf-stack">
       <PageHead
@@ -223,6 +294,8 @@ function UsersContent({ initialSearch }) {
               <option value="">Tất cả trạng thái</option>
               <option value="active">Đang hoạt động</option>
               <option value="banned">Đã khóa</option>
+              <option value="deleted">Đã xóa (Thùng rác)</option>
+              <option value="purge_pending">Đang xóa vĩnh viễn</option>
             </select>
           </Field>
           <button
@@ -237,7 +310,7 @@ function UsersContent({ initialSearch }) {
                     u.full_name,
                     u.email,
                     u.role,
-                    u.is_active ? "Hoạt động" : "Đã khóa",
+                    accountStatus(u).label,
                   ]),
               ])
             }
@@ -264,6 +337,13 @@ function UsersContent({ initialSearch }) {
             >
               <Unlock />
               Mở khóa
+            </button>
+            <button
+              className="cf-btn cf-btn-danger cf-btn-sm"
+              onClick={() => open("bulk-delete")}
+            >
+              <Trash2 />
+              Xóa mềm
             </button>
             <button
               className="cf-btn cf-btn-ghost cf-btn-sm"
@@ -313,6 +393,7 @@ function UsersContent({ initialSearch }) {
                 {list.map((u) => {
                   const isSelf = u.id === me.data?.id;
                   const isAdmin = u.role?.toUpperCase() === "ADMIN";
+                  const currentStatus = accountStatus(u);
                   return (
                     <tr key={u.id}>
                       <td>
@@ -351,9 +432,9 @@ function UsersContent({ initialSearch }) {
                       </td>
                       <td>
                         <span
-                          className={`cf-badge ${u.is_active ? "success" : "danger"}`}
+                          className={`cf-badge ${currentStatus.tone}`}
                         >
-                          {u.is_active ? "Hoạt động" : "Đã khóa"}
+                          {currentStatus.label}
                         </span>
                       </td>
                       <td className="cf-muted">
@@ -371,7 +452,7 @@ function UsersContent({ initialSearch }) {
                           >
                             <Eye size={16} />
                           </button>
-                          {!isSelf && !protectedAccount(u) && (
+                          {!isSelf && !protectedAccount(u) && !u.is_deleted && (
                             <>
                               <button
                                 className="cf-icon-btn"
@@ -409,8 +490,56 @@ function UsersContent({ initialSearch }) {
                                   )}
                                 </button>
                               )}
+                              {!isAdmin && (
+                                <button
+                                  className="cf-icon-btn cf-danger"
+                                  aria-label={`Xóa ${u.email}`}
+                                  title="Xóa tài khoản"
+                                  onClick={() => open("delete", u)}
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              )}
                             </>
                           )}
+                          {!isSelf &&
+                            !protectedAccount(u) &&
+                            !isAdmin &&
+                            u.is_deleted &&
+                            u.deletion?.status === "FAILED" && (
+                              <button
+                                className="cf-icon-btn"
+                                aria-label={`Thử lại xóa ${u.email}`}
+                                title="Thử lại tác vụ xóa"
+                                onClick={() => open("retry-delete", u)}
+                              >
+                                <RefreshCw size={16} />
+                              </button>
+                            )}
+                          {!isSelf &&
+                            !protectedAccount(u) &&
+                            !isAdmin &&
+                            u.is_deleted &&
+                            u.deletion_status !== "PURGE_PENDING" && (
+                              <>
+                                <button
+                                  className="cf-icon-btn"
+                                  aria-label={`Khôi phục ${u.email}`}
+                                  title="Khôi phục tài khoản"
+                                  onClick={() => open("restore", u)}
+                                >
+                                  <RotateCcw size={16} />
+                                </button>
+                                <button
+                                  className="cf-icon-btn cf-danger"
+                                  aria-label={`Xóa vĩnh viễn ${u.email}`}
+                                  title="Xóa vĩnh viễn"
+                                  onClick={() => open("delete", u)}
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </>
+                            )}
                         </div>
                       </td>
                     </tr>
@@ -509,6 +638,157 @@ function UsersContent({ initialSearch }) {
                 />
               </Field>
             )}
+            {action === "bulk-delete" && (
+              <>
+                <Alert kind="info">
+                  Tài khoản được đưa vào thùng rác, toàn bộ phiên đăng nhập bị
+                  thu hồi và dữ liệu tài chính vẫn được bảo toàn.
+                </Alert>
+                <Field label="Lý do xóa">
+                  <textarea
+                    className="cf-input"
+                    rows={3}
+                    required
+                    minLength={3}
+                    maxLength={500}
+                    value={form.reason}
+                    onChange={(e) =>
+                      setForm({ ...form, reason: e.target.value })
+                    }
+                  />
+                </Field>
+              </>
+            )}
+            {action === "delete" && (
+              <>
+                {!target?.is_deleted && (
+                  <Field label="Chế độ xóa">
+                    <div className="cf-delete-options">
+                      <label
+                        className={`cf-delete-option ${form.deletion_mode === "soft" ? "selected" : ""}`}
+                      >
+                        <input
+                          type="radio"
+                          name="deletion-mode"
+                          value="soft"
+                          checked={form.deletion_mode === "soft"}
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              deletion_mode: e.target.value,
+                              confirmation: "",
+                            })
+                          }
+                        />
+                        <span>
+                          <strong>Xóa mềm</strong>
+                          <small>
+                            Thu hồi quyền truy cập, giữ dữ liệu và cho phép khôi
+                            phục.
+                          </small>
+                        </span>
+                      </label>
+                      <label
+                        className={`cf-delete-option danger ${form.deletion_mode === "hard" ? "selected" : ""}`}
+                      >
+                        <input
+                          type="radio"
+                          name="deletion-mode"
+                          value="hard"
+                          checked={form.deletion_mode === "hard"}
+                          onChange={(e) =>
+                            setForm({ ...form, deletion_mode: e.target.value })
+                          }
+                        />
+                        <span>
+                          <strong>Xóa vĩnh viễn</strong>
+                          <small>
+                            Worker xóa dữ liệu nghiệp vụ và file hóa đơn theo
+                            checkpoint; không thể khôi phục.
+                          </small>
+                        </span>
+                      </label>
+                    </div>
+                  </Field>
+                )}
+                <Field label="Lý do xóa">
+                  <textarea
+                    className="cf-input"
+                    rows={3}
+                    required
+                    minLength={3}
+                    maxLength={500}
+                    value={form.reason}
+                    onChange={(e) =>
+                      setForm({ ...form, reason: e.target.value })
+                    }
+                  />
+                </Field>
+                {form.deletion_mode === "soft" ? (
+                  <label className="cf-check-row">
+                    <input
+                      type="checkbox"
+                      checked={form.release_email}
+                      onChange={(e) =>
+                        setForm({ ...form, release_email: e.target.checked })
+                      }
+                    />
+                    <span>Giải phóng email để có thể đăng ký tài khoản mới</span>
+                  </label>
+                ) : (
+                  <>
+                    <Alert persistent>
+                      <span className="cf-row">
+                        <ShieldAlert size={18} />
+                        Dữ liệu tài chính và file hóa đơn sẽ bị xóa vĩnh viễn.
+                        Hệ thống ghi nhận tiến độ để có thể retry an toàn khi
+                        lỗi.
+                      </span>
+                    </Alert>
+                    <Field
+                      label={`Nhập ${target?.email || "email người dùng"} hoặc “XÓA VĨNH VIỄN”`}
+                    >
+                      <input
+                        className="cf-input"
+                        autoComplete="off"
+                        required
+                        value={form.confirmation}
+                        onChange={(e) =>
+                          setForm({ ...form, confirmation: e.target.value })
+                        }
+                      />
+                    </Field>
+                  </>
+                )}
+              </>
+            )}
+            {action === "restore" && (
+              <>
+                <Alert kind="info">
+                  Email cũ sẽ được khôi phục nếu chưa có tài khoản mới sử dụng.
+                  Trạng thái khóa trước khi xóa được giữ nguyên.
+                </Alert>
+                <Field label="Lý do khôi phục">
+                  <textarea
+                    className="cf-input"
+                    rows={2}
+                    minLength={3}
+                    maxLength={500}
+                    value={form.reason}
+                    onChange={(e) =>
+                      setForm({ ...form, reason: e.target.value })
+                    }
+                  />
+                </Field>
+              </>
+            )}
+            {action === "retry-delete" && (
+              <Alert kind="info">
+                Worker sẽ tiếp tục từ checkpoint{" "}
+                <strong>{target?.deletion?.checkpoint || "REQUESTED"}</strong>.
+                Các bước đã hoàn tất được nhận diện qua trạng thái bền vững.
+              </Alert>
+            )}
             {action === "ban" && (
               <Alert kind="info">
                 Tài khoản sẽ bị khóa cho đến khi quản trị viên mở lại. Người
@@ -525,8 +805,12 @@ function UsersContent({ initialSearch }) {
                 Hủy
               </button>
               <button
-                className={`cf-btn ${["ban", "bulk-ban", "reset-password"].includes(action) ? "cf-btn-danger" : "cf-btn-primary"}`}
-                disabled={busy}
+                className={`cf-btn ${["ban", "bulk-ban", "bulk-delete", "delete", "reset-password"].includes(action) ? "cf-btn-danger" : "cf-btn-primary"}`}
+                disabled={
+                  busy ||
+                  !hardConfirmed ||
+                  (deletionReasonRequired && form.reason.trim().length < 3)
+                }
               >
                 {busy ? "Đang xử lý…" : "Xác nhận"}
               </button>

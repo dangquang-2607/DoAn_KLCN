@@ -15,6 +15,7 @@ import {
   Check,
   Plus,
   ExternalLink,
+  Save,
 } from "lucide-react";
 import api from "@/lib/api";
 import {
@@ -39,16 +40,25 @@ import {
 interface InvoiceItem {
   id: string;
   name: string;
-  quantity: Money;
-  unit_price: Money;
-  line_total: Money;
+  sku?: string | null;
+  unit?: string | null;
+  quantity: Money | null;
+  unit_price: Money | null;
+  discount_amount?: Money | null;
+  tax_amount?: Money | null;
+  line_total: Money | null;
 }
 interface Invoice {
   id: string;
   merchant_name: string | null;
+  merchant_address: string | null;
   merchant_tax_code: string | null;
   invoice_number: string | null;
+  invoice_symbol: string | null;
   invoice_date: string | null;
+  vat_rate: string | null;
+  payment_method: string | null;
+  subtotal_amount: Money | null;
   total_amount: Money | null;
   tax_amount: Money | null;
   currency: string;
@@ -98,9 +108,14 @@ function InvoiceForm({
   });
   const [form, setForm] = useState({
     merchant_name: invoice.merchant_name || "",
+    merchant_address: invoice.merchant_address || "",
     merchant_tax_code: invoice.merchant_tax_code || "",
     invoice_number: invoice.invoice_number || "",
+    invoice_symbol: invoice.invoice_symbol || "",
     invoice_date: invoice.invoice_date || localDate(),
+    vat_rate: invoice.vat_rate || "",
+    payment_method: invoice.payment_method || "",
+    subtotal_amount: String(invoice.subtotal_amount ?? ""),
     total_amount: String(invoice.total_amount ?? ""),
     tax_amount: String(invoice.tax_amount ?? 0),
     account_id: invoice.account_id || "",
@@ -112,11 +127,48 @@ function InvoiceForm({
     [newCategory, setNewCategory] = useState(""),
     [adding, setAdding] = useState(false),
     [categoryBusy, setCategoryBusy] = useState(false),
+    [itemDrafts, setItemDrafts] = useState(() =>
+      (invoice.items || []).map((item) => ({
+        name: item.name || "",
+        sku: item.sku || "",
+        unit: item.unit || "",
+        quantity: String(item.quantity ?? ""),
+        unit_price: String(item.unit_price ?? ""),
+        discount_amount: String(item.discount_amount ?? ""),
+        tax_amount: String(item.tax_amount ?? ""),
+        line_total: String(item.line_total ?? ""),
+      })),
+    ),
+    [itemsBusy, setItemsBusy] = useState(false),
+    [itemsNotice, setItemsNotice] = useState(""),
+    [categorySuggestion, setCategorySuggestion] = useState<{ category_id: string; category_name: string; confidence: number; reason: string } | null>(null),
+    [categoryTouched, setCategoryTouched] = useState(false),
     [error, setError] = useState("");
   const locked =
     invoice.status === "CONFIRMED" || invoice.status === "PROCESSING" || busy;
   const field = (key: string, value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
+  useEffect(() => {
+    if (locked || categoryTouched || form.category_id || !form.merchant_name.trim()) {
+      setCategorySuggestion(null);
+      return;
+    }
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      try {
+        const { data } = await api.post("/categories/suggest", {
+          type: "EXPENSE",
+          description: form.merchant_name.trim(),
+          note: form.note || null,
+          item_names: itemDrafts.map((item) => item.name).filter(Boolean),
+        });
+        if (active) setCategorySuggestion(data.category_id ? data : null);
+      } catch {
+        if (active) setCategorySuggestion(null);
+      }
+    }, 350);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [locked, categoryTouched, form.category_id, form.merchant_name, form.note, itemDrafts]);
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
@@ -133,12 +185,64 @@ function InvoiceForm({
       setError("Chọn tài khoản cùng loại tiền với hóa đơn.");
       return;
     }
+    if (itemDrafts.some((item) => !item.name.trim())) {
+      setError("Tên mặt hàng không được để trống.");
+      return;
+    }
+    const numeric = (value: string) => (value === "" ? null : Number(value));
     await onConfirm({
       ...form,
       total_amount: Number(form.total_amount),
       tax_amount: Number(form.tax_amount),
+      subtotal_amount: form.subtotal_amount ? Number(form.subtotal_amount) : null,
       category_id: form.category_id || null,
+      items: itemDrafts.map((item) => ({
+        name: item.name.trim(),
+        sku: item.sku.trim() || null,
+        unit: item.unit.trim() || null,
+        quantity: numeric(item.quantity),
+        unit_price: numeric(item.unit_price),
+        discount_amount: numeric(item.discount_amount),
+        tax_amount: numeric(item.tax_amount),
+        line_total: numeric(item.line_total),
+      })),
     });
+  };
+  const updateItem = (index: number, key: string, value: string) =>
+    setItemDrafts((rows) =>
+      rows.map((row, rowIndex) =>
+        rowIndex === index ? { ...row, [key]: value } : row,
+      ),
+    );
+  const saveItems = async () => {
+    setError("");
+    setItemsNotice("");
+    if (itemDrafts.some((item) => !item.name.trim())) {
+      setError("Tên mặt hàng không được để trống.");
+      return;
+    }
+    setItemsBusy(true);
+    try {
+      const numeric = (value: string) => (value === "" ? null : Number(value));
+      await api.put(`/invoices/${invoice.id}/items`, {
+        items: itemDrafts.map((item) => ({
+          name: item.name.trim(),
+          sku: item.sku.trim() || null,
+          unit: item.unit.trim() || null,
+          quantity: numeric(item.quantity),
+          unit_price: numeric(item.unit_price),
+          discount_amount: numeric(item.discount_amount),
+          tax_amount: numeric(item.tax_amount),
+          line_total: numeric(item.line_total),
+        })),
+      });
+      await cache.invalidateQueries({ queryKey: ["invoice", invoice.id] });
+      setItemsNotice("Đã lưu các mặt hàng đã hiệu chỉnh.");
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setItemsBusy(false);
+    }
   };
   const addCategory = async () => {
     if (!newCategory.trim()) return;
@@ -174,40 +278,100 @@ function InvoiceForm({
           aria-selected={tab === "items"}
           onClick={() => setTab("items")}
         >
-          Mặt hàng ({invoice.items?.length || 0})
+          Mặt hàng ({itemDrafts.length})
         </button>
       </div>
       {tab === "items" ? (
         <>
-          {!invoice.items?.length ? (
-            <Empty title="Chưa có mặt hàng được nhận diện" />
+          {error && <Alert onDismiss={() => setError("")}>{error}</Alert>}
+          {itemsNotice && (
+            <Alert kind="success" onDismiss={() => setItemsNotice("")}>
+              {itemsNotice}
+            </Alert>
+          )}
+          {!itemDrafts.length ? (
+            <Empty
+              title="Chưa có mặt hàng được nhận diện"
+              description={locked ? undefined : "Bạn có thể thêm dòng mặt hàng để hoàn thiện hóa đơn."}
+            />
           ) : (
-            <div className="cf-table-wrap">
-              <table className="cf-table">
+            <div className="cf-table-wrap cf-item-editor-wrap">
+              <table className="cf-table cf-item-editor">
                 <thead>
                   <tr>
                     <th>Mặt hàng</th>
+                    <th>ĐVT</th>
                     <th>SL</th>
+                    <th>Đơn giá</th>
                     <th className="right">Thành tiền</th>
+                    {!locked && <th aria-label="Thao tác" />}
                   </tr>
                 </thead>
                 <tbody>
-                  {invoice.items.map((item) => (
-                    <tr key={item.id}>
-                      <td style={{ whiteSpace: "normal" }}>{item.name}</td>
-                      <td>{Number(item.quantity || 0)}</td>
-                      <td className="right cf-number">
-                        {money(item.line_total || 0, invoice.currency)}
+                  {itemDrafts.map((item, index) => (
+                    <tr key={index}>
+                      <td className="cf-item-name-cell">
+                        {locked ? (
+                          <strong>{item.name}{item.unit ? ` - (${item.unit})` : ""}</strong>
+                        ) : (
+                          <>
+                            <input
+                              className="cf-input cf-item-input"
+                              aria-label={`Tên mặt hàng ${index + 1}`}
+                              maxLength={500}
+                              value={item.name}
+                              onChange={(e) => updateItem(index, "name", e.target.value)}
+                            />
+                            <span className="cf-sub">
+                              Hiển thị: {item.name || "Mặt hàng"}{item.unit ? ` - (${item.unit})` : ""}
+                            </span>
+                          </>
+                        )}
                       </td>
+                      <td>
+                        {locked ? item.unit || "—" : (
+                          <input className="cf-input cf-item-input cf-item-unit" aria-label={`Đơn vị tính ${index + 1}`} maxLength={50} value={item.unit} onChange={(e) => updateItem(index, "unit", e.target.value)} />
+                        )}
+                      </td>
+                      <td>
+                        {locked ? Number(item.quantity || 0) : (
+                          <input className="cf-input cf-item-input cf-item-number" aria-label={`Số lượng ${index + 1}`} type="number" min="0" step="0.0001" value={item.quantity} onChange={(e) => updateItem(index, "quantity", e.target.value)} />
+                        )}
+                      </td>
+                      <td>
+                        {locked ? money(item.unit_price || 0, invoice.currency) : (
+                          <input className="cf-input cf-item-input cf-item-money" aria-label={`Đơn giá ${index + 1}`} type="number" min="0" step="0.01" value={item.unit_price} onChange={(e) => updateItem(index, "unit_price", e.target.value)} />
+                        )}
+                      </td>
+                      <td className="right cf-number">
+                        {locked ? money(item.line_total || 0, invoice.currency) : (
+                          <input className="cf-input cf-item-input cf-item-money" aria-label={`Thành tiền ${index + 1}`} type="number" min="0" step="0.01" value={item.line_total} onChange={(e) => updateItem(index, "line_total", e.target.value)} />
+                        )}
+                      </td>
+                      {!locked && (
+                        <td>
+                          <button type="button" className="cf-icon-btn" aria-label={`Xóa mặt hàng ${index + 1}`} onClick={() => setItemDrafts((rows) => rows.filter((_, rowIndex) => rowIndex !== index))}>
+                            <Trash2 />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
-          <p className="cf-muted" style={{ fontSize: 12 }}>
-            Kiểm tra tổng thanh toán tại tab Thông tin trước khi xác nhận.
-          </p>
+          {!locked && (
+            <div className="cf-row" style={{ justifyContent: "space-between", flexWrap: "wrap" }}>
+              <button type="button" className="cf-btn cf-btn-ghost cf-btn-sm" disabled={itemsBusy || itemDrafts.length >= 200} onClick={() => setItemDrafts((rows) => [...rows, { name: "", sku: "", unit: "", quantity: "1", unit_price: "", discount_amount: "", tax_amount: "", line_total: "" }])}>
+                <Plus /> Thêm mặt hàng
+              </button>
+              <button type="button" className="cf-btn cf-btn-primary cf-btn-sm" disabled={itemsBusy || busy} onClick={saveItems}>
+                <Save /> {itemsBusy ? "Đang lưu…" : "Lưu chỉnh sửa mặt hàng"}
+              </button>
+            </div>
+          )}
+          <p className="cf-muted" style={{ fontSize: 12 }}>Tên hiển thị được ghép từ tên hàng và đơn vị tính, ví dụ “Giò lụa lợn quế - (Kg)”. Kiểm tra tổng thanh toán tại tab Thông tin trước khi xác nhận.</p>
         </>
       ) : (
         <form className="cf-form" onSubmit={submit}>
@@ -242,12 +406,16 @@ function InvoiceForm({
                   onChange={(e) => field("merchant_name", e.target.value)}
                 />
               </Field>
+              <Field label="Địa chỉ đơn vị bán hàng">
+                <input className="cf-input" maxLength={500} value={form.merchant_address} onChange={(e) => field("merchant_address", e.target.value)} />
+              </Field>
               <div className="cf-form-grid">
-                <Field label="Mã số thuế">
+                <Field label="Ký hiệu mẫu số / hóa đơn" hint="Ví dụ: 1C26MAB">
                   <input
                     className="cf-input"
-                    value={form.merchant_tax_code}
-                    onChange={(e) => field("merchant_tax_code", e.target.value)}
+                    maxLength={100}
+                    value={form.invoice_symbol}
+                    onChange={(e) => field("invoice_symbol", e.target.value)}
                   />
                 </Field>
                 <Field label="Số hóa đơn">
@@ -257,7 +425,7 @@ function InvoiceForm({
                     onChange={(e) => field("invoice_number", e.target.value)}
                   />
                 </Field>
-                <Field label="Ngày hóa đơn">
+                <Field label="Ngày lập hóa đơn" hint={form.invoice_date ? `Ngày chuẩn: ${form.invoice_date.split("-").reverse().join("-")}` : "Định dạng DD-MM-YYYY"}>
                   <input
                     className="cf-input"
                     type="date"
@@ -266,7 +434,18 @@ function InvoiceForm({
                     onChange={(e) => field("invoice_date", e.target.value)}
                   />
                 </Field>
-                <Field label={`Thuế (${invoice.currency || "VND"})`}>
+                <Field label="Mã số thuế đối tác">
+                  <input className="cf-input" maxLength={100} value={form.merchant_tax_code} onChange={(e) => field("merchant_tax_code", e.target.value)} />
+                </Field>
+              </div>
+              <div className="cf-form-grid">
+                <Field label={`Doanh số chưa thuế (${invoice.currency || "VND"})`}>
+                  <input className="cf-input cf-number" type="number" min="0" step="0.01" value={form.subtotal_amount} onChange={(e) => field("subtotal_amount", e.target.value)} />
+                </Field>
+                <Field label="Thuế suất GTGT" hint="8%, 10%, 0%, KCT…">
+                  <input className="cf-input" maxLength={50} value={form.vat_rate} onChange={(e) => field("vat_rate", e.target.value)} />
+                </Field>
+                <Field label={`Tiền thuế GTGT (${invoice.currency || "VND"})`}>
                   <input
                     className="cf-input"
                     type="number"
@@ -292,6 +471,12 @@ function InvoiceForm({
                   value={form.total_amount}
                   onChange={(e) => field("total_amount", e.target.value)}
                 />
+              </Field>
+              <Field label="Hình thức thanh toán" hint="TM, CK, TM/CK, thẻ…">
+                <input className="cf-input" maxLength={50} value={form.payment_method} onChange={(e) => field("payment_method", e.target.value)} />
+              </Field>
+              <Field label="File nguồn">
+                <div className="cf-readonly-value"><FileText size={16} /> <span>{invoice.original_filename || "Không xác định"}</span></div>
               </Field>
               <Field label="Tài khoản thanh toán">
                 <select
@@ -322,7 +507,7 @@ function InvoiceForm({
                 <select
                   className="cf-input"
                   value={form.category_id}
-                  onChange={(e) => field("category_id", e.target.value)}
+                  onChange={(e) => { field("category_id", e.target.value); setCategoryTouched(true); setCategorySuggestion(null); }}
                 >
                   <option value="">Chưa phân loại</option>
                   {categories.data
@@ -333,6 +518,12 @@ function InvoiceForm({
                       </option>
                     ))}
                 </select>
+                {categorySuggestion && (
+                  <div className="cf-category-suggestion" role="status">
+                    <div><strong>Gợi ý: {categorySuggestion.category_name}</strong><span>{Math.round(categorySuggestion.confidence * 100)}% · {categorySuggestion.reason}</span></div>
+                    <button type="button" className="cf-btn cf-btn-sm" onClick={() => { field("category_id", categorySuggestion.category_id); setCategoryTouched(true); setCategorySuggestion(null); }}>Chọn danh mục</button>
+                  </div>
+                )}
               </Field>
               {adding ? (
                 <div className="cf-row">
@@ -492,11 +683,11 @@ export default function Ocr() {
     const valid = Array.from(files);
     const unsupported = valid.find(
       (f) =>
-        f.size > 10 * 1024 * 1024 || !/\.(jpe?g|png|webp|pdf)$/i.test(f.name),
+        f.size > 10 * 1024 * 1024 || !/\.(jpe?g|png|webp|pdf|xml)$/i.test(f.name),
     );
     if (unsupported) {
       setError(
-        `Tệp “${unsupported.name}” không hợp lệ. Chỉ nhận JPG, PNG, WEBP, PDF tối đa 10 MB/tệp.`,
+        `Tệp “${unsupported.name}” không hợp lệ. Chỉ nhận JPG, PNG, WEBP, PDF, XML tối đa 10 MB/tệp.`,
       );
       return;
     }
@@ -515,7 +706,7 @@ export default function Ocr() {
       setStatus("");
       setPage(1);
       setChecked([]);
-      setNotice(`Đã tải ${count} hóa đơn. Chọn Quét AI để nhận diện nội dung.`);
+      setNotice(`Đã tải ${count} hóa đơn. XML được đọc trực tiếp; ảnh và PDF có thể Quét AI.`);
     } catch (e) {
       setError(`Đã tải ${count}/${valid.length} tệp. ${errorMessage(e)}`);
     } finally {
@@ -601,7 +792,7 @@ export default function Ocr() {
   };
   const eligible = checked.filter((id) =>
     list.some(
-      (i) => i.id === id && !["CONFIRMED", "PROCESSING"].includes(i.status),
+      (i) => i.id === id && i.mime_type !== "application/xml" && !["CONFIRMED", "PROCESSING"].includes(i.status),
     ),
   );
   const inv = detail.data;
@@ -632,7 +823,7 @@ export default function Ocr() {
             <input
               type="file"
               ref={uploadInput}
-              accept=".jpg,.jpeg,.png,.webp,.pdf"
+              accept=".jpg,.jpeg,.png,.webp,.pdf,.xml"
               multiple
               hidden
               onChange={(e) => upload(e.target.files)}
@@ -803,7 +994,7 @@ export default function Ocr() {
                   className="cf-panel-body cf-row cf-between"
                   style={{ paddingBottom: 0 }}
                 >
-                  {!["CONFIRMED", "PROCESSING"].includes(inv.status) && (
+                  {!["CONFIRMED", "PROCESSING"].includes(inv.status) && inv.mime_type !== "application/xml" && (
                     <button
                       className="cf-btn cf-btn-primary cf-btn-sm"
                       disabled={!!busy}
@@ -843,7 +1034,7 @@ export default function Ocr() {
             <div className="cf-row" style={{ gap: 4 }}>
               <button
                 className="cf-icon-btn"
-                disabled={!blob || inv?.mime_type === "application/pdf"}
+                disabled={!blob || inv?.mime_type === "application/pdf" || inv?.mime_type === "application/xml"}
                 aria-label="Thu nhỏ"
                 onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
               >
@@ -851,7 +1042,7 @@ export default function Ocr() {
               </button>
               <button
                 className="cf-icon-btn"
-                disabled={!blob || inv?.mime_type === "application/pdf"}
+                disabled={!blob || inv?.mime_type === "application/pdf" || inv?.mime_type === "application/xml"}
                 aria-label="Phóng to"
                 onClick={() => setZoom((z) => Math.min(3, z + 0.25))}
               >
@@ -859,7 +1050,7 @@ export default function Ocr() {
               </button>
               <button
                 className="cf-icon-btn"
-                disabled={!blob || inv?.mime_type === "application/pdf"}
+                disabled={!blob || inv?.mime_type === "application/pdf" || inv?.mime_type === "application/xml"}
                 aria-label="Xoay ảnh"
                 onClick={() => setRotation((r) => r + 90)}
               >
@@ -892,6 +1083,10 @@ export default function Ocr() {
                   >
                     Mở PDF
                   </a>
+                </object>
+              ) : inv?.mime_type === "application/xml" ? (
+                <object data={blob} type="application/xml" className="cf-pdf" aria-label="Bản gốc hóa đơn XML">
+                  <a className="cf-btn" href={blob} target="_blank" rel="noreferrer">Mở XML</a>
                 </object>
               ) : (
                 <div className="cf-image-scroll">

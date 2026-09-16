@@ -12,30 +12,16 @@ import {
 } from "react";
 import {
   AlertCircle,
-  CheckCircle2,
   Inbox,
   LoaderCircle,
   X,
   ChevronLeft,
   ChevronRight,
-  Activity,
   Eye,
   EyeOff,
 } from "lucide-react";
 import { useState } from "react";
 
-export function Brand() {
-  return (
-    <span className="cf-brand">
-      <span className="cf-brand-mark">
-        <Activity aria-hidden="true" />
-      </span>
-      <span className="cf-brand-name">
-        CapitalFlow<span style={{ color: "var(--cf-blue)" }}>.</span>
-      </span>
-    </span>
-  );
-}
 export function PageHead({
   title,
   description,

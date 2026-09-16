@@ -1,6 +1,8 @@
-"""Verify built API/worker images with isolated credentials, SQLite and no network.
+"""Verify production API/worker images with isolated credentials and no network.
 
-Run from capitalflow-api after docker compose build. No real queue is consumed.
+Run host tests before building, then run this smoke check after ``docker compose
+build``. Production images deliberately exclude tests and development scripts.
+No real queue is consumed.
 """
 import argparse
 import base64
@@ -29,8 +31,7 @@ def verify(api_image, worker_image):
         run(["run", "--rm", "--network", "none", *env_args, image, *command])
 
     isolated(api_image, ["python", "-m", "pip", "check"])
-    isolated(api_image, ["python", "-c", "from pathlib import Path; import pyodbc; assert not Path('/app/.env').exists(); assert not Path('/app/.venv').exists(); assert 'ODBC Driver 18 for SQL Server' in pyodbc.drivers(); print('Image isolation and ODBC driver: PASS')"])
-    isolated(api_image, ["python", "-m", "pytest", "-q"])
+    isolated(api_image, ["python", "-c", "from pathlib import Path; import pyodbc; assert not Path('/app/.env').exists(); assert not Path('/app/.venv').exists(); assert not Path('/app/tests').exists(); assert not Path('/app/scripts').exists(); assert not Path('/app/docs').exists(); assert Path('/app/migrations/20260914_user_deletion.sql').exists(); assert 'ODBC Driver 18 for SQL Server' in pyodbc.drivers(); print('Image isolation, runtime whitelist and ODBC driver: PASS')"])
     isolated(worker_image, ["python", "-c", "import sys, runpy; import app.models; from app.models.base import Base; from app.core.database import engine; Base.metadata.create_all(engine); sys.argv=['worker','--once']; runpy.run_module('app.services.worker',run_name='__main__'); print('Worker CLI, empty isolated queue: PASS')"])
 
     name = "capitalflow-build-check-" + uuid4().hex[:12]

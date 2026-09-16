@@ -107,7 +107,8 @@ def register(request: Request, payload: RegisterRequest, background_tasks: Backg
     enqueue_email(db,
         EmailService.send_welcome_email,
         user.email,
-        user.full_name or "Quý khách"
+        user.full_name or "Quý khách",
+        owner_user_id=user.id,
     )
     db.commit()
 
@@ -126,6 +127,9 @@ def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)
 
     if not user:
         raise HTTPException(status_code=401, detail="Email hoặc mật khẩu không đúng")
+
+    if user.is_deleted:
+        raise HTTPException(status_code=403, detail="Tài khoản đã bị xóa hoặc đang chờ xóa vĩnh viễn")
 
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Tài khoản của bạn đã bị khóa bởi Quản trị viên. Vui lòng liên hệ hỗ trợ để được mở khóa.")
@@ -167,7 +171,7 @@ def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)
 @limiter.limit("5/minute")
 def forgot_password(request: Request, payload: ForgotPasswordRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     user = _otp_user(db, payload.email)
-    if not user or not user.is_active:
+    if not user or user.is_deleted or not user.is_active:
         return {"success": True, "message": "Nếu email tồn tại trên hệ thống, mã xác thực OTP sẽ được gửi về hộp thư của bạn."}
 
     recent = db.scalar(select(PasswordResetOTP).where(PasswordResetOTP.user_id==user.id).order_by(PasswordResetOTP.created_at.desc()))
@@ -201,7 +205,8 @@ def forgot_password(request: Request, payload: ForgotPasswordRequest, background
         user.email,
         user.full_name or "Quý khách",
         otp_code,
-        user_id=user.id
+        user_id=user.id,
+        owner_user_id=user.id,
     )
     db.commit()
 

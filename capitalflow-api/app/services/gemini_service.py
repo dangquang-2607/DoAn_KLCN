@@ -13,6 +13,7 @@ import logging
 import httpx
 
 from app.core.config import settings
+from app.core.unicode_text import normalize_unicode_tree
 
 logger = logging.getLogger(__name__)
 
@@ -36,9 +37,6 @@ Nếu không đọc được trường nào, hãy để chuỗi rỗng "" hoặc
   "tong_thanh_toan": "tổng tiền thanh toán (chỉ chữ số, VD: 1620000)",
   "hinh_thuc_thanh_toan": "tiền mặt / chuyển khoản / thẻ",
   "tien_te": "VND",
-  "tinh_trang_hoa_don": "Gốc hoặc Điều chỉnh hoặc Thay thế hoặc Hủy",
-  "phan_loai_chi_phi": "loại chi phí phù hợp (VD: Ăn uống & Tiếp khách, Văn phòng phẩm, Thiết bị, Di chuyển...)",
-  "ma_tra_cuu": "mã tra cứu hóa đơn điện tử hoặc link tra cứu nếu có",
   "do_tin_cay": 0.95,
   "items": [
     {
@@ -59,6 +57,8 @@ Nếu không đọc được trường nào, hãy để chuỗi rỗng "" hoặc
 
 Lưu ý quan trọng:
 - Tất cả các trường tiền tệ PHẢI là số thuần túy (không dấu chấm, không dấu phẩy ngăn cách nghìn, không kèm chữ đ hoặc VNĐ).
+- Số lượng phải giữ đúng phần thập phân và dùng dấu chấm, ví dụ 0.215 kg phải trả về "0.215", tuyệt đối không trả thành 215.
+- Tách riêng tên hàng và đơn vị tính; không bỏ mất đơn vị in trong ngoặc cạnh tên hàng.
 - Nếu không có bảng chi tiết từng món hàng, trả về items là mảng rỗng [].
 - do_tin_cay là số thực từ 0.0 đến 1.0 phản ánh độ chính xác bóc tách.
 """
@@ -101,7 +101,7 @@ async def _call_gemini_model(model_name: str, file_bytes: bytes, mime_type: str)
     if start >= 0 and end > start:
         raw_text = raw_text[start : end + 1]
 
-    result = json.loads(raw_text)
+    result = normalize_unicode_tree(json.loads(raw_text))
     if "items" not in result or not isinstance(result["items"], list):
         result["items"] = []
 

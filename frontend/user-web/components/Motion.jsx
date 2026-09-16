@@ -1,5 +1,4 @@
 "use client";
-import { useEffect, useState } from "react";
 import { ArrowRight, Check, FileText, ScanLine, Wallet, X } from "lucide-react";
 
 // Always render the authoritative value; animate its presentation, never invent balances.
@@ -29,16 +28,4 @@ export function OcrSteps({ status }) {
       <small>{failed && i === 1 ? "Cần thử lại" : label}</small>
     </div>)}
   </div>;
-}
-
-export function useMotionAllowed() {
-  const [allowed, setAllowed] = useState(false);
-  useEffect(() => {
-    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => setAllowed(!media.matches);
-    update();
-    media.addEventListener("change", update);
-    return () => media.removeEventListener("change", update);
-  }, []);
-  return allowed;
 }

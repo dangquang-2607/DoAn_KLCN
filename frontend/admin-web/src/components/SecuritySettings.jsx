@@ -12,7 +12,7 @@ import {
   ErrorState,
   Empty,
 } from "./design";
-export default function SecuritySettings({ firstTime = false, onComplete }) {
+export default function SecuritySettings({ firstTime = false }) {
   const [current, setCurrent] = useState(""),
     [password, setPassword] = useState(""),
     [confirm, setConfirm] = useState(""),

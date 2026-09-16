@@ -1,13 +1,12 @@
-from sqlalchemy import Unicode, UnicodeText
 """
 InvoiceItem model — từng dòng sản phẩm trong hóa đơn.
-Đồng bộ 100% với CSDL.sql: đổi tên item_name→name, sku_code→sku, total_price→line_total;
+Đồng bộ với schema SQL Server: đổi tên item_name→name, sku_code→sku, total_price→line_total;
 thêm line_no, unit, discount_amount, tax_amount, confidence, raw_text, updated_at.
 """
 import uuid
 from decimal import Decimal
 from datetime import datetime
-from sqlalchemy import String, Integer, Numeric, DateTime, ForeignKey, func, Uuid, Index
+from sqlalchemy import Unicode, String, Integer, Numeric, DateTime, ForeignKey, func, Uuid, Index
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 

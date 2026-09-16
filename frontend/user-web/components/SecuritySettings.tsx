@@ -14,10 +14,8 @@ import {
 } from "./ui";
 export default function SecuritySettings({
   firstTime = false,
-  onComplete,
 }: {
   firstTime?: boolean;
-  onComplete?: () => void;
 }) {
   const [current, setCurrent] = useState(""),
     [password, setPassword] = useState(""),

@@ -16,5 +16,11 @@ class BackgroundJob(Base):
     lease_until: Mapped[datetime | None] = mapped_column(DateTime)
     lease_token: Mapped[uuid.UUID | None] = mapped_column(Uuid)
     error_code: Mapped[str | None] = mapped_column(String(100))
+    # Denormalized ownership makes cancellation during account erasure bounded
+    # and avoids decrypting every queued payload.
+    owner_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.sysutcdatetime())
-    __table_args__ = (Index("IX_background_jobs_poll", "status", "available_at", "lease_until"),)
+    __table_args__ = (
+        Index("IX_background_jobs_poll", "status", "available_at", "lease_until"),
+        Index("IX_background_jobs_owner", "owner_user_id", "status"),
+    )

@@ -24,7 +24,7 @@ import {
 Command,
 } from "lucide-react";
 import api from "@/lib/api";
-import { Brand, Loading, ErrorState } from "./ui";
+import { Loading, ErrorState } from "./ui";
 import SecuritySettings from "./SecuritySettings";
 import type { Profile } from "@/lib/finance";
 
@@ -390,10 +390,7 @@ export default function DashboardLayout({
                   <div className="cf-alert">
                     Đặt mật khẩu riêng trước khi bắt đầu sử dụng tài khoản.
                   </div>
-                  <SecuritySettings
-                    firstTime
-                    onComplete={() => profile.refetch()}
-                  />
+                  <SecuritySettings firstTime />
                 </div>
               ) : (
                 children

@@ -14,9 +14,10 @@ from app.models.transaction import Transaction, TransactionType
 from app.models.budget import Budget, BudgetPeriod
 from app.models.refresh_token import RefreshToken
 from app.models.audit_log import AuditLog
+from app.models.user_deletion import UserDeletionRequest, UserDeletionFile
 
 __all__ = [
     "Base", "User", "UserRole", "Category", "CategoryType", "Account", "AccountType",
     "Invoice", "InvoiceItem", "OcrJob", "Transaction", "TransactionType", "Budget", "BudgetPeriod",
-    "RefreshToken", "AuditLog", "SystemSetting"
+    "RefreshToken", "AuditLog", "SystemSetting", "UserDeletionRequest", "UserDeletionFile"
 ]

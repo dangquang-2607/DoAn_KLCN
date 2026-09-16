@@ -45,6 +45,8 @@ def get_current_user(
     user = db.get(User, user_id)
     if not user:
         raise HTTPException(status_code=401, detail="Tài khoản không tồn tại")
+    if user.is_deleted:
+        raise HTTPException(status_code=403, detail="Tài khoản đã bị xóa hoặc đang chờ xóa vĩnh viễn")
     if payload["ver"] != user.token_version:
         raise HTTPException(status_code=401, detail="Phiên đăng nhập đã bị thu hồi")
     if not user.is_active:

@@ -2,12 +2,14 @@
 from datetime import date
 from decimal import Decimal
 from sqlalchemy import select, func, case, extract, and_, or_
+from sqlalchemy.orm import Session
+from uuid import UUID
 from app.models.budget import Budget
 from app.models.transaction import Transaction as T
 from app.models.category import Category
 
 
-def monthly_cashflow(db, user_id, month=None, year=None):
+def monthly_cashflow(db: Session, user_id: UUID, month: int | None = None, year: int | None = None) -> list[dict]:
     y, m = extract("year", T.transaction_date), extract("month", T.transaction_date)
     query = select(
         y.label("year"), m.label("month"),
@@ -15,6 +17,8 @@ def monthly_cashflow(db, user_id, month=None, year=None):
         func.sum(case((T.type == "EXPENSE", -T.amount), else_=0)).label("expense"),
     ).where(T.user_id == user_id, T.kind == "NORMAL")
     if month is not None:
+        if year is None:
+            raise ValueError("year is required when month is provided")
         start = date(year, month, 1)
         end = date(year+1,1,1) if month==12 and year<9999 else date(year,month+1,1) if month<12 else None
         query = query.where(T.transaction_date >= start)
@@ -25,7 +29,7 @@ def monthly_cashflow(db, user_id, month=None, year=None):
     return [dict(row) for row in rows]
 
 
-def category_spending(db, user_id, month, year):
+def category_spending(db: Session, user_id: UUID, month: int, year: int) -> dict[str, float]:
     start=date(year,month,1)
     end=date(year+1,1,1) if month==12 and year<9999 else date(year,month+1,1) if month<12 else date.max
     rows = db.execute(select(Category.name, func.sum(-T.amount)).outerjoin(
@@ -35,7 +39,35 @@ def category_spending(db, user_id, month, year):
     return {name or "Khác": float(amount) for name, amount in rows}
 
 
-def budget_progress(db, budget):
+def cashflow_range(db: Session, user_id: UUID, start: date, end: date) -> dict[str, float]:
+    row = db.execute(
+        select(
+            func.coalesce(func.sum(case((T.type == "INCOME", T.amount), else_=0)), 0),
+            func.coalesce(func.sum(case((T.type == "EXPENSE", -T.amount), else_=0)), 0),
+        ).where(
+            T.user_id == user_id,
+            T.kind == "NORMAL",
+            T.transaction_date.between(start, end),
+        )
+    ).one()
+    income, expense = Decimal(row[0]), Decimal(row[1])
+    return {"income": float(income), "expense": float(expense), "net": float(income - expense)}
+
+
+def category_spending_range(db: Session, user_id: UUID, start: date, end: date) -> dict[str, float]:
+    rows = db.execute(
+        select(Category.name, func.sum(-T.amount))
+        .outerjoin(Category, Category.id == T.category_id)
+        .where(
+            T.user_id == user_id, T.kind == "NORMAL", T.type == "EXPENSE",
+            T.transaction_date.between(start, end),
+        )
+        .group_by(Category.name)
+    ).all()
+    return {name or "Khác": float(amount) for name, amount in rows}
+
+
+def budget_progress(db: Session, budget: Budget) -> dict:
     query = select(func.coalesce(func.sum(-T.amount), 0)).where(
         T.user_id == budget.user_id, T.kind == "NORMAL", T.type == "EXPENSE",
         T.transaction_date.between(budget.start_date, budget.end_date),

@@ -2,7 +2,7 @@ from decimal import Decimal
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class InvoiceItemOut(BaseModel):
@@ -24,10 +24,33 @@ class InvoiceItemOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class InvoiceItemEdit(BaseModel):
+    """Một dòng mặt hàng do người dùng hiệu chỉnh trước khi xác nhận hóa đơn."""
+    name: str = Field(min_length=1, max_length=500)
+    sku: str | None = Field(default=None, max_length=100)
+    unit: str | None = Field(default=None, max_length=50)
+    quantity: Decimal | None = Field(default=None, ge=Decimal("0"), max_digits=18, decimal_places=4)
+    unit_price: Decimal | None = Field(default=None, ge=Decimal("0"), max_digits=19, decimal_places=2)
+    discount_amount: Decimal | None = Field(default=None, ge=Decimal("0"), max_digits=19, decimal_places=2)
+    tax_amount: Decimal | None = Field(default=None, ge=Decimal("0"), max_digits=19, decimal_places=2)
+    line_total: Decimal | None = Field(default=None, ge=Decimal("0"), max_digits=19, decimal_places=2)
+
+    @field_validator("name")
+    @classmethod
+    def normalize_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Tên mặt hàng không được để trống")
+        return value
+
+
+class InvoiceItemsUpdate(BaseModel):
+    items: list[InvoiceItemEdit] = Field(max_length=200)
+
+
 class InvoiceOut(BaseModel):
     id: UUID
     user_id: UUID
-    parent_id: UUID | None
     account_id: UUID | None
     category_id: UUID | None
     source: str
@@ -36,17 +59,17 @@ class InvoiceOut(BaseModel):
     merchant_address: str | None
     merchant_tax_code: str | None
     invoice_number: str | None
+    invoice_symbol: str | None
     invoice_date: date | None
+    vat_rate: str | None
+    payment_method: str | None
     subtotal_amount: Decimal | None
     tax_amount: Decimal | None
-    discount_amount: Decimal | None
     total_amount: Decimal | None
     currency: str
     original_filename: str | None
     mime_type: str | None
     file_size_bytes: int | None
-    ocr_provider: str | None
-    ocr_model: str | None
     ocr_confidence: Decimal | None
     note: str | None
     created_at: datetime
@@ -93,10 +116,15 @@ class InvoiceConfirm(BaseModel):
     merchant_name: str | None = Field(default=None, max_length=255)
     invoice_date: date | None = None
     invoice_number: str | None = Field(default=None, max_length=100)
+    invoice_symbol: str | None = Field(default=None, max_length=100)
     merchant_tax_code: str | None = Field(default=None, max_length=100)
-    subtotal_amount: Decimal | None = Field(default=None, ge=0, max_digits=19, decimal_places=2)
-    tax_amount: Decimal | None = Field(default=None, ge=0, max_digits=19, decimal_places=2)
-    total_amount: Decimal | None = Field(default=None, gt=0, max_digits=19, decimal_places=2)
+    merchant_address: str | None = Field(default=None, max_length=500)
+    vat_rate: str | None = Field(default=None, max_length=50)
+    payment_method: str | None = Field(default=None, max_length=50)
+    subtotal_amount: Decimal | None = Field(default=None, ge=Decimal("0"), max_digits=19, decimal_places=2)
+    tax_amount: Decimal | None = Field(default=None, ge=Decimal("0"), max_digits=19, decimal_places=2)
+    total_amount: Decimal | None = Field(default=None, gt=Decimal("0"), max_digits=19, decimal_places=2)
+    items: list[InvoiceItemEdit] | None = Field(default=None, max_length=200)
 
 
 class InvoiceBatchDelete(BaseModel):

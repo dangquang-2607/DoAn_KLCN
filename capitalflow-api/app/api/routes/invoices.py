@@ -11,6 +11,7 @@ Tính năng:
 import json
 import uuid
 import re
+from typing import Any
 from datetime import datetime, timezone, date
 from decimal import Decimal
 from pathlib import Path
@@ -35,24 +36,27 @@ from app.schemas.invoice import (
     InvoiceOut,
     InvoicePage,
     InvoiceItemOut,
+    InvoiceItemsUpdate,
     InvoiceBatchDelete,
     InvoiceBatchOcr,
 )
 from app.services.gemini_service import run_gemini_ocr
 from app.services.jobs import enqueue
 from app.services.transaction_service import create_transaction
+from app.services.invoice_xml import parse_invoice_xml
+from app.services.category_classifier import suggest_category
 
 router = APIRouter(prefix="/invoices", tags=["Invoices"])
 
-ALLOWED_MIME = {"image/jpeg", "image/png", "image/webp", "application/pdf"}
-ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".webp", ".pdf"}
+ALLOWED_MIME = {"image/jpeg", "image/png", "image/webp", "application/pdf", "application/xml"}
+ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".webp", ".pdf", ".xml"}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 MAX_BATCH_OCR = 5  # Tối đa 5 hóa đơn / lần quét hàng loạt
 
 
 # ─── Helper: Parse amount & date ────────────────────────────────────────────
 
-def _parse_amount(raw: any) -> Decimal:
+def _parse_amount(raw: Any) -> Decimal:
     """Chuẩn hóa chuỗi số tiền Việt Nam / Quốc tế sang Decimal an toàn."""
     if raw is None:
         return Decimal("0")
@@ -82,7 +86,7 @@ def _parse_amount(raw: any) -> Decimal:
         raise ValueError("Invalid OCR numeric value") from exc
 
 
-def _parse_date(raw: any) -> date | None:
+def _parse_date(raw: Any) -> date | None:
     """Phân tích ngày tháng đa định dạng."""
     if not raw:
         return None
@@ -166,7 +170,7 @@ def _check_duplicate(db: Session, user_id: uuid.UUID, invoice: Invoice) -> tuple
     "",
     status_code=201,
     summary="Tải lên hóa đơn (Upload Invoice)",
-    description="Tải lên tệp hóa đơn (JPG, PNG, WEBP, PDF — tối đa 10MB). Tạo bản ghi UPLOADED, chờ người dùng bấm Quét AI.",
+    description="Tải lên tệp hóa đơn (JPG, PNG, WEBP, PDF, XML — tối đa 10MB). XML được đọc trực tiếp; ảnh/PDF chờ người dùng bấm Quét AI.",
 )
 def upload_invoice(
     file: UploadFile = File(...),
@@ -185,9 +189,10 @@ def upload_invoice(
         "application/pdf" if contents.startswith(b"%PDF-") else
         "image/png" if contents.startswith(b"\x89PNG\r\n\x1a\n") else
         "image/jpeg" if contents.startswith(b"\xff\xd8\xff") else
-        "image/webp" if contents[:4]==b"RIFF" and contents[8:12]==b"WEBP" else None
+        "image/webp" if contents[:4]==b"RIFF" and contents[8:12]==b"WEBP" else
+        "application/xml" if ext == ".xml" and contents.lstrip(b"\xef\xbb\xbf \t\r\n").startswith(b"<") else None
     )
-    expected = {".pdf":"application/pdf", ".png":"image/png", ".jpg":"image/jpeg", ".jpeg":"image/jpeg", ".webp":"image/webp"}
+    expected = {".pdf":"application/pdf", ".png":"image/png", ".jpg":"image/jpeg", ".jpeg":"image/jpeg", ".webp":"image/webp", ".xml":"application/xml"}
     if actual_mime != expected[ext]:
         raise HTTPException(status_code=415, detail="Nội dung file không khớp định dạng")
     stored_name = f"{uuid.uuid4()}{ext}"
@@ -195,18 +200,32 @@ def upload_invoice(
     upload_path.parent.mkdir(parents=True, exist_ok=True)
     upload_path.write_bytes(contents)
 
+    xml_data = None
+    if actual_mime == "application/xml":
+        try:
+            xml_data = parse_invoice_xml(contents)
+        except ValueError as exc:
+            upload_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
     invoice = Invoice(
         user_id=user.id,
         original_filename=Path(file.filename or stored_name).name[:255],
         storage_key=stored_name,
         mime_type=actual_mime,
         file_size_bytes=len(contents),
-        source="UPLOAD",
-        status="UPLOADED",
+        source="XML" if xml_data else "UPLOAD",
+        status="REVIEW_REQUIRED" if xml_data else "UPLOADED",
+        **({key: value for key, value in xml_data.items() if key != "items"} if xml_data else {}),
     )
     try:
         db.add(invoice)
         db.flush()
+        if xml_data:
+            db.add_all([
+                InvoiceItem(invoice_id=invoice.id, line_no=index, **item)
+                for index, item in enumerate(xml_data["items"], start=1)
+            ])
     except Exception:
         db.rollback()
         upload_path.unlink(missing_ok=True)
@@ -333,6 +352,52 @@ def get_invoice_items(
     return items
 
 
+@router.put(
+    "/{invoice_id}/items",
+    response_model=list[InvoiceItemOut],
+    summary="Cập nhật mặt hàng hóa đơn (Update Invoice Items)",
+    description="Thay thế danh sách mặt hàng OCR bằng dữ liệu người dùng đã kiểm tra và hiệu chỉnh.",
+)
+def update_invoice_items(
+    invoice_id: uuid.UUID,
+    payload: InvoiceItemsUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    invoice = db.scalar(
+        select(Invoice)
+        .where(Invoice.id == invoice_id, Invoice.user_id == user.id)
+        .with_hint(Invoice, "WITH (UPDLOCK, ROWLOCK)", dialect_name="mssql")
+        .execution_options(populate_existing=True)
+    )
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Không tìm thấy hóa đơn")
+    if invoice.status in {"CONFIRMED", "PROCESSING"}:
+        raise HTTPException(status_code=409, detail="Không thể sửa mặt hàng khi hóa đơn đang xử lý hoặc đã ghi sổ")
+
+    db.execute(delete(InvoiceItem).where(InvoiceItem.invoice_id == invoice.id))
+    edited_items = [
+        InvoiceItem(
+            invoice_id=invoice.id,
+            line_no=line_no,
+            name=item.name.strip(),
+            sku=item.sku.strip() if item.sku else None,
+            unit=item.unit.strip() if item.unit else None,
+            quantity=item.quantity,
+            unit_price=item.unit_price,
+            discount_amount=item.discount_amount,
+            tax_amount=item.tax_amount,
+            line_total=item.line_total,
+        )
+        for line_no, item in enumerate(payload.items, start=1)
+    ]
+    db.add_all(edited_items)
+    db.commit()
+    for item in edited_items:
+        db.refresh(item)
+    return edited_items
+
+
 # ─── OCR — Gemini AI ───────────────────────────────────────────────────────
 
 def _enqueue_ocr(db, invoice_id, user_id):
@@ -342,6 +407,8 @@ def _enqueue_ocr(db, invoice_id, user_id):
         raise HTTPException(status_code=404, detail="Không tìm thấy hóa đơn")
     if invoice.status == "CONFIRMED":
         raise HTTPException(status_code=409, detail="Hóa đơn đã xác nhận")
+    if invoice.mime_type == "application/xml":
+        raise HTTPException(status_code=409, detail="Hóa đơn XML đã được đọc trực tiếp, không cần quét AI")
     if invoice.status == "PROCESSING":
         return {"id":str(invoice.id), "success":True, "queued":True}
     job=OcrJob(id=uuid.uuid4(),user_id=user_id,invoice_id=invoice.id,status="QUEUED",provider="google_gemini",model_name=settings.google_ai_model)
@@ -408,18 +475,74 @@ def confirm_invoice(
         invoice.invoice_date = payload.invoice_date
     if payload.invoice_number is not None:
         invoice.invoice_number = payload.invoice_number
+    if payload.invoice_symbol is not None:
+        invoice.invoice_symbol = payload.invoice_symbol
     if payload.merchant_tax_code is not None:
         invoice.merchant_tax_code = payload.merchant_tax_code
+    if payload.merchant_address is not None:
+        invoice.merchant_address = payload.merchant_address
+    for field in ("vat_rate", "payment_method"):
+        value = getattr(payload, field)
+        if value is not None:
+            setattr(invoice, field, value)
     if payload.subtotal_amount is not None:
         invoice.subtotal_amount = payload.subtotal_amount
     if payload.tax_amount is not None:
         invoice.tax_amount = payload.tax_amount
     if payload.total_amount is not None:
         invoice.total_amount = payload.total_amount
+    invoice.note = payload.note.strip() if payload.note and payload.note.strip() else None
+    if payload.items is not None:
+        db.execute(delete(InvoiceItem).where(InvoiceItem.invoice_id == invoice.id))
+        db.add_all([
+            InvoiceItem(
+                invoice_id=invoice.id,
+                line_no=line_no,
+                name=item.name.strip(),
+                sku=item.sku.strip() if item.sku else None,
+                unit=item.unit.strip() if item.unit else None,
+                quantity=item.quantity,
+                unit_price=item.unit_price,
+                discount_amount=item.discount_amount,
+                tax_amount=item.tax_amount,
+                line_total=item.line_total,
+            )
+            for line_no, item in enumerate(payload.items, start=1)
+        ])
 
     # Dùng số tiền đã được người dùng xác nhận (có thể đã sửa)
     final_amount = invoice.total_amount or Decimal("0")
     desc = (invoice.merchant_name or f"Hóa đơn {invoice.invoice_number or ''}").strip() or "Hóa đơn OCR"
+
+    category_id = payload.category_id
+    category_metadata = {}
+    if category_id:
+        category_metadata = {
+            "category_confidence": Decimal("1.0000"),
+            "category_source": "MANUAL",
+            "category_was_auto": False,
+        }
+    else:
+        item_names = (
+            [item.name for item in payload.items]
+            if payload.items is not None
+            else list(db.scalars(select(InvoiceItem.name).where(InvoiceItem.invoice_id == invoice.id)))
+        )
+        suggestion = suggest_category(
+            db,
+            user.id,
+            TransactionType.EXPENSE,
+            description=desc,
+            note=payload.note,
+            item_names=item_names,
+        )
+        if suggestion.auto_apply:
+            category_id = suggestion.category_id
+            category_metadata = {
+                "category_confidence": suggestion.confidence,
+                "category_source": suggestion.source,
+                "category_was_auto": True,
+            }
 
     txn = create_transaction(
         db=db,
@@ -427,19 +550,20 @@ def confirm_invoice(
         source=TransactionSource.OCR,
         commit=False,
         account_id=payload.account_id,
-        category_id=payload.category_id,
+        category_id=category_id,
         description=desc,
         amount=final_amount,
         type=TransactionType.EXPENSE,
         transaction_date=invoice.invoice_date or datetime.now().date(),
         note=payload.note,
         invoice_id=invoice.id,
+        **category_metadata,
     )
 
     invoice.status = "CONFIRMED"
     invoice.confirmed_at = datetime.now(timezone.utc)
     invoice.account_id = payload.account_id
-    invoice.category_id = payload.category_id
+    invoice.category_id = category_id
     enqueue(db, "BUDGET", {"user_id": str(user.id), "transaction_id": str(txn.id)}, "budget-check:" + str(txn.id))
     db.commit()
 

@@ -44,6 +44,6 @@ The migration preserves wallet balances. Where historic transaction totals do no
 
 ## Tests
 
-The automatic suite lives under `tests/`. Earlier interactive scripts were moved to `scripts/manual/`; they are not pytest tests and should only be run deliberately against a disposable environment. They are retained for reference and are not evidence of automated coverage.
+The automatic suite lives under `tests/`. Earlier interactive network scripts were removed because they mutated shared data, drifted from current idempotency requirements and duplicated pytest coverage.
 
 SQLite integration tests cover API lifecycle, transfer integrity, adjustments, report exclusion, actual/false budget alerts, registration limits, JWT validation, refresh rotation, ban/unban, category ownership/history, and constraints. MSSQL compilation tests check filtered index predicates. The rollback verifier additionally exercises the deployed SQL Server schema and views; SQLite alone does not validate SQL Server locking behavior.

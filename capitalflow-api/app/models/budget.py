@@ -1,13 +1,12 @@
-from sqlalchemy import Unicode, UnicodeText
 """
 Budget model — ngân sách cá nhân.
-Đồng bộ 100% với CSDL.sql: amount_limit, period_type, name, currency, warning_percent, is_active, WEEKLY.
+Đồng bộ với migration SQL Server: amount_limit, period_type, name, currency, warning_percent, is_active, WEEKLY.
 """
 import enum
 import uuid
 from decimal import Decimal
 from datetime import datetime, date
-from sqlalchemy import String, Boolean, Numeric, DateTime, Date, ForeignKey, func, Uuid, Index, text, CheckConstraint
+from sqlalchemy import Unicode, String, Boolean, Numeric, DateTime, Date, ForeignKey, func, Uuid, Index, text, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 

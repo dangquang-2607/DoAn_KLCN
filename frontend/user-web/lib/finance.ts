@@ -15,6 +15,9 @@ export interface Category {
   owner_user_id: string | null;
   icon?: string;
   color?: string;
+  keywords?: string | null;
+  sort_order: number;
+  is_active: boolean;
 }
 export interface Transaction {
   id: string;
@@ -28,6 +31,9 @@ export interface Transaction {
   transaction_date: string;
   description: string;
   note?: string;
+  category_confidence?: Money | null;
+  category_source?: string | null;
+  category_was_auto?: boolean;
 }
 export interface Budget {
   budget_id: string;

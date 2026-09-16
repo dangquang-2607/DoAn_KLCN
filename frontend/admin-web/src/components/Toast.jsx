@@ -18,6 +18,8 @@ export default function Toast({ children, kind = "info", duration = 5000, onDism
     }
     const slot = document.createElement("div");
     region.appendChild(slot);
+    // The portal target only exists after the browser mounts this client component.
+    // oxlint-disable-next-line react/set-state-in-effect
     setHost(slot);
     return () => {
       slot.remove();

@@ -1,8 +1,7 @@
-from sqlalchemy import Unicode, UnicodeText
 import enum
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Boolean, DateTime, func, Uuid, Unicode, Integer
+from sqlalchemy import String, Boolean, DateTime, func, Uuid, Unicode, UnicodeText, Integer, Index, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 
@@ -20,8 +19,26 @@ class User(Base):
     role: Mapped[UserRole] = mapped_column(String(20), default=UserRole.USER)
     token_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False)
+    deletion_status: Mapped[str] = mapped_column(String(20), default="ACTIVE", server_default="ACTIVE", nullable=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Deliberately kept as a durable actor snapshot rather than a foreign key. A
+    # deletion record must remain readable even if the acting administrator is
+    # later removed under a separate retention policy.
+    deleted_by: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    email_before_delete_sealed: Mapped[str | None] = mapped_column(UnicodeText, nullable=True)
+    pre_delete_is_active: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    is_system_account: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False)
     must_change_password: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     last_active_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.sysutcdatetime())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.sysutcdatetime(), onupdate=func.sysutcdatetime())
+
+    __table_args__ = (
+        CheckConstraint(
+            "deletion_status IN ('ACTIVE', 'SOFT_DELETED', 'PURGE_PENDING')",
+            name="CK_users_deletion_status",
+        ),
+        Index("IX_users_deletion_status", "is_deleted", "deletion_status", "created_at"),
+    )

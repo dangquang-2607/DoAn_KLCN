@@ -1,6 +1,7 @@
 from app.services.idempotency import idempotent_money
 import uuid
 from datetime import date
+from decimal import Decimal
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -22,6 +23,7 @@ from app.services.transaction_service import (
     transfer_money,
     update_transaction,
 )
+from app.services.category_classifier import suggest_category
 from app.core.database import SessionLocal
 from app.services.jobs import enqueue
 
@@ -93,7 +95,21 @@ def create_tx(
 ):
     if payload.source != "MANUAL" or payload.invoice_id is not None:
         raise HTTPException(status_code=422, detail="Nguồn giao dịch và hóa đơn do hệ thống quản lý")
-    txn = create_transaction(db, user.id, commit=False, **payload.model_dump())
+    values = payload.model_dump()
+    if values.get("category_id"):
+        values.update(category_confidence=Decimal("1.0000"), category_source="MANUAL", category_was_auto=False)
+    else:
+        suggestion = suggest_category(
+            db, user.id, payload.type, description=payload.description, note=payload.note
+        )
+        if suggestion.auto_apply:
+            values.update(
+                category_id=suggestion.category_id,
+                category_confidence=suggestion.confidence,
+                category_source=suggestion.source,
+                category_was_auto=True,
+            )
+    txn = create_transaction(db, user.id, commit=False, **values)
 
     enqueue(db, "BUDGET", {"user_id": str(user.id), "transaction_id": str(txn.id)}, "budget-check:"+str(txn.id))
     db.flush()

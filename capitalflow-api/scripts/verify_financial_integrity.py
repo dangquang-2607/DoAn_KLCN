@@ -49,7 +49,10 @@ def verify():
             assert report["income"] == 0 and report["expense"] == 50
             sql_report = session.execute(text("SELECT total_income,total_expense FROM dbo.vw_monthly_cashflow WHERE user_id=:u"), {"u": user_id}).one()
             assert sql_report.total_income == 0 and sql_report.total_expense == 50
-            assert session.scalar(select(Account.balance).where(Account.id == a.id)) + session.scalar(select(Account.balance).where(Account.id == b.id)) == 950
+            balance_a = session.scalar(select(Account.balance).where(Account.id == a.id))
+            balance_b = session.scalar(select(Account.balance).where(Account.id == b.id))
+            assert balance_a is not None and balance_b is not None
+            assert balance_a + balance_b == 950
             assert outer.is_active, "Verification must not commit the outer transaction"
         finally:
             session.close()

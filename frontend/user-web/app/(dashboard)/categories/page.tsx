@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Tags, Search, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2 } from "lucide-react";
 import api from "@/lib/api";
 import {
   PageHead,
@@ -14,6 +14,11 @@ import {
   Empty,
 } from "@/components/ui";
 import { errorMessage, type Category } from "@/lib/finance";
+import {
+  CategoryColorPicker,
+  CategoryIcon,
+  CategoryIconPicker,
+} from "@/components/CategoryIcon";
 export default function Categories() {
   const cache = useQueryClient();
   const query = useQuery<Category[]>({
@@ -26,6 +31,9 @@ export default function Categories() {
     [editing, setEditing] = useState<Category | null>(null),
     [deleting, setDeleting] = useState<Category | null>(null),
     [name, setName] = useState(""),
+    [icon, setIcon] = useState("package"),
+    [color, setColor] = useState("cobalt"),
+    [keywords, setKeywords] = useState(""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState("");
@@ -38,8 +46,11 @@ export default function Categories() {
         await api.patch("/categories/" + editing.id, {
           name: name.trim(),
           type,
+          icon,
+          color,
+          keywords: keywords.trim() || null,
         });
-      else await api.post("/categories", { name: name.trim(), type });
+      else await api.post("/categories", { name: name.trim(), type, icon, color, keywords: keywords.trim() || null });
       await cache.invalidateQueries({ queryKey: ["categories"] });
       setShow(false);
       setName("");
@@ -82,6 +93,9 @@ export default function Categories() {
             onClick={() => {
               setEditing(null);
               setName("");
+              setIcon("package");
+              setColor("cobalt");
+              setKeywords("");
               setShow(true);
               setError("");
             }}
@@ -135,9 +149,7 @@ export default function Categories() {
           {list.map((c) => (
             <Panel key={c.id}>
               <div className="cf-panel-body cf-row">
-                <span className="cf-icon">
-                  <Tags />
-                </span>
+                <CategoryIcon icon={c.icon} color={c.color} />
                 <div style={{ flex: 1 }}>
                   <h2>{c.name}</h2>
                   <p
@@ -159,6 +171,9 @@ export default function Categories() {
                         setEditing(c);
                         setName(c.name);
                         setType(c.type);
+                        setIcon(c.icon || "package");
+                        setColor(c.color || "cobalt");
+                        setKeywords(c.keywords || "");
                         setError("");
                         setShow(true);
                       }}
@@ -237,6 +252,15 @@ export default function Categories() {
                 <option value="EXPENSE">Chi tiêu</option>
                 <option value="INCOME">Thu nhập</option>
               </select>
+            </Field>
+            <Field label="Biểu tượng">
+              <CategoryIconPicker value={icon} onChange={setIcon} />
+            </Field>
+            <Field label="Màu nhận diện">
+              <CategoryColorPicker value={color} onChange={setColor} />
+            </Field>
+            <Field label="Từ khóa tự động phân loại" hint="Phân cách bằng dấu phẩy; hệ thống sẽ dùng cho giao dịch tương lai.">
+              <textarea className="cf-input" rows={3} maxLength={1000} value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder="Ví dụ: cửa hàng A, cà phê, bữa trưa" />
             </Field>
             <div className="cf-form-actions">
               <button

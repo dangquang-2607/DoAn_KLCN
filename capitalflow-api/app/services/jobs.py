@@ -13,7 +13,15 @@ from app.models.background_job import BackgroundJob
 def now(): return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
-def enqueue(db, kind, payload, dedupe_key=None):
+def _payload_owner(payload):
+    value = payload.get("user_id") if isinstance(payload, dict) else None
+    try:
+        return uuid.UUID(str(value)) if value else None
+    except (TypeError, ValueError):
+        return None
+
+
+def enqueue(db, kind, payload, dedupe_key=None, owner_user_id=None):
     key = dedupe_key or str(uuid.uuid4())
     # Serialize queue capacity/deduplication across API processes on SQL Server.
     if db.bind.dialect.name == "mssql":
@@ -24,13 +32,20 @@ def enqueue(db, kind, payload, dedupe_key=None):
     if count >= settings.worker_queue_limit:
         raise HTTPException(status_code=503, detail="Hàng đợi đang đầy. Vui lòng thử lại sau.")
     encrypted=Fernet(settings.job_encryption_key.encode()).encrypt(json.dumps(jsonable_encoder(payload)).encode()).decode()
-    job=BackgroundJob(id=uuid.uuid4(),kind=kind,payload=encrypted,dedupe_key=key,status="PENDING",attempts=0,available_at=now())
+    owner = owner_user_id or _payload_owner(payload)
+    job=BackgroundJob(id=uuid.uuid4(),kind=kind,payload=encrypted,dedupe_key=key,status="PENDING",attempts=0,available_at=now(),owner_user_id=owner)
     db.add(job);db.flush()
     return job
 
 
-def enqueue_email(db, function, *args, dedupe_key=None, **kwargs):
-    return enqueue(db,"EMAIL",{"function":function.__name__,"args":args,"kwargs":kwargs},dedupe_key)
+def enqueue_email(db, function, *args, dedupe_key=None, owner_user_id=None, **kwargs):
+    return enqueue(
+        db,
+        "EMAIL",
+        {"function":function.__name__,"args":args,"kwargs":kwargs},
+        dedupe_key,
+        owner_user_id=owner_user_id,
+    )
 
 
 def decode(job):

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, RotateCw } from "lucide-react";
+import { useState } from "react";
 import api from "../services/api";
 import {
   PageHead,
@@ -8,14 +9,29 @@ import {
   Loading,
   ErrorState,
   Empty,
+  Alert,
 } from "../components/design";
 export default function OcrMonitor() {
+  const [retrying, setRetrying] = useState("");
+  const [retryError, setRetryError] = useState("");
   const query = useQuery({
     queryKey: ["admin-ocr"],
     queryFn: async () => (await api.get("/admin/system/ocr-monitor")).data,
     refetchInterval: 15000,
   });
   const d = query.data;
+  const retry = async (jobId) => {
+    setRetrying(jobId);
+    setRetryError("");
+    try {
+      await api.post(`/admin/system/ocr-jobs/${jobId}/retry`);
+      await query.refetch();
+    } catch (error) {
+      setRetryError(error?.response?.data?.detail || "Không thể gửi lại tác vụ OCR.");
+    } finally {
+      setRetrying("");
+    }
+  };
   return (
     <div className="cf-stack">
       <PageHead
@@ -33,6 +49,7 @@ export default function OcrMonitor() {
           </button>
         }
       />
+      {retryError && <Alert onDismiss={() => setRetryError("")}>{retryError}</Alert>}
       {query.isPending ? (
         <Loading />
       ) : query.isError ? (
@@ -59,6 +76,11 @@ export default function OcrMonitor() {
               label="Tỷ lệ xử lý lỗi"
               value={`${d.ocr_jobs.error_rate_pct}%`}
               note="Dựa trên số lượt xử lý"
+            />
+            <Stat
+              label="Thời gian OCR trung bình"
+              value={d.ocr_jobs.average_processing_ms == null ? "Chưa có" : `${(d.ocr_jobs.average_processing_ms / 1000).toFixed(1)} giây`}
+              note="Tính từ các lượt đã đo"
             />
           </div>
           <Panel title="Trạng thái hóa đơn">
@@ -98,6 +120,7 @@ export default function OcrMonitor() {
                       <th>Mã xử lý</th>
                       <th>Nội dung lỗi</th>
                       <th>Thời gian</th>
+                      <th aria-label="Thao tác"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -109,6 +132,11 @@ export default function OcrMonitor() {
                         </td>
                         <td>
                           {new Date(f.created_at).toLocaleString("vi-VN")}
+                        </td>
+                        <td className="right">
+                          <button className="cf-btn cf-btn-sm" disabled={Boolean(retrying)} onClick={() => retry(f.job_id)}>
+                            <RotateCw size={15} />{retrying === f.job_id ? "Đang gửi…" : "Thử lại"}
+                          </button>
                         </td>
                       </tr>
                     ))}

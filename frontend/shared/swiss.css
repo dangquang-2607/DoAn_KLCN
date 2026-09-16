@@ -401,6 +401,54 @@
   padding-top: 18px;
   border-top: 1px solid var(--cf-line);
 }
+.cf-delete-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.cf-delete-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--cf-line);
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+.cf-delete-option:hover {
+  transform: translateY(-1px);
+  border-color: #9cb0d1;
+}
+.cf-delete-option.selected {
+  border-color: var(--cf-blue);
+  background: #f4f7ff;
+}
+.cf-delete-option.danger.selected {
+  border-color: var(--cf-danger);
+  background: #fff5f6;
+}
+.cf-delete-option span {
+  display: grid;
+  gap: 4px;
+}
+.cf-delete-option small {
+  color: var(--cf-muted);
+  line-height: 1.45;
+}
+.cf-check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--cf-ink);
+  font-size: 14px;
+}
+@media (max-width: 640px) {
+  .cf-delete-options {
+    grid-template-columns: 1fr;
+  }
+}
 .cf-toolbar {
   display: flex;
   align-items: end;
@@ -470,6 +518,42 @@
   color: var(--cf-muted);
   font-size: 12px;
   margin-top: 3px;
+}
+.cf-readonly-value {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  border: 1px solid #e1e6ef;
+  border-radius: 8px;
+  background: #f7f9fc;
+  color: #536078;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.cf-item-editor-wrap {
+  border: 1px solid var(--cf-line);
+  border-radius: 12px;
+}
+.cf-item-editor {
+  min-width: 850px;
+}
+.cf-item-editor .cf-item-name-cell {
+  min-width: 280px;
+  white-space: normal;
+}
+.cf-item-editor .cf-input.cf-item-input {
+  min-height: 36px;
+  padding: 7px 9px;
+  font-size: 13px;
+}
+.cf-item-editor .cf-item-unit { width: 88px; }
+.cf-item-editor .cf-item-number { width: 92px; }
+.cf-item-editor .cf-item-money { width: 128px; text-align: right; }
+.cf-item-editor th,
+.cf-item-editor td {
+  padding: 10px 8px;
 }
 .cf-pagination {
   display: flex;
@@ -1355,3 +1439,512 @@
  .cf-app .cf-ocr-preview-body.is-processing::after { animation: none !important; top: 0; opacity: .5; }
  .cf-app .cf-transfer-path > span { display: none !important; }
 }
+
+/* ==========================================================================
+   UNIFIED LUXURY SIDEBAR DESIGN SYSTEM (Synchronized user-web & admin-web)
+   ========================================================================== */
+
+:root {
+  --cf-sidebar-w: 260px;
+  --cf-sidebar-rail-w: 72px;
+}
+
+/* Sidebar Container */
+.cf-sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: var(--cf-sidebar-w, 260px);
+  background: #ffffff;
+  border-right: 1px solid var(--cf-line, #e2e8f0);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.28s cubic-bezier(0.2, 0, 0, 1);
+  box-sizing: border-box;
+}
+
+/* Collapsed Mini-Rail */
+.cf-sidebar.collapsed {
+  width: var(--cf-sidebar-rail-w, 72px) !important;
+}
+
+/* Main Content Area */
+.cf-main {
+  margin-left: var(--cf-sidebar-w, 260px);
+  min-width: 0;
+  transition: margin-left 0.28s cubic-bezier(0.2, 0, 0, 1);
+}
+.cf-main.collapsed {
+  margin-left: var(--cf-sidebar-rail-w, 72px) !important;
+}
+
+/* Brand Header */
+.cf-brand {
+  height: 72px;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--cf-ink, #0f172a);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  text-decoration: none;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  transition: all 0.25s ease;
+}
+.cf-brand:hover {
+  color: var(--cf-ink, #0f172a);
+}
+
+.cf-brand.collapsed,
+.cf-sidebar.collapsed .cf-brand {
+  height: 72px !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 72px !important;
+  gap: 0 !important;
+  margin: 0 !important;
+  overflow: visible !important;
+}
+
+.cf-brand-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cf-brand.collapsed .cf-brand-name,
+.cf-sidebar.collapsed .cf-brand-name {
+  display: none !important;
+}
+
+.cf-brand-mark {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--cf-blue, #2563eb);
+  color: #ffffff;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.28);
+  transition: transform 0.2s ease;
+}
+.cf-brand-mark svg {
+  width: 20px;
+  height: 20px;
+}
+.cf-brand:hover .cf-brand-mark,
+.cf-sidebar.collapsed .cf-brand-mark:hover {
+  transform: scale(1.06);
+}
+
+/* Workspace Preview Card */
+.cf-workspace {
+  margin: 0 16px 18px;
+  padding: 10px 14px;
+  border: 1px solid var(--cf-line, #e2e8f0);
+  border-radius: 10px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fbfcfe;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+.cf-workspace .cf-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.cf-workspace div {
+  min-width: 0;
+  flex: 1;
+  font-weight: 600;
+  color: var(--cf-ink, #0f172a);
+}
+.cf-workspace small {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--cf-muted, #64748b);
+  margin-top: 1px;
+}
+
+.cf-sidebar.collapsed .cf-workspace {
+  margin: 0 12px 16px !important;
+  padding: 10px !important;
+  justify-content: center !important;
+}
+.cf-sidebar.collapsed .cf-workspace > div {
+  display: none !important;
+}
+
+/* Navigation List Area */
+.cf-nav {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 12px;
+  box-sizing: border-box;
+  /* Modern thin scrollbar (Eliminating Windows 17px ugly scrollbar) */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.25) transparent;
+}
+.cf-nav::-webkit-scrollbar {
+  width: 4px;
+}
+.cf-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+.cf-nav::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.22);
+  border-radius: 9999px;
+}
+.cf-nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
+}
+
+.cf-sidebar.collapsed .cf-nav {
+  padding: 0 10px !important;
+  overflow-x: visible !important;
+}
+
+/* Nav Groups & Labels */
+.cf-nav-group {
+  margin-bottom: 20px;
+}
+.cf-nav-label {
+  padding: 0 12px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+.cf-sidebar.collapsed .cf-nav-group {
+  margin-bottom: 12px !important;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 8px;
+}
+.cf-sidebar.collapsed .cf-nav-label {
+  display: none !important;
+}
+
+/* Nav Link Items */
+.cf-nav-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 42px;
+  margin-bottom: 4px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  color: #5b667c;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.18s ease;
+  overflow: visible;
+  box-sizing: border-box;
+}
+.cf-nav-link svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+}
+.cf-nav-link .cf-nav-label-text {
+  position: relative;
+  z-index: 2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cf-nav-link .cf-badge {
+  position: relative;
+  z-index: 2;
+}
+.cf-nav-link:hover {
+  color: var(--cf-ink, #0f172a);
+}
+.cf-nav-link.active {
+  color: #1d4ed8 !important;
+  font-weight: 600;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.cf-sidebar.collapsed .cf-nav-link {
+  padding: 10px 0 !important;
+  justify-content: center !important;
+  gap: 0 !important;
+}
+.cf-sidebar.collapsed .cf-nav-link .cf-nav-label-text,
+.cf-sidebar.collapsed .cf-nav-link .cf-badge {
+  display: none !important;
+}
+
+/* Fluid Sliding Pill Indicator */
+.cf-nav-sliding-pill {
+  position: absolute;
+  inset: 0;
+  border-radius: 9px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.08);
+  z-index: 1;
+  pointer-events: none;
+}
+.cf-nav-sliding-pill::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3.5px;
+  border-radius: 0 4px 4px 0;
+  background: #2563eb;
+  box-shadow: 0 0 8px rgba(37, 99, 235, 0.4);
+}
+
+/* Circular Border Knob Toggle Button */
+.cf-rail-toggle-btn {
+  position: absolute;
+  right: -13px;
+  top: 23px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid var(--cf-line, #e2e8f0);
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 60;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+}
+.cf-rail-toggle-btn:hover {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.35);
+}
+@media (max-width: 767px) {
+  .cf-rail-toggle-btn {
+    display: none;
+  }
+}
+
+/* Footer & Logout */
+.cf-nav-foot {
+  border-top: 1px solid var(--cf-line, #e2e8f0);
+  padding: 14px 16px;
+  box-sizing: border-box;
+}
+.cf-nav-foot .cf-btn {
+  width: 100%;
+  justify-content: flex-start;
+  padding: 9px 12px;
+  font-size: 13px;
+  border-radius: 8px;
+}
+.cf-nav-foot p {
+  font-size: 11px;
+  color: var(--cf-muted, #64748b);
+  margin: 8px 12px 0;
+  white-space: nowrap;
+}
+
+.cf-sidebar.collapsed .cf-nav-foot {
+  padding: 12px 8px !important;
+}
+.cf-sidebar.collapsed .cf-nav-foot p {
+  display: none !important;
+}
+.cf-sidebar.collapsed .cf-nav-foot .cf-btn {
+  justify-content: center !important;
+  padding: 9px !important;
+}
+.cf-sidebar.collapsed .cf-nav-foot .cf-btn span {
+  display: none !important;
+}
+
+/* Floating Glass Tooltip in Rail Mode */
+.cf-floating-tooltip {
+  position: fixed;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #f8fafc;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 9999;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cf-floating-tooltip kbd {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: monospace;
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+/* Responsive Rules */
+@media (max-width: 1000px) {
+  /* Keep 260px desktop width so it doesn't prematurely squeeze */
+  .cf-sidebar {
+    width: var(--cf-sidebar-w, 260px);
+  }
+  .cf-main {
+    margin-left: var(--cf-sidebar-w, 260px);
+  }
+}
+
+@media (max-width: 767px) {
+  .cf-sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1);
+    width: 260px !important;
+  }
+  .cf-sidebar.open {
+    transform: translateX(0);
+  }
+  .cf-main {
+    margin-left: 0 !important;
+  }
+}
+
+/* ==========================================================================
+   UNIFIED TYPOGRAPHY (Inter)
+   ========================================================================== */
+:root {
+  --cf-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+body,
+.cf-app,
+.cf-brand,
+.cf-brand-name,
+.cf-nav-link,
+.cf-nav-label,
+.cf-workspace {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.cf-brand {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.04em !important;
+}
+
+.cf-brand-name {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.04em !important;
+}
+/* Category icon system */
+.cf-category-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  color: #fff;
+}
+.cf-icon-picker {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(36px, 1fr));
+  gap: 8px;
+  max-height: 226px;
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid var(--cf-line);
+  border-radius: var(--cf-radius);
+  background: var(--cf-bg);
+}
+.cf-icon-picker button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  color: var(--cf-muted);
+  background: var(--cf-surface);
+}
+.cf-icon-picker button:hover { color: var(--cf-blue); border-color: #b9c8f8; }
+.cf-icon-picker button.selected {
+  color: #fff;
+  background: var(--cf-blue);
+  border-color: var(--cf-blue);
+}
+.cf-color-picker { display: flex; flex-wrap: wrap; gap: 12px; }
+.cf-color-picker button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 3px solid var(--cf-surface);
+  border-radius: 50%;
+  outline: 1px solid var(--cf-line);
+}
+.cf-color-picker button.selected { outline: 3px solid var(--cf-ink); outline-offset: 2px; }
+.cf-category-admin-list { display: grid; gap: 10px; }
+.cf-category-admin-row { min-height: 76px; }
+.cf-category-copy { flex: 1; min-width: 180px; }
+.cf-category-copy h2 { margin: 0; font-size: 16px; }
+.cf-category-copy p { margin: 3px 0 0; font-size: 12px; }
+.cf-category-actions { flex-wrap: nowrap; }
+.cf-category-inactive { opacity: .68; }
+.cf-compact-select { width: auto; min-width: 160px; }
+.cf-check { display: flex; align-items: center; gap: 9px; }
+@media (max-width: 720px) {
+  .cf-icon-picker { grid-template-columns: repeat(6, minmax(34px, 1fr)); }
+  .cf-category-admin-row { align-items: flex-start; }
+  .cf-category-actions { width: 100%; justify-content: flex-end; }
+}
+.cf-category-suggestion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid #b9c8f8;
+  border-radius: 10px;
+  background: var(--cf-soft);
+}
+.cf-category-suggestion div { display: grid; gap: 2px; }
+.cf-category-suggestion strong { color: var(--cf-blue); font-size: 13px; }
+.cf-category-suggestion span { color: var(--cf-muted); font-size: 12px; }

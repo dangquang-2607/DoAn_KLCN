@@ -1,12 +1,11 @@
-from sqlalchemy import Unicode, UnicodeText
 """
 OcrJob model — theo dõi quá trình xử lý OCR hóa đơn bằng Gemini AI.
-Đồng bộ 100% với CSDL.sql: thêm model_name, attempt_count, progress_percent,
-error_code, request_json, response_json, processing_ms, updated_at.
+Đồng bộ với schema SQL Server: thêm model_name, attempt_count, progress_percent,
+error_code, response_json, processing_ms, updated_at.
 """
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Integer, SmallInteger, DateTime, ForeignKey, func, Uuid, Index, Text
+from sqlalchemy import Unicode, UnicodeText, String, Integer, SmallInteger, DateTime, ForeignKey, func, Uuid, Index
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 
@@ -34,8 +33,8 @@ class OcrJob(Base):
     error_code: Mapped[str | None] = mapped_column(Unicode(100), nullable=True)
     error_message: Mapped[str | None] = mapped_column(UnicodeText, nullable=True)
 
-    # Payload gửi đi và nhận về (JSON text)
-    request_json: Mapped[str | None] = mapped_column(UnicodeText, nullable=True)
+    # Kết quả OCR đã chuẩn hóa (JSON text). Không lưu request để tránh nhân đôi
+    # nội dung hóa đơn nhạy cảm vốn đã nằm trong file nguồn.
     response_json: Mapped[str | None] = mapped_column(UnicodeText, nullable=True)  # đổi từ raw_response
 
     # Timestamps

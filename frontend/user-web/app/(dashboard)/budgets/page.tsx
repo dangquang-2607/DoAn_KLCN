@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import api from "@/lib/api";
+import { CategoryIcon } from "@/components/CategoryIcon";
 import {
   PageHead,
   Panel,
@@ -186,11 +187,13 @@ export default function Budgets() {
                             : "Trong hạn mức"}
                       </span>
                     </div>
-                    <p className="cf-muted" style={{ fontSize: 13, margin: 0 }}>
-                      {categories.data?.find((c) => c.id === b.category_id)
-                        ?.name || "Tất cả danh mục"}{" "}
-                      · {dateLabel(b.start_date)} – {dateLabel(b.end_date)}
-                    </p>
+                    <div className="cf-row" style={{ gap: 8 }}>
+                      {categories.data?.find((c) => c.id === b.category_id) && <CategoryIcon icon={categories.data?.find((c) => c.id === b.category_id)?.icon} color={categories.data?.find((c) => c.id === b.category_id)?.color} size={28} />}
+                      <p className="cf-muted" style={{ fontSize: 13, margin: 0 }}>
+                        {categories.data?.find((c) => c.id === b.category_id)?.name || "Tất cả danh mục"}{" "}
+                        · {dateLabel(b.start_date)} – {dateLabel(b.end_date)}
+                      </p>
+                    </div>
                     <div className="cf-row cf-between">
                       <strong className="cf-number" style={{ fontSize: 27 }}>
                         {money(b.spent_amount, b.currency)}

@@ -11,7 +11,7 @@ class TransactionCreate(BaseModel):
     account_id: UUID
     category_id: UUID | None = None
     invoice_id: UUID | None = None
-    amount: Decimal = Field(gt=0, max_digits=19, decimal_places=2)
+    amount: Decimal = Field(gt=Decimal("0"), max_digits=19, decimal_places=2)
     type: TransactionType
     source: TransactionSource = TransactionSource.MANUAL
     transaction_date: date
@@ -32,7 +32,7 @@ class TransactionUpdate(BaseModel):
 
     account_id: UUID | None = None
     category_id: UUID | None = None
-    amount: Decimal | None = Field(default=None, gt=0, max_digits=19, decimal_places=2)
+    amount: Decimal | None = Field(default=None, gt=Decimal("0"), max_digits=19, decimal_places=2)
     type: TransactionType | None = None
     transaction_date: date | None = None
     description: str | None = Field(default=None, max_length=255)
@@ -43,7 +43,7 @@ class TransactionTransfer(BaseModel):
     """Schema cho tính năng chuyển tiền giữa 2 ví (Atomic Transfer)."""
     from_account_id: UUID
     to_account_id: UUID
-    amount: Decimal = Field(gt=0, max_digits=19, decimal_places=2)
+    amount: Decimal = Field(gt=Decimal("0"), max_digits=19, decimal_places=2)
     transaction_date: date | None = None
     note: str | None = Field(default=None, max_length=1000)
 
@@ -69,6 +69,9 @@ class TransactionOut(BaseModel):
     transaction_date: date
     description: str
     note: str | None
+    category_confidence: Decimal | None = None
+    category_source: str | None = None
+    category_was_auto: bool = False
     created_at: datetime
     updated_at: datetime
 

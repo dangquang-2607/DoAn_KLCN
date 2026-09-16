@@ -1,13 +1,12 @@
-from sqlalchemy import Unicode, UnicodeText
 """
 Transaction model — giao dịch tài chính.
-Thêm `source` và `TransactionSource` enum theo CSDL.sql.
+Thêm `source` và `TransactionSource` enum theo schema SQL Server.
 """
 import enum
 import uuid
 from decimal import Decimal
 from datetime import datetime, date
-from sqlalchemy import Unicode, UnicodeText, String, Numeric, DateTime, Date, ForeignKey, func, Uuid, Index, Text, text, CheckConstraint
+from sqlalchemy import Unicode, String, Numeric, DateTime, Date, ForeignKey, func, Uuid, Index, text, CheckConstraint, Boolean
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 
@@ -37,7 +36,7 @@ class Transaction(Base):
     description: Mapped[str] = mapped_column(Unicode(255), nullable=False, default="")
     amount: Mapped[Decimal] = mapped_column(Numeric(19, 2), nullable=False)
     type: Mapped[TransactionType] = mapped_column(String(20), nullable=False)
-    # CSDL.sql: source VARCHAR(20) NOT NULL, default 'MANUAL'
+    # SQL Server schema: source VARCHAR(20) NOT NULL, default 'MANUAL'.
     source: Mapped[TransactionSource] = mapped_column(String(20), nullable=False, default=TransactionSource.MANUAL)
     transaction_date: Mapped[date] = mapped_column(Date, nullable=False)
 
@@ -45,6 +44,9 @@ class Transaction(Base):
     transfer_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
 
     note: Mapped[str | None] = mapped_column(Unicode(1000), nullable=True)
+    category_confidence: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
+    category_source: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    category_was_auto: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
 
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.sysutcdatetime())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.sysutcdatetime(), onupdate=func.sysutcdatetime())

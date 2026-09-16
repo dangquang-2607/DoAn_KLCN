@@ -1,11 +1,10 @@
-from sqlalchemy import Unicode, UnicodeText
 """
 AuditLog model — ghi lại mọi thao tác thay đổi dữ liệu.
-id là BIGINT IDENTITY (auto-increment) như trong CSDL.sql.
+id là BIGINT IDENTITY (auto-increment) theo schema SQL Server hiện hành.
 """
 import uuid
 from datetime import datetime
-from sqlalchemy import BigInteger, Integer, String, SmallInteger, DateTime, ForeignKey, func, Uuid, Index, Text
+from sqlalchemy import BigInteger, Integer, String, SmallInteger, DateTime, ForeignKey, func, Uuid, Index, Unicode, UnicodeText
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 
@@ -13,7 +12,7 @@ from app.models.base import Base
 class AuditLog(Base):
     __tablename__ = "audit_logs"
 
-    # id là BIGINT IDENTITY — khớp với CSDL.sql
+    # id là BIGINT IDENTITY — khớp với schema SQL Server hiện hành.
     id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
     user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("users.id"), nullable=True)
 
