@@ -1,4 +1,4 @@
-'use client';
+﻿﻿﻿﻿'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
@@ -10,6 +10,9 @@ import {
   KeyRound, Sparkles, Check, X, Fingerprint, Landmark,
   RotateCw, UserPlus, LogIn, TrendingUp, Layers, PieChart, ShieldCheck
 } from 'lucide-react';
+import ForgotPasswordModal from '@/components/login/ForgotPasswordModal';
+import FirstTimePasswordModal from '@/components/login/FirstTimePasswordModal';
+import PasswordStrengthBar from '@/components/login/PasswordStrengthBar';
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_SECONDS = 30;
@@ -1178,264 +1181,44 @@ export default function LoginPage() {
         </div>
       </motion.div>
 
-      {/* ════════════════════════════════════════════════════════════════════════
-          MODAL 1: Forgot Password OTP Reset
-          ════════════════════════════════════════════════════════════════════════ */}
-      <AnimatePresence>
-        {showForgotModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-100 relative overflow-hidden"
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-                    <KeyRound className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900">Khôi phục mật khẩu</h3>
-                    <p className="text-xs text-slate-500">Bước {forgotStep} trên 3</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowForgotModal(false)}
-                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
 
-              {/* Modal Error */}
-              {forgotError && (
-                <div className="mt-4 p-3 rounded-xl bg-rose-50 text-rose-700 text-xs font-medium flex items-center gap-2 border border-rose-200">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-500" />
-                  <span>{forgotError}</span>
-                </div>
-              )}
+      <ForgotPasswordModal
+        show={showForgotModal}
+        step={forgotStep}
+        email={forgotEmail}
+        otp={forgotOtp}
+        newPassword={forgotNewPassword}
+        confirmPassword={forgotConfirmPassword}
+        loading={forgotLoading}
+        error={forgotError}
+        resendCountdown={forgotResendCountdown}
+        onClose={() => setShowForgotModal(false)}
+        onEmailChange={setForgotEmail}
+        onOtpChange={setForgotOtp}
+        onNewPasswordChange={setForgotNewPassword}
+        onConfirmPasswordChange={setForgotConfirmPassword}
+        onSendOtp={handleSendForgotOtp}
+        onResetPassword={handleResetPassword}
+        onResend={() => { handleSendForgotOtp({ preventDefault: () => {} } as unknown as React.FormEvent); }}
+        onGoToLogin={() => {
+          setShowForgotModal(false);
+          setLoginEmail(forgotEmail);
+          setLoginPassword('');
+          switchTab(true);
+        }}
+      />
 
-              {/* Step 1: Request OTP */}
-              {forgotStep === 1 && (
-                <form onSubmit={handleSendForgotOtp} className="mt-5 space-y-4">
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    Nhập địa chỉ email liên kết với tài khoản của bạn. Chúng tôi sẽ gửi mã OTP 6 số để xác thực bảo mật.
-                  </p>
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      Địa chỉ Email
-                    </label>
-                    <div className="relative">
-                      <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input
-                        type="email"
-                        value={forgotEmail}
-                        onChange={(e) => setForgotEmail(e.target.value)}
-                        placeholder="name@example.com"
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 focus:bg-white text-slate-900 text-sm font-medium rounded-xl border border-slate-200 focus:border-blue-600 outline-none"
-                      />
-                    </div>
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={forgotLoading}
-                    className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                  >
-                    {forgotLoading ? (
-                      <RotateCw className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <>
-                        <span>Gửi mã xác thực OTP</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </>
-                    )}
-                  </button>
-                </form>
-              )}
-
-              {/* Step 2: Enter OTP & New Password */}
-              {forgotStep === 2 && (
-                <form onSubmit={handleResetPassword} className="mt-5 space-y-4">
-                  <p className="text-xs text-slate-600">
-                    Mã xác thực đã được gửi tới <strong className="text-slate-900">{forgotEmail}</strong>. Vui lòng kiểm tra hòm thư của bạn.
-                  </p>
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      Mã OTP (6 chữ số)
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={6}
-                      value={forgotOtp}
-                      onChange={(e) => setForgotOtp(e.target.value)}
-                      placeholder="123456"
-                      className="w-full text-center tracking-[0.4em] font-mono text-lg font-bold py-2.5 bg-slate-50 focus:bg-white text-slate-900 rounded-xl border border-slate-200 focus:border-blue-600 outline-none"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      Mật khẩu mới
-                    </label>
-                    <input
-                      type="password"
-                      value={forgotNewPassword}
-                      onChange={(e) => setForgotNewPassword(e.target.value)}
-                      placeholder="Tối thiểu 6 ký tự"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white text-slate-900 text-sm font-medium rounded-xl border border-slate-200 focus:border-blue-600 outline-none"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      Xác nhận mật khẩu mới
-                    </label>
-                    <input
-                      type="password"
-                      value={forgotConfirmPassword}
-                      onChange={(e) => setForgotConfirmPassword(e.target.value)}
-                      placeholder="Nhập lại mật khẩu mới"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white text-slate-900 text-sm font-medium rounded-xl border border-slate-200 focus:border-blue-600 outline-none"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={forgotLoading}
-                    className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                  >
-                    {forgotLoading ? (
-                      <RotateCw className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <span>Cập nhật mật khẩu mới</span>
-                    )}
-                  </button>
-                  <div className="text-center pt-1">
-                    <button
-                      type="button"
-                      disabled={forgotResendCountdown > 0 || forgotLoading}
-                      onClick={handleSendForgotOtp}
-                      className="text-xs text-blue-600 hover:underline disabled:text-slate-400 font-semibold"
-                    >
-                      {forgotResendCountdown > 0
-                        ? `Gửi lại mã OTP sau ${forgotResendCountdown}s`
-                        : 'Chưa nhận được mã? Gửi lại ngay'}
-                    </button>
-                  </div>
-                </form>
-              )}
-
-              {/* Step 3: Success Confirmation */}
-              {forgotStep === 3 && (
-                <div className="mt-6 text-center space-y-4 py-2">
-                  <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
-                    <CheckCircle2 className="w-8 h-8" />
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-bold text-slate-900">Đặt lại mật khẩu thành công!</h4>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Mật khẩu của bạn đã được cập nhật an toàn. Hãy sử dụng mật khẩu mới để đăng nhập.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowForgotModal(false);
-                      setLoginEmail(forgotEmail);
-                      setLoginPassword('');
-                      switchTab(true);
-                    }}
-                    className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-md shadow-blue-500/20 transition-all"
-                  >
-                    Quay lại Đăng nhập ngay
-                  </button>
-                </div>
-              )}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* ════════════════════════════════════════════════════════════════════════
-          MODAL 2: First-time Password Setup Modal
-          ════════════════════════════════════════════════════════════════════════ */}
-      <AnimatePresence>
-        {showFirstTimeModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-100 space-y-5"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                  <Fingerprint className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900">Thiết lập mật khẩu lần đầu</h3>
-                  <p className="text-xs text-slate-500">Bảo mật tài khoản trước khi tiếp tục</p>
-                </div>
-              </div>
-
-              {firstTimeError && (
-                <div className="p-3 rounded-xl bg-rose-50 text-rose-700 text-xs font-medium flex items-center gap-2 border border-rose-200">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-500" />
-                  <span>{firstTimeError}</span>
-                </div>
-              )}
-
-              {firstTimeSuccess ? (
-                <div className="text-center py-4 space-y-2">
-                  <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto" />
-                  <p className="text-sm font-bold text-slate-800">Đổi mật khẩu thành công!</p>
-                  <p className="text-xs text-slate-500">Đang chuyển bạn vào trang Dashboard...</p>
-                </div>
-              ) : (
-                <form onSubmit={handleFirstTimeSubmit} className="space-y-4">
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    Đây là lần đầu tiên bạn đăng nhập vào hệ thống. Vì lý do an toàn, vui lòng đổi mật khẩu mặc định sang mật khẩu riêng tư của bạn.
-                  </p>
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      Mật khẩu mới
-                    </label>
-                    <input
-                      type="password"
-                      value={firstTimePass}
-                      onChange={(e) => setFirstTimePass(e.target.value)}
-                      placeholder="Tối thiểu 6 ký tự"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white text-slate-900 text-sm font-medium rounded-xl border border-slate-200 focus:border-blue-600 outline-none"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      Xác nhận mật khẩu mới
-                    </label>
-                    <input
-                      type="password"
-                      value={firstTimeConfirmPass}
-                      onChange={(e) => setFirstTimeConfirmPass(e.target.value)}
-                      placeholder="Nhập lại mật khẩu mới"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 focus:bg-white text-slate-900 text-sm font-medium rounded-xl border border-slate-200 focus:border-blue-600 outline-none"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={firstTimeLoading}
-                    className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                  >
-                    {firstTimeLoading ? (
-                      <RotateCw className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <span>Lưu mật khẩu & Vào Dashboard</span>
-                    )}
-                  </button>
-                </form>
-              )}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <FirstTimePasswordModal
+        show={showFirstTimeModal}
+        password={firstTimePass}
+        confirmPassword={firstTimeConfirmPass}
+        loading={firstTimeLoading}
+        error={firstTimeError}
+        success={firstTimeSuccess}
+        onPasswordChange={setFirstTimePass}
+        onConfirmChange={setFirstTimeConfirmPass}
+        onSubmit={handleFirstTimeSubmit}
+      />
     </div>
   );
 }
