@@ -1,4 +1,4 @@
-"use client";
+﻿﻿"use client";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -23,6 +23,8 @@ import {
   Empty,
   Pagination,
 } from "@/components/ui";
+import TransactionFilters from "@/components/transactions/TransactionFilters";
+import TransactionTable from "@/components/transactions/TransactionTable";
 import {
   money,
   dateLabel,
@@ -248,222 +250,28 @@ export default function Transactions() {
       {receipt && <TransferFlow {...receipt} confirmed onClose={() => setReceipt(null)} />}
       {notice && <Alert kind="success" onDismiss={() => setNotice("")}>{notice}</Alert>}
       <Panel>
-        <div className="cf-toolbar">
-          <Field label="Loại giao dịch">
-            <select
-              className="cf-input"
-              value={filters.type}
-              onChange={(e) => filter("type", e.target.value)}
-            >
-              <option value="">Tất cả</option>
-              <option value="INCOME">Thu nhập</option>
-              <option value="EXPENSE">Chi tiêu</option>
-            </select>
-          </Field>
-          <Field label="Tài khoản">
-            <select
-              className="cf-input"
-              value={filters.account_id}
-              onChange={(e) => filter("account_id", e.target.value)}
-            >
-              <option value="">Tất cả tài khoản</option>
-              {accounts.data?.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Danh mục">
-            <select
-              className="cf-input"
-              value={filters.category_id}
-              onChange={(e) => filter("category_id", e.target.value)}
-            >
-              <option value="">Tất cả danh mục</option>
-              {categories.data?.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Từ ngày">
-            <input
-              className="cf-input"
-              type="date"
-              value={filters.start_date}
-              max={filters.end_date || undefined}
-              onChange={(e) => filter("start_date", e.target.value)}
-            />
-          </Field>
-          <Field label="Đến ngày">
-            <input
-              className="cf-input"
-              type="date"
-              value={filters.end_date}
-              min={filters.start_date || undefined}
-              onChange={(e) => filter("end_date", e.target.value)}
-            />
-          </Field>
-          <button
-            className="cf-btn cf-btn-ghost"
-            onClick={() => {
-              setFilters({
-                type: "",
-                account_id: "",
-                category_id: "",
-                start_date: "",
-                end_date: "",
-              });
-              setPage(1);
-              setSearch("");
-            }}
-          >
-            Đặt lại
-          </button>
-        </div>
-        <div className="cf-panel-head">
-          <div className="cf-search">
-            <Search />
-            <input
-              className="cf-input"
-              aria-label="Tìm mô tả trong trang hiện tại"
-              placeholder="Tìm mô tả trong trang này…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <button
-            className="cf-btn cf-btn-sm"
-            disabled={!list.length}
-            onClick={() =>
-              exportCsv("giao-dich-trang-" + page + ".csv", [
-                [
-                  "Ngày",
-                  "Mô tả",
-                  "Tài khoản",
-                  "Danh mục",
-                  "Số tiền",
-                  "Tiền tệ",
-                ],
-                ...list.map((t) => [
-                  t.transaction_date,
-                  t.description,
-                  account(t.account_id)?.name,
-                  category(t.category_id)?.name,
-                  t.amount,
-                  account(t.account_id)?.currency || "VND",
-                ]),
-              ])
-            }
-          >
-            <Download />
-            Xuất trang này
-          </button>
-        </div>
-        {query.isPending ? (
-          <Loading />
-        ) : query.isError ? (
-          <ErrorState retry={() => query.refetch()} />
-        ) : !list.length ? (
-          <Empty
-            title="Không có giao dịch phù hợp"
-            description="Thử thay đổi bộ lọc hoặc thêm giao dịch mới."
-          />
-        ) : (
-          <div className="cf-table-wrap">
-            <table className="cf-table">
-              <thead>
-                <tr>
-                  <th>Ngày</th>
-                  <th>Giao dịch</th>
-                  <th>Danh mục</th>
-                  <th>Tài khoản</th>
-                  <th className="right">Số tiền</th>
-                  <th aria-label="Thao tác" />
-                </tr>
-              </thead>
-              <tbody>
-                {list.map((t) => (
-                  <tr key={t.id}>
-                    <td className="cf-muted">
-                      {dateLabel(t.transaction_date)}
-                    </td>
-                    <td>
-                      <strong>{t.description || "Giao dịch"}</strong>
-                      <div className="cf-sub">
-                        {t.source === "OCR"
-                          ? "Từ hóa đơn"
-                          : t.kind === "TRANSFER"
-                            ? "Chuyển nội bộ"
-                            : t.kind === "ADJUSTMENT"
-                              ? "Điều chỉnh số dư"
-                              : t.source === "SYSTEM"
-                                ? "Hệ thống"
-                                : "Nhập thủ công"}
-                      </div>
-                    </td>
-                    <td>
-                      <span className="cf-row" style={{ gap: 8, flexWrap: "nowrap" }}>
-                        {category(t.category_id) && <CategoryIcon icon={category(t.category_id)?.icon} color={category(t.category_id)?.color} size={28} />}
-                        <span className="cf-badge">
-                        {category(t.category_id)?.name || "Chưa phân loại"}
-                        </span>
-                        {t.category_was_auto && (
-                          <span className="cf-badge info" title={`Độ tin cậy ${Math.round(Number(t.category_confidence || 0) * 100)}%`}>
-                            Tự động
-                          </span>
-                        )}
-                      </span>
-                    </td>
-                    <td>
-                      {account(t.account_id)?.name ||
-                        "Tài khoản đã ngừng sử dụng"}
-                    </td>
-                    <td
-                      className={`right cf-number ${Number(t.amount) > 0 ? "cf-success" : ""}`}
-                    >
-                      {Number(t.amount) > 0 ? "+" : ""}
-                      {money(
-                        t.amount,
-                        account(t.account_id)?.currency || "VND",
-                      )}
-                    </td>
-                    <td>
-                      {t.source !== "SYSTEM" && (
-                        <div className="cf-row">
-                          <button
-                            className="cf-icon-btn"
-                            aria-label="Sửa giao dịch"
-                            onClick={() => open("edit", t)}
-                          >
-                            <Pencil size={15} />
-                          </button>
-                          <button
-                            className="cf-icon-btn"
-                            aria-label="Xóa giao dịch"
-                            onClick={() => {
-                              setDeleting(t);
-                              setError("");
-                            }}
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        <Pagination
+        <TransactionFilters
+          filters={filters}
+          search={search}
+          page={page}
+          list={list}
+          accounts={accounts.data || []}
+          categories={categories.data || []}
+          onFilter={filter}
+          onSearch={(v: string) => { setSearch(v); }}
+          getAccount={account}
+          getCategory={category}
+        />
+        <TransactionTable
+          query={query}
+          list={list}
           page={page}
           total={query.data?.total || 0}
-          pageSize={15}
-          onChange={setPage}
+          getAccount={account}
+          getCategory={category}
+          onEdit={(t: Transaction) => open("edit", t)}
+          onDelete={(t: Transaction) => { setDeleting(t); setError(""); }}
+          onPageChange={setPage}
         />
       </Panel>
       {mode && (
