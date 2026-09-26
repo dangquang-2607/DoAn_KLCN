@@ -1,0 +1,12 @@
+# Cài đặt môi trường phát triển bằng lệnh:
+#   python -m pip install -r requirements-dev.txt
+#
+# File này kế thừa đầy đủ dependency runtime, sau đó bổ sung công cụ kiểm thử.
+# Production image chỉ cài requirements.txt nên không mang theo pytest và plugin.
+-r requirements.txt
+
+iniconfig==2.3.0
+pluggy==1.6.0
+Pygments==2.21.0
+pytest==9.1.1
+pytest-asyncio==1.4.0

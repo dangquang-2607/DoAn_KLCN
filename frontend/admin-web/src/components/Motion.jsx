@@ -1,7 +1,22 @@
+/**
+ * ============================================================================
+ * TÊN FILE: Motion.jsx
+ * MÀN HÌNH / PHÂN HỆ: Thiết kế dùng chung
+ * NHÓM VỆ TINH: components/ui (UI dùng chung)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Cung cấp hiệu ứng chuyển động dùng chung nhưng không làm sai lệch dữ liệu.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Props React, icon Lucide và các design token CSS dùng chung.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Xuất Motion để route hoặc component khác sử dụng.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Không chứa secret hoặc tự thay đổi dữ liệu nghiệp vụ; luôn tôn trọng khả năng truy cập.
+ * ============================================================================
+ */
 "use client";
 import { ArrowRight, Check, FileText, ScanLine, Wallet, X } from "lucide-react";
 
-// Always render the authoritative value; animate its presentation, never invent balances.
+// Luôn hiển thị giá trị có thẩm quyền; chỉ tạo hiệu ứng trình bày, không tự tạo số dư giả.
 export function MotionValue({ children }) {
   return <span key={String(children)} className="cf-value-reveal">{children}</span>;
 }

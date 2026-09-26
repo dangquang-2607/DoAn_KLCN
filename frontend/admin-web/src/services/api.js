@@ -1,3 +1,18 @@
+/**
+ * ============================================================================
+ * TÊN FILE: api.js
+ * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
+ * MÀN HÌNH / PHÂN HỆ: Hạ tầng gọi API quản trị
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Tạo Axios client, đính kèm access token và tuần tự hóa quá trình refresh token.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   VITE_API_URL, Axios và token trong sessionStorage.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Xuất api client dùng chung cho toàn bộ route quản trị.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Không log token; khi refresh thất bại phải xóa phiên và revoke refresh token.
+ * ============================================================================
+ */
 import axios from "axios";
 
 const BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000")
@@ -8,7 +23,7 @@ const api = axios.create({
   baseURL: `${BASE_URL}/api/v1`,
 });
 
-// ─── Request interceptor: gắn JWT ────────────────────────────────────────────
+// Gắn JWT cho request nghiệp vụ nhưng tôn trọng Authorization được truyền rõ ràng.
 api.interceptors.request.use((config) => {
   const token = sessionStorage.getItem("admin_access_token");
   if (token && !config.headers.Authorization) {
@@ -17,16 +32,16 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// ─── Response interceptor: auto-refresh token ────────────────────────────────
+// Chỉ cho một request refresh chạy; các request 401 còn lại chờ chung kết quả.
 let isRefreshing = false;
-let refreshQueue = []; // hàng đợi các request bị 401
+let refreshQueue = []; // Hàng đợi các request bị 401 trong lúc token đang được làm mới.
 
 api.interceptors.response.use(
   (res) => res,
   async (err) => {
     const originalReq = err.config;
 
-    // Không refresh nếu là chính endpoint auth
+    // Không lặp refresh trên chính các endpoint xác thực.
     const isAuthEndpoint =
       originalReq?.url?.includes("/auth/login") ||
       originalReq?.url?.includes("/auth/refresh") ||
@@ -41,14 +56,14 @@ api.interceptors.response.use(
       const refreshToken = sessionStorage.getItem("admin_refresh_token");
 
       if (!refreshToken) {
-        // Không có refresh token → logout
+        // Thiếu refresh token đồng nghĩa phiên không thể phục hồi.
         _doLogout();
         return Promise.reject(err);
       }
 
       originalReq._retry = true;
       if (isRefreshing) {
-        // Đang refresh → xếp hàng đợi
+        // Request đến sau chờ token mới thay vì tạo thêm request refresh.
         return new Promise((resolve, reject) => {
           refreshQueue.push({ resolve, reject });
         }).then((token) => {
@@ -69,14 +84,14 @@ api.interceptors.response.use(
         if (data.refresh_token)
           sessionStorage.setItem("admin_refresh_token", data.refresh_token);
 
-        // Giải phóng hàng đợi
+        // Phát token mới cho toàn bộ request đang chờ.
         refreshQueue.forEach(({ resolve }) => resolve(newToken));
         refreshQueue = [];
 
         originalReq.headers.Authorization = `Bearer ${newToken}`;
         return api(originalReq);
       } catch {
-        // Refresh thất bại → logout
+        // Từ chối hàng đợi và kết thúc phiên khi refresh thất bại.
         refreshQueue.forEach(({ reject }) => reject(err));
         refreshQueue = [];
         _doLogout();
@@ -93,7 +108,7 @@ api.interceptors.response.use(
 function _doLogout() {
   const refreshToken = sessionStorage.getItem("admin_refresh_token");
   if (refreshToken) {
-    // Fire-and-forget logout để revoke token trên server
+    // Gửi logout không chặn UI để backend có cơ hội thu hồi refresh token.
     axios
       .post(`${BASE_URL}/api/v1/auth/logout`, { refresh_token: refreshToken })
       .catch(() => {});

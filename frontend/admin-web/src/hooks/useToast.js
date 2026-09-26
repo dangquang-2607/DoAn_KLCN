@@ -1,6 +1,21 @@
+/**
+ * ============================================================================
+ * TÊN FILE: useToast.js
+ * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
+ * MÀN HÌNH / PHÂN HỆ: Thông báo giao diện
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Quản lý danh sách toast cục bộ và tự đóng sau ba giây.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   React state/callback và message/type do component gọi hook cung cấp.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Trả addToast và ToastContainer.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Chỉ hiển thị chuỗi đã được React escape; không dùng dangerouslySetInnerHTML.
+ * ============================================================================
+ */
 import { useState, useCallback } from 'react';
 
-// Simple global toast hook (nếu muốn dùng thư viện như react-hot-toast thì cài đặt sau)
+// Hook toast nhẹ, không phụ thuộc thư viện thông báo bên ngoài.
 export function useToast() {
   const [toasts, setToasts] = useState([]);
 
@@ -8,7 +23,7 @@ export function useToast() {
     const id = Date.now();
     setToasts((prev) => [...prev, { id, message, type }]);
     
-    // Auto remove sau 3 giây
+    // Tự loại bỏ toast sau ba giây để không che nội dung lâu.
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 3000);

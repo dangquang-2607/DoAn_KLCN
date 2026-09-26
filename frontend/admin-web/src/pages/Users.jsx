@@ -1,4 +1,19 @@
-﻿import { useState } from "react";
+/**
+ * ============================================================================
+ * TÊN FILE: Users.jsx
+ * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
+ * MÀN HÌNH / PHÂN HỆ: Quản lý người dùng
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Điều phối danh sách, chi tiết và toàn bộ mutation quản trị tài khoản.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   React Query, URL search params, admin API và components/users.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Xuất route Users với lọc, phân trang, thao tác đơn lẻ và hàng loạt.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Không cho thao tác nguy hiểm trên tài khoản hệ thống và giữ xác nhận xóa vĩnh viễn.
+ * ============================================================================
+ */
+import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { UserPlus, RefreshCw } from "lucide-react";
@@ -43,7 +58,7 @@ function UsersContent({ initialSearch }) {
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
 
-  // ── Queries ────────────────────────────────────────────────
+  // Các query dùng khóa cache riêng để danh sách và modal chi tiết cập nhật độc lập.
   const me = useQuery({
     queryKey: ["admin-me"],
     queryFn: async () => (await api.get("/auth/me")).data,
@@ -79,7 +94,7 @@ function UsersContent({ initialSearch }) {
       u.role?.toUpperCase() !== "ADMIN",
   );
 
-  // ── Helpers ────────────────────────────────────────────────
+  // Chuẩn hóa việc mở/đóng modal và reset form giữa các nghiệp vụ.
   const filter = (fn, value) => {
     fn(value);
     setPage(1);
@@ -94,7 +109,7 @@ function UsersContent({ initialSearch }) {
       full_name: "",
       email: "",
       role: user?.role?.toUpperCase() === "ADMIN" ? "USER" : "ADMIN",
-      reason: kind === "restore" ? "Khoi phuc boi Quan tri vien" : "",
+      reason: kind === "restore" ? "Khôi phục bởi Quản trị viên" : "",
       deletion_mode: user?.is_deleted ? "hard" : "soft",
       release_email: true,
       confirmation: "",
@@ -111,20 +126,20 @@ function UsersContent({ initialSearch }) {
       ),
     );
 
-  // ── Submit ─────────────────────────────────────────────────
+  // Điều phối endpoint theo action; mọi mutation đều làm mới cache liên quan.
   const submit = async (e) => {
     e.preventDefault();
     setError("");
     setBusy(true);
     try {
-      let message = "Da cap nhat tai khoan.";
+      let message = "Đã cập nhật tài khoản.";
       if (action === "create") {
         await api.post("/admin/users", {
           full_name: form.full_name.trim(),
           email: form.email,
           role: form.role,
         });
-        message = "Da tao tai khoan. Yeu cau gui thong tin kich hoat da duoc ghi nhan.";
+        message = "Đã tạo tài khoản. Yêu cầu gửi thông tin kích hoạt đã được ghi nhận.";
       } else if (action === "delete") {
         const { data } = await api.delete("/admin/users/" + target.id, {
           data: {
@@ -136,39 +151,39 @@ function UsersContent({ initialSearch }) {
         });
         message =
           form.deletion_mode === "hard"
-            ? `Da khoa tai khoan. Yeu cau xoa ${data.deletion?.id || ""} dang duoc worker xu ly.`
-            : "Da xoa mem tai khoan va thu hoi toan bo phien dang nhap.";
+            ? `Đã khóa tài khoản. Yeu cau xoa ${data.deletion?.id || ""} đang được worker xử lý.`
+            : "Đã xóa mềm tài khoản va thu hoi toan bo phien dang nhap.";
       } else if (action === "restore") {
         await api.post("/admin/users/" + target.id + "/restore", {
           reason: form.reason.trim(),
         });
-        message = "Da khoi phuc tai khoan. Nguoi dung can dang nhap lai.";
+        message = "Đã khôi phục tài khoản. Người dùng cần đăng nhập lại.";
       } else if (action === "retry-delete") {
         const filePhase = target.deletion?.checkpoint === "DB_PURGED";
         await api.post(
           `/admin/user-deletions/${target.deletion.id}/${filePhase ? "retry-files" : "retry-purge"}`,
         );
-        message = "Da xep lai tac vu xoa de worker tiep tuc xu ly.";
+        message = "Đã xếp lại tác vụ xóa để worker tiếp tục xử lý.";
       } else if (action === "role")
         await api.patch("/admin/users/" + target.id + "/role", { role: form.role });
       else if (action === "reset-password") {
         await api.post("/admin/users/" + target.id + "/reset-password");
-        message = "Da cap mat khau tam thoi moi. Kiem tra nhat ky email de xem trang thai gui.";
+        message = "Đã cấp mật khẩu tạm thời mới. Kiểm tra nhật ký email để xem trạng thái gửi.";
       } else if (action === "bulk-delete") {
         const { data } = await api.post("/admin/users/bulk-delete", {
           user_ids: selected,
           reason: form.reason.trim(),
           release_email: true,
         });
-        message = `Da xoa mem ${data.deleted_count ?? 0} / ${selected.length} tai khoan.`;
+        message = `Đã xóa mềm ${data.deleted_count ?? 0} / ${selected.length} tài khoản.`;
       } else if (action?.startsWith("bulk-")) {
         const { data } = await api.post("/admin/users/" + action, {
           user_ids: selected,
           ...(action === "bulk-ban"
-            ? { reason: form.reason.trim() || "Tai khoan bi tam ngung boi quan tri vien" }
+            ? { reason: form.reason.trim() || "Tài khoản bị tạm ngưng bởi quản trị viên" }
             : {}),
         });
-        message = `Da xu ly ${data.banned_count ?? data.unbanned_count ?? 0} / ${selected.length} tai khoan.`;
+        message = `Đã xử lý ${data.banned_count ?? data.unbanned_count ?? 0} / ${selected.length} tài khoản.`;
       } else await api.patch("/admin/users/" + target.id + "/" + action);
       await refresh();
       setAction(null);
@@ -181,24 +196,24 @@ function UsersContent({ initialSearch }) {
     }
   };
 
-  // ── Computed ───────────────────────────────────────────────
+  // Các giá trị dẫn xuất quyết định khả năng chọn và xác nhận thao tác nguy hiểm.
   const hardDelete = action === "delete" && form.deletion_mode === "hard";
   const hardConfirmed =
     !hardDelete ||
-    [target?.email, "XOA VINH VIEN"].some(
+    [target?.email, "XOA VINH VIEN", "XÓA VĨNH VIỄN"].some(
       (value) =>
         value &&
         value.toLocaleLowerCase("vi") === form.confirmation.trim().toLocaleLowerCase("vi"),
     );
   const deletionReasonRequired = ["delete", "bulk-delete"].includes(action);
 
-  // ── Render ─────────────────────────────────────────────────
+  // Page chỉ ghép các component feature và truyền callback nghiệp vụ xuống.
   return (
     <div className="cf-stack">
       <PageHead
-        eyebrow="QUAN TRI TAI KHOAN"
-        title="Nguoi dung"
-        description="Tra cuu tai khoan, quan ly quyen truy cap va trang thai hoat dong."
+        eyebrow="QUẢN TRỊ TÀI KHOẢN"
+        title="Người dùng"
+        description="Tra cuu tài khoản, quan ly quyen truy cap va trang thai hoat dong."
         actions={
           <>
             <button
@@ -207,11 +222,11 @@ function UsersContent({ initialSearch }) {
               disabled={query.isFetching}
             >
               <RefreshCw />
-              Lam moi
+              Làm mới
             </button>
             <button className="cf-btn cf-btn-primary" onClick={() => open("create")}>
               <UserPlus />
-              Tao nguoi dung
+              Tạo người dùng
             </button>
           </>
         }
@@ -267,7 +282,6 @@ function UsersContent({ initialSearch }) {
         form={form}
         busy={busy}
         error={error}
-        hardDelete={hardDelete}
         hardConfirmed={hardConfirmed}
         deletionReasonRequired={deletionReasonRequired}
         onClose={() => setAction(null)}

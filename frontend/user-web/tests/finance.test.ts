@@ -31,3 +31,27 @@ it('keeps the two independently buildable design styles synchronized', () => {
   expect(readFileSync(new URL('../app/swiss.css', import.meta.url), 'utf8')).toBe(source);
   expect(readFileSync(new URL('../../admin-web/src/swiss.css', import.meta.url), 'utf8')).toBe(source);
 });
+it('keeps critical Vietnamese product copy encoded as UTF-8', () => {
+  expect(errorMessage({ response: { status: 429 } })).toContain('Vui lòng chờ một phút');
+  const icons = readFileSync(new URL('../../shared/CategoryIcon.tsx', import.meta.url), 'utf8');
+  expect(icons).toContain('Ăn uống');
+  expect(icons).toContain('Bảo hiểm');
+  expect(icons).toContain('Đầu tư');
+  const transactionTable = readFileSync(
+    new URL('../app/(dashboard)/transactions/_components/TransactionTable.tsx', import.meta.url),
+    'utf8',
+  );
+  expect(transactionTable).toContain('Không có giao dịch phù hợp');
+  expect(transactionTable).toContain('Tài khoản đã ngừng sử dụng');
+});
+it('uses stable server snapshots for browser-only UI preferences', () => {
+  const dashboard = readFileSync(
+    new URL('../components/layout/DashboardLayout.tsx', import.meta.url),
+    'utf8',
+  );
+  const motion = readFileSync(new URL('../hooks/useMotionAllowed.ts', import.meta.url), 'utf8');
+  expect(dashboard).toContain('useSyncExternalStore');
+  expect(dashboard).toContain('getServerSidebarPreference');
+  expect(dashboard).not.toContain('typeof window !== "undefined" && localStorage');
+  expect(motion).toContain('getServerSnapshot');
+});

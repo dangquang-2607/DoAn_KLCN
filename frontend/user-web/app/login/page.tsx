@@ -1,27 +1,51 @@
-﻿﻿﻿﻿'use client';
+/**
+ * ============================================================================
+ * TÊN FILE: page.tsx
+ * MÀN HÌNH / PHÂN HỆ: Đăng nhập / Đăng ký
+ * NHÓM VỆ TINH: page.tsx (Điều phối)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Điều phối dữ liệu, trạng thái và hành vi của màn hình tương ứng.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   TanStack Query, API client, state React và các component vệ tinh của phân hệ.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Xuất page để route hoặc component khác sử dụng.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Không ghi log mật khẩu/token; khóa thao tác khi đang gửi và xử lý phiên hết hạn nhất quán.
+ * ============================================================================
+ */
+﻿﻿'use client';
 
-import { useState, useEffect, useRef } from 'react';
+/** Điều phối đăng nhập, đăng ký, khôi phục và đổi mật khẩu lần đầu. */
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform, type Variants } from 'framer-motion';
 import api from '@/lib/api';
 import {
   Activity, Shield, Zap, Eye, EyeOff, CheckCircle2,
   AlertCircle, ArrowRight, Lock, Mail, User as UserIcon,
-  KeyRound, Sparkles, Check, X, Fingerprint, Landmark,
-  RotateCw, UserPlus, LogIn, TrendingUp, Layers, PieChart, ShieldCheck
+  Sparkles, Check, X, Landmark,
+  RotateCw, UserPlus, LogIn, TrendingUp, ShieldCheck
 } from 'lucide-react';
-import ForgotPasswordModal from '@/components/login/ForgotPasswordModal';
-import FirstTimePasswordModal from '@/components/login/FirstTimePasswordModal';
-import PasswordStrengthBar from '@/components/login/PasswordStrengthBar';
+import ForgotPasswordModal from './_components/ForgotPasswordModal';
+import FirstTimePasswordModal from './_components/FirstTimePasswordModal';
+import { loginStyles } from './_styles/login.styles';
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_SECONDS = 30;
+
+type ApiFailure = {
+  response?: { status?: number; data?: { detail?: unknown } };
+};
+
+function apiFailure(error: unknown): ApiFailure {
+  return typeof error === 'object' && error !== null ? error as ApiFailure : {};
+}
 
 function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-// ─── Field Error Helper ────────────────────────────────────────────────────────
+// ─── Thành phần hỗ trợ hiển thị lỗi trường nhập liệu ──────────────────────────
 function FieldError({ msg }: { msg?: string }) {
   if (!msg) return null;
   return (
@@ -36,7 +60,7 @@ function FieldError({ msg }: { msg?: string }) {
   );
 }
 
-// ─── Stagger Variants for Form Content ─────────────────────────────────────────
+// ─── Cấu hình hiệu ứng xuất hiện tuần tự cho nội dung biểu mẫu ─────────────────
 const formFadeVariants: Variants = {
   hidden: { opacity: 0, scale: 0.96 },
   visible: {
@@ -72,10 +96,10 @@ const formItemVariants: Variants = {
 export default function LoginPage() {
   const router = useRouter();
 
-  // ── Tab state (true = Login, false = Register)
+  // ── Trạng thái tab: true là đăng nhập, false là đăng ký.
   const [isLogin, setIsLogin] = useState(true);
 
-  // ── Login form
+  // ── Dữ liệu biểu mẫu đăng nhập.
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPass, setShowLoginPass] = useState(false);
@@ -83,7 +107,7 @@ export default function LoginPage() {
   const [loginPassError, setLoginPassError] = useState('');
   const [loginRemember, setLoginRemember] = useState(true);
 
-  // ── Register form
+  // ── Dữ liệu biểu mẫu đăng ký.
   const [registerName, setRegisterName] = useState('');
   const [registerEmail, setRegisterEmail] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
@@ -96,43 +120,44 @@ export default function LoginPage() {
   const [regConfirmError, setRegConfirmError] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(true);
 
-  // ── Global status
+  // ── Trạng thái thông báo dùng chung của màn hình.
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [isShake, setIsShake] = useState(false);
   const [successToast, setSuccessToast] = useState('');
 
-  // ── Forgot password modal
+  // ── Trạng thái modal quên mật khẩu.
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [forgotStep, setForgotStep] = useState<1 | 2 | 3>(1);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotOtp, setForgotOtp] = useState('');
   const [forgotNewPassword, setForgotNewPassword] = useState('');
   const [forgotConfirmPassword, setForgotConfirmPassword] = useState('');
-  const [showForgotPass, setShowForgotPass] = useState(false);
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotError, setForgotError] = useState('');
   const [forgotResendCountdown, setForgotResendCountdown] = useState(0);
 
-  // ── First-time password modal
+  // ── Trạng thái modal đổi mật khẩu lần đầu.
   const [showFirstTimeModal, setShowFirstTimeModal] = useState(false);
   const [firstTimePass, setFirstTimePass] = useState('');
   const [firstTimeConfirmPass, setFirstTimeConfirmPass] = useState('');
-  const [showFirstTimePass, setShowFirstTimePass] = useState(false);
   const [firstTimeError, setFirstTimeError] = useState('');
   const [firstTimeLoading, setFirstTimeLoading] = useState(false);
   const [firstTimeSuccess, setFirstTimeSuccess] = useState(false);
 
-  // ── Brute-force lockout (client-side)
-  const [failCount, setFailCount] = useState<number>(() => {
-    if (typeof window === 'undefined') return 0;
-    return parseInt(sessionStorage.getItem('user_fail_count') || '0', 10);
-  });
-  const [lockUntil, setLockUntil] = useState<number>(() => {
-    if (typeof window === 'undefined') return 0;
-    return parseInt(sessionStorage.getItem('user_lock_until') || '0', 10);
-  });
+  // ── Giới hạn thử sai liên tiếp ở phía trình duyệt.
+  const [failCount, setFailCount] = useState(0);
+  const [lockUntil, setLockUntil] = useState(0);
   const [remainingLockSec, setRemainingLockSec] = useState(0);
+
+  useEffect(() => {
+    const savedFailCount = parseInt(sessionStorage.getItem('user_fail_count') || '0', 10);
+    const savedLockUntil = parseInt(sessionStorage.getItem('user_lock_until') || '0', 10);
+    queueMicrotask(() => {
+      setFailCount(Number.isFinite(savedFailCount) ? savedFailCount : 0);
+      setLockUntil(Number.isFinite(savedLockUntil) ? savedLockUntil : 0);
+    });
+  }, []);
 
   const triggerShake = () => {
     setIsShake(true);
@@ -149,13 +174,14 @@ export default function LoginPage() {
     setRegConfirmError('');
   };
 
+  // Chuyển chế độ đăng nhập/đăng ký và xóa lỗi cũ để không rò trạng thái giữa hai form.
   const switchTab = (toLogin: boolean) => {
     if (toLogin === isLogin) return;
     clearErrors();
     setIsLogin(toLogin);
   };
 
-  // ── Lockout countdown timer
+  // ── Bộ đếm thời gian còn lại của khóa tạm thời.
   useEffect(() => {
     const updateCountdown = () => {
       const now = Date.now();
@@ -176,7 +202,7 @@ export default function LoginPage() {
     return () => clearInterval(interval);
   }, [lockUntil]);
 
-  // ── OTP Resend countdown timer
+  // ── Bộ đếm chờ trước khi được gửi lại OTP.
   useEffect(() => {
     if (forgotResendCountdown <= 0) return;
     const timer = setInterval(() => {
@@ -185,7 +211,7 @@ export default function LoginPage() {
     return () => clearInterval(timer);
   }, [forgotResendCountdown]);
 
-  // ── 3D Interactive Parallax Mouse Physics
+  // ── Hiệu ứng thị sai 3D phản hồi theo vị trí chuột.
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
 
@@ -196,6 +222,7 @@ export default function LoginPage() {
   const rotateX = useTransform(smoothMouseY, [-300, 300], [3.5, -3.5]);
   const rotateY = useTransform(smoothMouseX, [-300, 300], [-3.5, 3.5]);
 
+  // Ánh xạ vị trí chuột thành chuyển động thị sai; không liên quan dữ liệu xác thực.
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - (rect.left + rect.width / 2);
@@ -204,12 +231,13 @@ export default function LoginPage() {
     mouseY.set(y);
   };
 
+  // Đưa hiệu ứng thị sai về vị trí cân bằng khi con trỏ rời khung.
   const handleMouseLeave = () => {
     mouseX.set(0);
     mouseY.set(0);
   };
 
-  // ── Password Strength Calculator
+  // ── Tính độ mạnh mật khẩu để phản hồi trước khi gửi.
   const getPasswordStrength = (pass: string) => {
     let score = 0;
     if (pass.length >= 6) score++;
@@ -229,7 +257,7 @@ export default function LoginPage() {
     return { text: 'Rất an toàn', color: 'bg-emerald-600', textColor: 'text-emerald-600' };
   };
 
-  // ── Handle Login
+  // ── Xử lý đăng nhập và khởi tạo phiên người dùng.
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (remainingLockSec > 0) return;
@@ -258,7 +286,7 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      // Backend expects JSON: { email, password }
+      // Backend yêu cầu payload JSON gồm email và mật khẩu.
       const res = await api.post('/auth/login', {
         email: loginEmail.trim().toLowerCase(),
         password: loginPassword,
@@ -266,7 +294,7 @@ export default function LoginPage() {
 
       const { access_token, refresh_token, must_change_password } = res.data;
 
-      // Store tokens for session & remember me
+      // Lưu token theo lựa chọn duy trì đăng nhập của người dùng.
       sessionStorage.setItem('user_access_token', access_token);
       if (refresh_token) sessionStorage.setItem('user_refresh_token', refresh_token);
       
@@ -275,22 +303,22 @@ export default function LoginPage() {
         if (refresh_token) localStorage.setItem('user_refresh_token', refresh_token);
       }
 
-      // Fetch user profile from /auth/me
+      // Tải hồ sơ từ /auth/me để xác định trạng thái thiết lập tài khoản.
       try {
         const meRes = await api.get('/auth/me', {
           headers: { Authorization: `Bearer ${access_token}` },
         });
         sessionStorage.setItem('user', JSON.stringify(meRes.data));
         if (loginRemember) localStorage.setItem('user', JSON.stringify(meRes.data));
-      } catch (_) {}
+      } catch {}
 
-      // Reset brute-force lockout
+      // Xóa bộ đếm thử sai sau khi đăng nhập thành công.
       setFailCount(0);
       setLockUntil(0);
       sessionStorage.removeItem('user_fail_count');
       sessionStorage.removeItem('user_lock_until');
 
-      // Check first-time setup password
+      // Kiểm tra yêu cầu đổi mật khẩu trong lần đăng nhập đầu tiên.
       if (must_change_password) {
         setShowFirstTimeModal(true);
         setLoading(false);
@@ -301,10 +329,11 @@ export default function LoginPage() {
       setTimeout(() => {
         router.push('/');
       }, 700);
-    } catch (err: any) {
+    } catch (err: unknown) {
       triggerShake();
-      const status = err.response?.status;
-      const detail = err.response?.data?.detail;
+      const failure = apiFailure(err);
+      const status = failure.response?.status;
+      const detail = failure.response?.data?.detail;
 
       if (status === 400 || status === 401) {
         const nextFail = failCount + 1;
@@ -333,7 +362,7 @@ export default function LoginPage() {
     }
   };
 
-  // ── Handle Register
+  // ── Xử lý đăng ký tài khoản mới.
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     let hasErr = false;
@@ -390,16 +419,16 @@ export default function LoginPage() {
         switchTab(true);
         setSuccessToast('');
       }, 1200);
-    } catch (err: any) {
+    } catch (err: unknown) {
       triggerShake();
-      const detail = err.response?.data?.detail;
+      const detail = apiFailure(err).response?.data?.detail;
       setError(typeof detail === 'string' ? detail : 'Đăng ký thất bại. Vui lòng kiểm tra lại thông tin.');
     } finally {
       setLoading(false);
     }
   };
 
-  // ── Send Forgot OTP
+  // ── Gửi OTP cho luồng khôi phục mật khẩu.
   const handleSendForgotOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!forgotEmail.trim() || !isValidEmail(forgotEmail)) {
@@ -412,15 +441,15 @@ export default function LoginPage() {
       await api.post('/auth/forgot-password', { email: forgotEmail.trim().toLowerCase() });
       setForgotStep(2);
       setForgotResendCountdown(60);
-    } catch (err: any) {
-      const detail = err.response?.data?.detail;
+    } catch (err: unknown) {
+      const detail = apiFailure(err).response?.data?.detail;
       setForgotError(typeof detail === 'string' ? detail : 'Không tìm thấy tài khoản với email này.');
     } finally {
       setForgotLoading(false);
     }
   };
 
-  // ── Reset Password with OTP
+  // ── Xác minh OTP và đặt mật khẩu mới.
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!forgotOtp.trim()) {
@@ -445,15 +474,15 @@ export default function LoginPage() {
         new_password: forgotNewPassword,
       });
       setForgotStep(3);
-    } catch (err: any) {
-      const detail = err.response?.data?.detail;
+    } catch (err: unknown) {
+      const detail = apiFailure(err).response?.data?.detail;
       setForgotError(typeof detail === 'string' ? detail : 'Mã OTP không chính xác hoặc đã hết hạn.');
     } finally {
       setForgotLoading(false);
     }
   };
 
-  // ── Handle First-Time Setup Password
+  // ── Xử lý thiết lập mật khẩu riêng trong lần đăng nhập đầu.
   const handleFirstTimeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!firstTimePass || firstTimePass.length < 6) {
@@ -473,8 +502,8 @@ export default function LoginPage() {
       setTimeout(() => {
         router.push('/');
       }, 1000);
-    } catch (err: any) {
-      const detail = err.response?.data?.detail;
+    } catch (err: unknown) {
+      const detail = apiFailure(err).response?.data?.detail;
       setFirstTimeError(typeof detail === 'string' ? detail : 'Đổi mật khẩu thất bại. Vui lòng thử lại.');
     } finally {
       setFirstTimeLoading(false);
@@ -485,14 +514,15 @@ export default function LoginPage() {
     <div
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
+      style={loginStyles.fullHeight}
       className="min-h-screen bg-[#F8FAFC] text-slate-800 flex items-center justify-center p-4 sm:p-6 lg:p-10 relative overflow-hidden font-sans selection:bg-blue-600 selection:text-white"
     >
-      {/* ── Dynamic Ambient Mesh Gradients (Cobalt Light) ── */}
+      {/* ── Nền chuyển sắc động theo phong cách Cobalt sáng. ── */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-[25%] -left-[15%] w-[650px] h-[650px] rounded-full bg-blue-100/70 blur-[130px]" />
         <div className="absolute -bottom-[25%] -right-[15%] w-[700px] h-[700px] rounded-full bg-indigo-100/60 blur-[140px]" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-sky-50/50 blur-[100px]" />
-        {/* Subtle grid pattern */}
+        {/* Họa tiết lưới nền nhẹ. */}
         <div
           className="absolute inset-0 opacity-[0.35]"
           style={{
@@ -502,7 +532,7 @@ export default function LoginPage() {
         />
       </div>
 
-      {/* ── Success Toast ── */}
+      {/* ── Thông báo thao tác thành công. ── */}
       <AnimatePresence>
         {successToast && (
           <motion.div
@@ -517,7 +547,7 @@ export default function LoginPage() {
         )}
       </AnimatePresence>
 
-      {/* ── 3D Floating Master Container (Option A: Split Sliding Layout) ── */}
+      {/* ── Khung nổi 3D với bố cục hai phần trượt. ── */}
       <motion.div
         style={{
           rotateX,
@@ -532,7 +562,7 @@ export default function LoginPage() {
         <div className="flex flex-col lg:flex-row relative min-h-[660px]">
           
           {/* ══════════════════════════════════════════════════════════════════════
-              PANEL 1: Showcase Panel (Slides Left <-> Right: 0% <-> 140%)
+              KHỐI 1: Giới thiệu sản phẩm (trượt trái/phải từ 0% đến 140%)
               ══════════════════════════════════════════════════════════════════════ */}
           <motion.div
             initial={false}
@@ -547,11 +577,11 @@ export default function LoginPage() {
             }}
             className="hidden lg:flex lg:w-5/12 bg-gradient-to-br from-blue-600 via-indigo-600 to-slate-900 p-10 flex-col justify-between relative overflow-hidden text-white z-20 shadow-2xl"
           >
-            {/* Ambient orb & glass highlights */}
+            {/* Quầng sáng nền và điểm nhấn hiệu ứng kính. */}
             <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
             <div className="absolute bottom-0 left-0 w-72 h-72 bg-blue-400/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3 pointer-events-none" />
             
-            {/* Header / Brand */}
+            {/* Đầu trang và nhận diện thương hiệu. */}
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-8">
                 <div className="w-11 h-11 rounded-2xl bg-white/15 backdrop-blur-md border border-white/25 flex items-center justify-center shadow-lg shadow-black/10">
@@ -568,7 +598,7 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Dynamic Content Morphing with AnimatePresence */}
+              {/* Chuyển đổi nội dung động bằng AnimatePresence. */}
               <AnimatePresence mode="wait">
                 {isLogin ? (
                   <motion.div
@@ -620,7 +650,7 @@ export default function LoginPage() {
               </AnimatePresence>
             </div>
 
-            {/* 3D Floating Feature Badge */}
+            {/* Nhãn tính năng nổi 3D. */}
             <div className="relative z-10 my-6">
               <AnimatePresence mode="wait">
                 {isLogin ? (
@@ -683,7 +713,7 @@ export default function LoginPage() {
               </AnimatePresence>
             </div>
 
-            {/* Footer Trust Markers */}
+            {/* Các dấu hiệu tin cậy ở chân khối giới thiệu. */}
             <div className="relative z-10 pt-4 border-t border-white/15 flex items-center justify-between text-[11px] text-blue-100/70 font-medium">
               <span className="flex items-center gap-1.5">
                 <Shield className="w-3.5 h-3.5 text-emerald-300" /> Mã hóa AES-256
@@ -695,7 +725,7 @@ export default function LoginPage() {
           </motion.div>
 
           {/* ══════════════════════════════════════════════════════════════════════
-              PANEL 2: Form Panel (Slides Right <-> Left: 0% <-> -71.428%)
+              KHỐI 2: Biểu mẫu xác thực (trượt phải/trái từ 0% đến -71,428%)
               ══════════════════════════════════════════════════════════════════════ */}
           <motion.div
             initial={false}
@@ -711,9 +741,9 @@ export default function LoginPage() {
             className="w-full lg:w-7/12 p-6 sm:p-10 lg:p-12 flex flex-col justify-center bg-white relative z-10"
           >
             
-            {/* ── Top Floating Segmented Tab Switcher ── */}
+            {/* ── Bộ chuyển tab phân đoạn nổi phía trên. ── */}
             <div className="flex items-center justify-between mb-8">
-              {/* Segmented Control Pill with Fluid Layout Indicator */}
+              {/* Điều khiển phân đoạn với nền chỉ báo chuyển động. */}
               <div className="relative p-1 bg-slate-100/90 border border-slate-200/80 rounded-2xl flex items-center shadow-inner max-w-xs w-full">
                 <button
                   type="button"
@@ -752,14 +782,14 @@ export default function LoginPage() {
                 </button>
               </div>
 
-              {/* Status Indicator */}
+              {/* Chỉ báo trạng thái hệ thống. */}
               <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500 font-medium">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span>Hệ thống ổn định</span>
               </div>
             </div>
 
-            {/* ── Global Alert Banner ── */}
+            {/* ── Thanh cảnh báo dùng chung. ── */}
             <AnimatePresence>
               {error && (
                 <motion.div
@@ -783,11 +813,11 @@ export default function LoginPage() {
               )}
             </AnimatePresence>
 
-            {/* ── Option A: Form Swapping with Spring Motion ── */}
+            {/* ── Hoán đổi biểu mẫu bằng chuyển động lò xo. ── */}
             <div className="relative min-h-[400px]">
               <AnimatePresence mode="wait">
                 {isLogin ? (
-                  /* ── FORM LOGIN ─────────────────────────────────────────── */
+                  /* ── BIỂU MẪU ĐĂNG NHẬP ────────────────────────────────── */
                   <motion.form
                     key="form-login-option-a"
                     variants={formFadeVariants}
@@ -806,7 +836,7 @@ export default function LoginPage() {
                       </p>
                     </motion.div>
 
-                    {/* Email Field */}
+                    {/* Trường email đăng nhập. */}
                     <motion.div variants={formItemVariants} className="space-y-1.5">
                       <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                         Địa chỉ Email
@@ -834,7 +864,7 @@ export default function LoginPage() {
                       <FieldError msg={loginEmailError} />
                     </motion.div>
 
-                    {/* Password Field */}
+                    {/* Trường mật khẩu đăng nhập. */}
                     <motion.div variants={formItemVariants} className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
@@ -883,7 +913,7 @@ export default function LoginPage() {
                       <FieldError msg={loginPassError} />
                     </motion.div>
 
-                    {/* Remember me & Auto Login */}
+                    {/* Tùy chọn ghi nhớ và tự động duy trì phiên. */}
                     <motion.div variants={formItemVariants} className="flex items-center justify-between pt-1">
                       <label className="flex items-center gap-2 cursor-pointer select-none">
                         <input
@@ -896,7 +926,7 @@ export default function LoginPage() {
                       </label>
                     </motion.div>
 
-                    {/* Submit Button */}
+                    {/* Nút gửi yêu cầu đăng nhập. */}
                     <motion.div variants={formItemVariants} className="pt-2">
                       <motion.button
                         whileHover={{ scale: 1.01 }}
@@ -924,7 +954,7 @@ export default function LoginPage() {
                       </motion.button>
                     </motion.div>
 
-                    {/* Switch to Register callout */}
+                    {/* Lối chuyển sang biểu mẫu đăng ký. */}
                     <motion.div variants={formItemVariants} className="pt-3 text-center border-t border-slate-100">
                       <p className="text-xs text-slate-500">
                         Chưa có tài khoản CapitalFlow?{' '}
@@ -939,7 +969,7 @@ export default function LoginPage() {
                     </motion.div>
                   </motion.form>
                 ) : (
-                  /* ── FORM REGISTER ──────────────────────────────────────── */
+                  /* ── BIỂU MẪU ĐĂNG KÝ ──────────────────────────────────── */
                   <motion.form
                     key="form-register-option-a"
                     variants={formFadeVariants}
@@ -958,7 +988,7 @@ export default function LoginPage() {
                       </p>
                     </motion.div>
 
-                    {/* Full Name */}
+                    {/* Trường họ và tên. */}
                     <motion.div variants={formItemVariants} className="space-y-1">
                       <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                         Họ và tên
@@ -986,7 +1016,7 @@ export default function LoginPage() {
                       <FieldError msg={regNameError} />
                     </motion.div>
 
-                    {/* Email */}
+                    {/* Trường email đăng ký. */}
                     <motion.div variants={formItemVariants} className="space-y-1">
                       <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                         Email đăng ký
@@ -1014,9 +1044,9 @@ export default function LoginPage() {
                       <FieldError msg={regEmailError} />
                     </motion.div>
 
-                    {/* Password & Confirm Grid */}
+                    {/* Lưới nhập mật khẩu và xác nhận mật khẩu. */}
                     <motion.div variants={formItemVariants} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {/* Password */}
+                      {/* Trường mật khẩu mới. */}
                       <div className="space-y-1">
                         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                           Mật khẩu
@@ -1051,7 +1081,7 @@ export default function LoginPage() {
                         <FieldError msg={regPassError} />
                       </div>
 
-                      {/* Confirm Password */}
+                      {/* Trường xác nhận mật khẩu mới. */}
                       <div className="space-y-1">
                         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                           Xác nhận
@@ -1087,7 +1117,7 @@ export default function LoginPage() {
                       </div>
                     </motion.div>
 
-                    {/* Password Strength Indicator */}
+                    {/* Chỉ báo độ mạnh mật khẩu. */}
                     {registerPassword && (
                       <motion.div
                         initial={{ opacity: 0, height: 0 }}
@@ -1115,7 +1145,7 @@ export default function LoginPage() {
                       </motion.div>
                     )}
 
-                    {/* Terms Agreement */}
+                    {/* Xác nhận đồng ý điều khoản sử dụng. */}
                     <motion.div variants={formItemVariants} className="pt-1">
                       <label className="flex items-start gap-2.5 cursor-pointer select-none">
                         <input
@@ -1137,7 +1167,7 @@ export default function LoginPage() {
                       </label>
                     </motion.div>
 
-                    {/* Register Submit Button */}
+                    {/* Nút gửi yêu cầu đăng ký. */}
                     <motion.div variants={formItemVariants} className="pt-2">
                       <motion.button
                         whileHover={{ scale: 1.01 }}
@@ -1160,7 +1190,7 @@ export default function LoginPage() {
                       </motion.button>
                     </motion.div>
 
-                    {/* Switch to Login callout */}
+                    {/* Lối chuyển về biểu mẫu đăng nhập. */}
                     <motion.div variants={formItemVariants} className="pt-2 text-center border-t border-slate-100">
                       <p className="text-xs text-slate-500">
                         Đã có tài khoản CapitalFlow?{' '}

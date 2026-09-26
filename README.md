@@ -31,8 +31,13 @@ cd capitalflow-api
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+pip install -r ..\capitalflow-database\requirements.txt
 Copy-Item .env.example .env
 ```
+
+Dependency Alembic được khai báo trong `capitalflow-database/requirements.txt`,
+không nằm trong dependency production của FastAPI. Image API/worker vì vậy chỉ
+chứa thư viện runtime và không mang công cụ thay đổi schema.
 
 Thay mọi placeholder trong `.env`. `DATABASE_URL` production phải dùng ODBC 18,
 `Encrypt=yes` và `TrustServerCertificate=no`. Không commit `.env`, khóa Fernet,
@@ -42,21 +47,24 @@ API và worker phải dùng cùng `DATABASE_URL`, `JOB_ENCRYPTION_KEY` và
 `UPLOAD_DIR`. `JOB_ENCRYPTION_KEY` phải là Fernet key hợp lệ và được sao lưu
 cùng dữ liệu hàng đợi.
 
-## Migration và seed
+## Database migration và seed
+
+Schema SQL Server được quản lý trong project `capitalflow-database`, tách khỏi
+runtime FastAPI. Migration không tự chạy khi API hoặc worker khởi động.
 
 ```powershell
-.\.venv\Scripts\python.exe -m scripts.migrate_financial_integrity --apply
-.\.venv\Scripts\python.exe -m scripts.migrate_resilience --apply
-.\.venv\Scripts\python.exe -m scripts.migrate_user_deletion --apply
+cd capitalflow-api
+.\.venv\Scripts\python.exe -m alembic -c ..\capitalflow-database\alembic.ini current
+.\.venv\Scripts\python.exe -m alembic -c ..\capitalflow-database\alembic.ini upgrade head
 ```
 
-`scripts/seed.py` luôn seed danh mục hệ thống. Script chỉ bootstrap system admin
+`capitalflow-database/tools/seed.py` luôn seed danh mục hệ thống. Script chỉ bootstrap system admin
 khi cả `CAPITALFLOW_BOOTSTRAP_ADMIN_EMAIL` và
 `CAPITALFLOW_BOOTSTRAP_ADMIN_PASSWORD` được cấp từ secret store hoặc phiên
 terminal. Không có tài khoản hoặc mật khẩu admin mặc định trong source code.
 
 ```powershell
-.\.venv\Scripts\python.exe -m scripts.seed
+.\.venv\Scripts\python.exe -B ..\capitalflow-database\tools\seed.py
 ```
 
 ## Chạy local
@@ -68,9 +76,9 @@ Mở bốn terminal:
 cd capitalflow-api
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
 
-# Background worker
+# Worker chạy nền (xử lý tất cả loại job khi phát triển local)
 cd capitalflow-api
-.\.venv\Scripts\python.exe -m app.services.worker
+.\.venv\Scripts\python.exe -m app.modules.jobs.runner
 
 # User Web
 cd frontend/user-web
@@ -156,4 +164,4 @@ Runbook chi tiết:
 - Không commit dump CSDL, ảnh hóa đơn, email preview, `.env`, cache hoặc build output.
 - `frontend/shared/` là nguồn chuẩn của `Motion.jsx`, `Toast.jsx` và `swiss.css`.
   Sau khi sửa, chạy `node frontend/shared/sync-design.mjs` rồi kiểm tra diff.
-- `insert_dummy_data.sql` chỉ dành cho dữ liệu phát triển và được giữ theo chủ đích.
+- `capitalflow-api/scripts/manual/legacy_clean_install_schema.sql` là script phá hủy và dựng lại schema cho database phát triển dùng một lần; không chạy trên production.

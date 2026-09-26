@@ -26,6 +26,10 @@ build/
 .coverage
 htmlcov/
 
+# Kết quả kiểm thử tải sinh tự động; chỉ giữ file đánh dấu thư mục.
+artifacts/load-tests/*
+!artifacts/load-tests/.gitkeep
+
 # IDE
 .vscode/
 .idea/
@@ -34,10 +38,6 @@ htmlcov/
 # Uploads (user files)
 uploads/*
 !uploads/.gitkeep
-
-# Alembic
-alembic/versions/*.py
-!alembic/versions/.gitkeep
 
 # OS
 .DS_Store

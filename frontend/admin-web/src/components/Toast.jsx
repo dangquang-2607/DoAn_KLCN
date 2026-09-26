@@ -1,3 +1,18 @@
+/**
+ * ============================================================================
+ * TÊN FILE: Toast.jsx
+ * MÀN HÌNH / PHÂN HỆ: Thiết kế dùng chung
+ * NHÓM VỆ TINH: components/ui (UI dùng chung)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Hiển thị thông báo nổi qua React portal phía trình duyệt.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Props React, icon Lucide và các design token CSS dùng chung.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Xuất Toast để route hoặc component khác sử dụng.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Không chứa secret hoặc tự thay đổi dữ liệu nghiệp vụ; luôn tôn trọng khả năng truy cập.
+ * ============================================================================
+ */
 "use client";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -18,8 +33,9 @@ export default function Toast({ children, kind = "info", duration = 5000, onDism
     }
     const slot = document.createElement("div");
     region.appendChild(slot);
-    // The portal target only exists after the browser mounts this client component.
+    // Điểm gắn portal chỉ tồn tại sau khi trình duyệt mount component phía client.
     // oxlint-disable-next-line react/set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHost(slot);
     return () => {
       slot.remove();

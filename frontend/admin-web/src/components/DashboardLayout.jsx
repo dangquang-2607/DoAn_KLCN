@@ -1,3 +1,18 @@
+/**
+ * ============================================================================
+ * TÊN FILE: DashboardLayout.jsx
+ * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
+ * MÀN HÌNH / PHÂN HỆ: Khung giao diện quản trị
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Điều phối sidebar, header, hồ sơ admin, điều hướng và vùng Outlet của các route.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   React Router, React Query, Framer Motion, admin API và SecuritySettings.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Xuất layout bảo vệ bao quanh tám route sau đăng nhập.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Logout luôn xóa token/cache; bắt buộc đổi mật khẩu được ưu tiên trước nội dung khác.
+ * ============================================================================
+ */
 import { useState, useEffect } from "react";
 import {
   Outlet,
@@ -83,7 +98,7 @@ export default function DashboardLayout() {
     });
   };
 
-  // Keyboard shortcut Ctrl+B and Escape
+  // Ctrl/Cmd+B thu gọn sidebar; Escape đóng menu trên màn hình nhỏ.
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === "Escape") setOpen(false);
@@ -152,7 +167,7 @@ export default function DashboardLayout() {
         Chuyển đến nội dung
       </a>
 
-      {/* Shortcut Toast */}
+      {/* Thông báo ngắn khi sử dụng phím tắt. */}
       <AnimatePresence>
         {showKeyToast && (
           <motion.div
@@ -178,9 +193,9 @@ export default function DashboardLayout() {
         />
       )}
 
-      {/* Modern Collapsible Sidebar */}
+      {/* Sidebar có thể thu gọn và giữ lựa chọn trong localStorage. */}
       <aside className={`cf-sidebar ${open ? "open" : ""} ${collapsed ? "collapsed" : ""}`}>
-        {/* Border rail knob toggle button */}
+        {/* Nút điều khiển nằm trên đường biên sidebar. */}
         <button
           className="cf-rail-toggle-btn"
           onClick={toggleCollapsed}
@@ -196,7 +211,7 @@ export default function DashboardLayout() {
           </motion.div>
         </button>
 
-        {/* Brand header - Luôn hiển thị (khi thu gọn 72px sẽ căn giữa logo mark) */}
+        {/* Nhận diện thương hiệu luôn hiển thị; khi thu gọn chỉ giữ logo ở giữa. */}
         <Link
           to="/dashboard"
           aria-label="CapitalFlow quản trị"
@@ -220,7 +235,7 @@ export default function DashboardLayout() {
           </div>
         </div>
 
-        {/* Navigation list with Fluid Sliding Pill Indicator */}
+        {/* Danh sách điều hướng với chỉ báo chuyển động theo route hiện tại. */}
         <nav className="cf-nav" aria-label="Điều hướng quản trị">
           {groups.map((g) => (
             <div className="cf-nav-group" key={g.label}>
@@ -253,7 +268,7 @@ export default function DashboardLayout() {
                       onClick={() => setOpen(false)}
                       className={`cf-nav-link ${isActive ? "active" : ""}`}
                     >
-                      {/* Fluid Sliding Pill Indicator */}
+                      {/* Chỉ báo route đang được chọn. */}
                       {isActive && (
                         <motion.div
                           layoutId="cfAdminNavActivePill"
@@ -270,7 +285,7 @@ export default function DashboardLayout() {
                       <span className="cf-nav-label-text">{i.label}</span>
                     </NavLink>
 
-                    {/* Fixed tooltip */}
+                    {/* Tooltip cố định khi sidebar ở trạng thái thu gọn. */}
                   </div>
                 );
               })}
@@ -284,7 +299,7 @@ export default function DashboardLayout() {
           </button>
           <p>CapitalFlow · Admin workspace</p>
         </div>
-              {/* Fixed Floating Tooltip on collapsed rail */}
+              {/* Tooltip nổi bên ngoài thanh điều hướng thu gọn. */}
         <AnimatePresence>
           {collapsed && tooltipData && (
             <motion.div
@@ -309,7 +324,7 @@ export default function DashboardLayout() {
         </AnimatePresence>
       </aside>
 
-      {/* Dynamic Main Workspace Content */}
+      {/* Vùng làm việc chính thay đổi theo route con. */}
       <div className={`cf-main ${collapsed ? "collapsed" : ""}`}>
         <header className="cf-header">
           <button
@@ -355,7 +370,7 @@ export default function DashboardLayout() {
           </Link>
         </header>
 
-        {/* Main Content with Fluid View Transitions */}
+        {/* Nội dung chính có chuyển cảnh và tôn trọng reduced motion. */}
         <main id="main-content" className="cf-content">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div

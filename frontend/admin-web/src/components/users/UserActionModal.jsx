@@ -1,18 +1,28 @@
-﻿import { ShieldAlert } from "lucide-react";
+/**
+ * ============================================================================
+ * TÊN FILE: UserActionModal.jsx
+ * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
+ * MÀN HÌNH / PHÂN HỆ: Quản lý người dùng
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Thu thập dữ liệu và xác nhận cho các thao tác quản trị tài khoản.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   action, target, form và callback submit/change từ Users.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Xuất modal động cho tạo, khóa, quyền, xóa, khôi phục và cấp lại mật khẩu.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Xóa vĩnh viễn yêu cầu xác nhận rõ ràng; modal không tự gọi API.
+ * ============================================================================
+ */
+import { ShieldAlert } from "lucide-react";
 import { Modal, Alert, Field } from "../design";
 import { actionTitles } from "./utils";
 
-/**
- * UserActionModal - Modal xu ly cac action tren nguoi dung:
- * create, ban, unban, role, delete, restore, reset-password, bulk ops, retry-delete.
- */
 export default function UserActionModal({
   action,
   target,
   form,
   busy,
   error,
-  hardDelete,
   hardConfirmed,
   deletionReasonRequired,
   onClose,
@@ -27,7 +37,7 @@ export default function UserActionModal({
         {error && <Alert onDismiss={() => onChange({ _clearError: true })}>{error}</Alert>}
         {action === "create" ? (
           <>
-            <Field label="Ho va ten">
+            <Field label="Họ và tên">
               <input
                 className="cf-input"
                 required
@@ -46,35 +56,35 @@ export default function UserActionModal({
               />
             </Field>
             <Alert kind="info">
-              He thong tao mat khau tam thoi va gui thong tin kich hoat qua
-              email. Nguoi dung can doi mat khau khi dang nhap.
+              Hệ thống tao mật khẩu tạm thời va gửi thông tin kích hoạt qua
+              email. Người dùng cần đổi mật khẩu khi đăng nhập.
             </Alert>
           </>
         ) : (
           <p>
             {action.startsWith("bulk-")
-              ? `Thao tac ap dung cho ${form._selectedCount ?? 0} tai khoan da chon.`
+              ? `Thao tác áp dụng cho ${form._selectedCount ?? 0} tài khoản đã chọn.`
               : target
-              ? `Thao tac ap dung cho: ${target.full_name || target.email}`
+              ? `Thao tác áp dụng cho: ${target.full_name || target.email}`
               : null}
           </p>
         )}
         {action === "role" && (
-          <Field label="Vai tro moi">
+          <Field label="Vai trò moi">
             <select
               className="cf-input"
               value={form.role}
               onChange={(e) => onChange({ role: e.target.value })}
             >
-              <option value="USER">Nguoi dung</option>
-              <option value="ADMIN">Quan tri vien</option>
+              <option value="USER">Người dùng</option>
+              <option value="ADMIN">Quản trị viên</option>
             </select>
           </Field>
         )}
         {action === "delete" && (
           <>
             {!target?.is_deleted && (
-              <Field label="Phuong thuc xoa">
+              <Field label="Phương thức xóa">
                 <div className="cf-delete-options">
                   <label
                     className={`cf-delete-option ${form.deletion_mode === "soft" ? "selected" : ""}`}
@@ -89,9 +99,9 @@ export default function UserActionModal({
                       }
                     />
                     <span>
-                      <strong>Xoa mem</strong>
+                      <strong>Xóa mềm</strong>
                       <small>
-                        Thu hoi quyen truy cap, giu du lieu va cho phep khoi phuc.
+                        Thu hồi quyền truy cập, giữ dữ liệu và cho phép khôi phục.
                       </small>
                     </span>
                   </label>
@@ -106,17 +116,17 @@ export default function UserActionModal({
                       onChange={(e) => onChange({ deletion_mode: e.target.value })}
                     />
                     <span>
-                      <strong>Xoa vinh vien</strong>
+                      <strong>Xóa vĩnh viễn</strong>
                       <small>
-                        Worker xoa du lieu nghiep vu va file hoa don theo
-                        checkpoint; khong the khoi phuc.
+                        Worker xóa dữ liệu nghiệp vụ và file hóa đơn theo
+                        checkpoint; không thể khôi phục.
                       </small>
                     </span>
                   </label>
                 </div>
               </Field>
             )}
-            <Field label="Ly do xoa">
+            <Field label="Lý do xóa">
               <textarea
                 className="cf-input"
                 rows={3}
@@ -134,19 +144,19 @@ export default function UserActionModal({
                   checked={form.release_email}
                   onChange={(e) => onChange({ release_email: e.target.checked })}
                 />
-                <span>Giai phong email de co the dang ky tai khoan moi</span>
+                <span>Giai phong email de co the dang ky tài khoản moi</span>
               </label>
             ) : (
               <>
                 <Alert persistent>
                   <span className="cf-row">
                     <ShieldAlert size={18} />
-                    Du lieu tai chinh va file hoa don se bi xoa vinh vien.
-                    He thong ghi nhan tien do de co the retry an toan khi loi.
+                    Dữ liệu tài chính và file hóa đơn sẽ bị xóa vĩnh viễn.
+                    Hệ thống ghi nhận tiến độ để có thể retry an toàn khi lỗi.
                   </span>
                 </Alert>
                 <Field
-                  label={`Nhap ${target?.email || "email nguoi dung"} hoac "XOA VINH VIEN"`}
+                  label={`Nhập ${target?.email || "email nguoi dung"} hoặc "XÓA VĨNH VIỄN"`}
                 >
                   <input
                     className="cf-input"
@@ -161,7 +171,7 @@ export default function UserActionModal({
           </>
         )}
         {action === "bulk-delete" && (
-          <Field label="Ly do xoa">
+          <Field label="Lý do xóa">
             <textarea
               className="cf-input"
               rows={3}
@@ -176,10 +186,10 @@ export default function UserActionModal({
         {action === "restore" && (
           <>
             <Alert kind="info">
-              Email cu se duoc khoi phuc neu chua co tai khoan moi su dung.
-              Trang thai khoa truoc khi xoa duoc giu nguyen.
+              Email cu se duoc khoi phuc neu chua co tài khoản moi su dung.
+              Trạng thái khoa truoc khi xoa duoc giu nguyen.
             </Alert>
-            <Field label="Ly do khoi phuc">
+            <Field label="Lý do khôi phục">
               <textarea
                 className="cf-input"
                 rows={2}
@@ -193,15 +203,15 @@ export default function UserActionModal({
         )}
         {action === "retry-delete" && (
           <Alert kind="info">
-            Worker se tiep tuc tu checkpoint{" "}
+            Worker sẽ tiếp tục từ checkpoint{" "}
             <strong>{target?.deletion?.checkpoint || "REQUESTED"}</strong>.
-            Cac buoc da hoan tat duoc nhan dien qua trang thai ben vung.
+            Các bước đã hoàn tất được nhận diện qua trạng thái bền vững.
           </Alert>
         )}
         {action === "ban" && (
           <Alert kind="info">
-            Tai khoan se bi khoa cho den khi quan tri vien mo lai. Nguoi
-            dung duoc gui email thong bao.
+            Tài khoản sẽ bị khóa cho đến khi quản trị viên mở lại. Người
+            dùng được gửi email thông báo.
           </Alert>
         )}
         <div className="cf-form-actions">
@@ -211,7 +221,7 @@ export default function UserActionModal({
             disabled={busy}
             onClick={onClose}
           >
-            Huy
+            Hủy
           </button>
           <button
             className={`cf-btn ${
@@ -225,7 +235,7 @@ export default function UserActionModal({
               (deletionReasonRequired && form.reason.trim().length < 3)
             }
           >
-            {busy ? "Dang xu ly..." : "Xac nhan"}
+            {busy ? "Đang xử lý..." : "Xác nhận"}
           </button>
         </div>
       </form>

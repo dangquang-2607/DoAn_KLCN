@@ -8,18 +8,24 @@ uploads
 email_previews
 .git
 
-# Dev-only scripts and generated code — not needed at runtime
+# Script phát triển và mã sinh tự động không cần trong runtime.
 scripts/
+!scripts/
+scripts/*
+!scripts/load_test_target.py
+!scripts/distributed_load_test.py
 tests/
 docs/
+artifacts/
+requirements-dev.txt
 
-# IDE / editor configs
+# Cấu hình IDE/editor.
 .vscode/
 .idea/
 pyrightconfig.json
 pytest.ini
 
-# Docs and summaries
+# Tài liệu và bản tổng kết.
 *.md
 index_summary.md
 technical_manifest.md

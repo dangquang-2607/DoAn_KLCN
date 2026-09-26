@@ -20,7 +20,16 @@ services:
   capitalflow-worker:
     build: .
     restart: unless-stopped
-    command: ["python", "-m", "app.services.worker"]
+    command: ["python", "-m", "app.modules.jobs.runner", "--kinds", "EMAIL,BUDGET,FILE_DELETE,USER_PURGE,USER_FILE_PURGE"]
+    env_file:
+      - ${CAPITALFLOW_ENV_FILE:-.env}
+    volumes:
+      - capitalflow_uploads:/app/uploads
+
+  capitalflow-ocr-worker:
+    build: .
+    restart: unless-stopped
+    command: ["python", "-m", "app.modules.jobs.runner", "--kinds", "OCR"]
     env_file:
       - ${CAPITALFLOW_ENV_FILE:-.env}
     volumes:

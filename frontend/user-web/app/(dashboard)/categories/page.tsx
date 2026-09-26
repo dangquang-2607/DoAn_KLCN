@@ -1,283 +1,67 @@
+/**
+ * ============================================================================
+ * TÊN FILE: page.tsx
+ * MÀN HÌNH / PHÂN HỆ: Danh mục
+ * NHÓM VỆ TINH: page.tsx (Điều phối)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Điều phối dữ liệu, trạng thái và hành vi của màn hình tương ứng.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   TanStack Query, API client, state React và các component vệ tinh của phân hệ.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Xuất page để route hoặc component khác sử dụng.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Chỉ danh mục cá nhân được sửa/ẩn; lịch sử giao dịch và ngân sách phải được giữ nguyên.
+ * ============================================================================
+ */
 "use client";
-import { useState } from "react";
+
+/** Điều phối CRUD, tìm kiếm và phân loại danh mục; UI chi tiết nằm trong `_components`. */
+import { useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import api from "@/lib/api";
-import {
-  PageHead,
-  Panel,
-  Field,
-  Modal,
-  Alert,
-  Loading,
-  ErrorState,
-  Empty,
-} from "@/components/ui";
+import { Alert, ErrorState, Loading, PageHead } from "@/components/ui/ui";
 import { errorMessage, type Category } from "@/lib/finance";
-import {
-  CategoryColorPicker,
-  CategoryIcon,
-  CategoryIconPicker,
-} from "@/components/CategoryIcon";
+import CategoryDeleteModal from "./_components/CategoryDeleteModal";
+import CategoryModal, { type CategoryForm } from "./_components/CategoryModal";
+import CategoryTable from "./_components/CategoryTable";
+
+const emptyForm = (type = "EXPENSE"): CategoryForm => ({ name: "", type, icon: "package", color: "cobalt", keywords: "" });
+
 export default function Categories() {
   const cache = useQueryClient();
-  const query = useQuery<Category[]>({
-    queryKey: ["categories"],
-    queryFn: async () => (await api.get("/categories")).data,
-  });
-  const [type, setType] = useState("EXPENSE"),
-    [search, setSearch] = useState(""),
-    [show, setShow] = useState(false),
-    [editing, setEditing] = useState<Category | null>(null),
-    [deleting, setDeleting] = useState<Category | null>(null),
-    [name, setName] = useState(""),
-    [icon, setIcon] = useState("package"),
-    [color, setColor] = useState("cobalt"),
-    [keywords, setKeywords] = useState(""),
-    [error, setError] = useState(""),
-    [busy, setBusy] = useState(false),
-    [notice, setNotice] = useState("");
-  const save = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    setError("");
-    try {
-      if (editing)
-        await api.patch("/categories/" + editing.id, {
-          name: name.trim(),
-          type,
-          icon,
-          color,
-          keywords: keywords.trim() || null,
-        });
-      else await api.post("/categories", { name: name.trim(), type, icon, color, keywords: keywords.trim() || null });
-      await cache.invalidateQueries({ queryKey: ["categories"] });
-      setShow(false);
-      setName("");
-      setNotice(editing ? "Đã cập nhật danh mục." : "Đã tạo danh mục cá nhân.");
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
+  const query = useQuery<Category[]>({ queryKey: ["categories"], queryFn: async () => (await api.get("/categories")).data });
+  const [type, setType] = useState("EXPENSE");
+  const [search, setSearch] = useState("");
+  const [show, setShow] = useState(false);
+  const [editing, setEditing] = useState<Category | null>(null);
+  const [deleting, setDeleting] = useState<Category | null>(null);
+  const [form, setForm] = useState<CategoryForm>(() => emptyForm());
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+  // Nạp dữ liệu danh mục đang sửa hoặc tạo form rỗng theo tab thu/chi hiện tại.
+  const open = (category?: Category) => { setEditing(category || null); setForm(category ? { name: category.name, type: category.type, icon: category.icon || "package", color: category.color || "cobalt", keywords: category.keywords || "" } : emptyForm(type)); setError(""); setShow(true); };
+  // Chuẩn hóa tên/từ khóa trước khi tạo hoặc cập nhật danh mục cá nhân.
+  const save = async (event: FormEvent) => {
+    event.preventDefault(); setBusy(true); setError("");
+    const payload = { ...form, name: form.name.trim(), keywords: form.keywords.trim() || null };
+    try { if (editing) await api.patch("/categories/" + editing.id, payload); else await api.post("/categories", payload); await cache.invalidateQueries({ queryKey: ["categories"] }); setShow(false); setNotice(editing ? "Đã cập nhật danh mục." : "Đã tạo danh mục cá nhân."); }
+    catch (caught) { setError(errorMessage(caught)); } finally { setBusy(false); }
   };
+  // Ẩn danh mục khỏi lựa chọn mới; không xóa liên kết lịch sử ở giao dịch/ngân sách.
   const remove = async () => {
-    if (!deleting) return;
-    setBusy(true);
-    setError("");
-    try {
-      await api.delete("/categories/" + deleting.id);
-      await cache.invalidateQueries({ queryKey: ["categories"] });
-      setDeleting(null);
-      setNotice("Đã ẩn danh mục. Lịch sử giao dịch được giữ nguyên.");
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
+    if (!deleting) return; setBusy(true); setError("");
+    try { await api.delete("/categories/" + deleting.id); await cache.invalidateQueries({ queryKey: ["categories"] }); setDeleting(null); setNotice("Đã ẩn danh mục. Lịch sử giao dịch được giữ nguyên."); }
+    catch (caught) { setError(errorMessage(caught)); } finally { setBusy(false); }
   };
-  const list = (query.data || []).filter(
-    (c) =>
-      c.type === type &&
-      c.name.toLocaleLowerCase().includes(search.toLocaleLowerCase()),
-  );
-  return (
-    <div className="cf-stack">
-      <PageHead
-        eyebrow="TỔ CHỨC DỮ LIỆU"
-        title="Danh mục"
-        description="Phân loại khoản thu và chi bằng danh mục hệ thống hoặc danh mục riêng."
-        actions={
-          <button
-            className="cf-btn cf-btn-primary"
-            onClick={() => {
-              setEditing(null);
-              setName("");
-              setIcon("package");
-              setColor("cobalt");
-              setKeywords("");
-              setShow(true);
-              setError("");
-            }}
-          >
-            <Plus />
-            Tạo danh mục
-          </button>
-        }
-      />
-      {notice && <Alert kind="success" onDismiss={() => setNotice("")}>{notice}</Alert>}
-      <div className="cf-row cf-between">
-        <div className="cf-tabs" role="tablist" aria-label="Loại danh mục">
-          {[
-            ["EXPENSE", "Chi tiêu"],
-            ["INCOME", "Thu nhập"],
-          ].map(([v, l]) => (
-            <button
-              key={v}
-              role="tab"
-              aria-selected={type === v}
-              onClick={() => setType(v)}
-            >
-              {l}
-            </button>
-          ))}
-        </div>
-        <div className="cf-search">
-          <Search />
-          <input
-            className="cf-input"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            aria-label="Tìm danh mục"
-            placeholder="Tìm danh mục…"
-          />
-        </div>
-      </div>
-      {query.isPending ? (
-        <Loading />
-      ) : query.isError ? (
-        <ErrorState retry={() => query.refetch()} />
-      ) : !list.length ? (
-        <Panel>
-          <Empty
-            title="Chưa có danh mục phù hợp"
-            description="Tạo danh mục riêng để phân loại các giao dịch của bạn."
-          />
-        </Panel>
-      ) : (
-        <div className="cf-grid">
-          {list.map((c) => (
-            <Panel key={c.id}>
-              <div className="cf-panel-body cf-row">
-                <CategoryIcon icon={c.icon} color={c.color} />
-                <div style={{ flex: 1 }}>
-                  <h2>{c.name}</h2>
-                  <p
-                    className="cf-muted"
-                    style={{ fontSize: 12, margin: "5px 0 0" }}
-                  >
-                    {c.type === "EXPENSE" ? "Khoản chi" : "Khoản thu"}
-                  </p>
-                </div>
-                <span className={`cf-badge ${c.owner_user_id ? "info" : ""}`}>
-                  {c.owner_user_id ? "Cá nhân" : "Hệ thống"}
-                </span>
-                {c.owner_user_id && (
-                  <div className="cf-row">
-                    <button
-                      className="cf-icon-btn"
-                      aria-label={"Sửa " + c.name}
-                      onClick={() => {
-                        setEditing(c);
-                        setName(c.name);
-                        setType(c.type);
-                        setIcon(c.icon || "package");
-                        setColor(c.color || "cobalt");
-                        setKeywords(c.keywords || "");
-                        setError("");
-                        setShow(true);
-                      }}
-                    >
-                      <Pencil size={16} />
-                    </button>
-                    <button
-                      className="cf-icon-btn"
-                      aria-label={"Ẩn " + c.name}
-                      onClick={() => {
-                        setDeleting(c);
-                        setError("");
-                      }}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                )}
-              </div>
-            </Panel>
-          ))}
-        </div>
-      )}
-      {deleting && (
-        <Modal
-          title="Ẩn danh mục"
-          busy={busy}
-          onClose={() => setDeleting(null)}
-        >
-          {error && <Alert onDismiss={() => setError("")}>{error}</Alert>}
-          <p>
-            Ẩn danh mục “{deleting.name}” khỏi các lựa chọn mới? Giao dịch và
-            ngân sách đã dùng danh mục này vẫn được giữ nguyên.
-          </p>
-          <div className="cf-form-actions">
-            <button
-              className="cf-btn"
-              disabled={busy}
-              onClick={() => setDeleting(null)}
-            >
-              Hủy
-            </button>
-            <button
-              className="cf-btn cf-btn-danger"
-              disabled={busy}
-              onClick={remove}
-            >
-              {busy ? "Đang xử lý…" : "Ẩn danh mục"}
-            </button>
-          </div>
-        </Modal>
-      )}
-      {show && (
-        <Modal
-          title={editing ? "Sửa danh mục cá nhân" : "Tạo danh mục cá nhân"}
-          busy={busy}
-          onClose={() => setShow(false)}
-        >
-          <form className="cf-form" onSubmit={save}>
-            {error && <Alert onDismiss={() => setError("")}>{error}</Alert>}
-            <Field label="Tên danh mục">
-              <input
-                className="cf-input"
-                required
-                maxLength={100}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </Field>
-            <Field label="Loại danh mục">
-              <select
-                className="cf-input"
-                value={type}
-                onChange={(e) => setType(e.target.value)}
-              >
-                <option value="EXPENSE">Chi tiêu</option>
-                <option value="INCOME">Thu nhập</option>
-              </select>
-            </Field>
-            <Field label="Biểu tượng">
-              <CategoryIconPicker value={icon} onChange={setIcon} />
-            </Field>
-            <Field label="Màu nhận diện">
-              <CategoryColorPicker value={color} onChange={setColor} />
-            </Field>
-            <Field label="Từ khóa tự động phân loại" hint="Phân cách bằng dấu phẩy; hệ thống sẽ dùng cho giao dịch tương lai.">
-              <textarea className="cf-input" rows={3} maxLength={1000} value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder="Ví dụ: cửa hàng A, cà phê, bữa trưa" />
-            </Field>
-            <div className="cf-form-actions">
-              <button
-                type="button"
-                className="cf-btn"
-                onClick={() => setShow(false)}
-                disabled={busy}
-              >
-                Hủy
-              </button>
-              <button className="cf-btn cf-btn-primary" disabled={busy}>
-                {busy ? "Đang lưu…" : editing ? "Lưu thay đổi" : "Tạo danh mục"}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
-    </div>
-  );
+  const list = (query.data || []).filter((category) => category.type === type && category.name.toLocaleLowerCase().includes(search.toLocaleLowerCase()));
+  return <div className="cf-stack">
+    <PageHead eyebrow="TỔ CHỨC DỮ LIỆU" title="Danh mục" description="Phân loại khoản thu và chi bằng danh mục hệ thống hoặc danh mục riêng." actions={<button className="cf-btn cf-btn-primary" onClick={() => open()}><Plus />Tạo danh mục</button>} />
+    {notice && <Alert kind="success" onDismiss={() => setNotice("")}>{notice}</Alert>}
+    <div className="cf-row cf-between"><div className="cf-tabs" role="tablist" aria-label="Loại danh mục">{[["EXPENSE", "Chi tiêu"], ["INCOME", "Thu nhập"]].map(([value, label]) => <button key={value} role="tab" aria-selected={type === value} onClick={() => setType(value)}>{label}</button>)}</div><div className="cf-search"><Search /><input className="cf-input" value={search} onChange={(event) => setSearch(event.target.value)} aria-label="Tìm danh mục" placeholder="Tìm danh mục…" /></div></div>
+    {query.isPending ? <Loading /> : query.isError ? <ErrorState retry={() => query.refetch()} /> : <CategoryTable categories={list} onEdit={open} onDelete={(category) => { setDeleting(category); setError(""); }} />}
+    {show && <CategoryModal editing={editing} form={form} error={error} busy={busy} onChange={setForm} onSubmit={save} onClose={() => setShow(false)} onClearError={() => setError("")} />}
+    {deleting && <CategoryDeleteModal category={deleting} error={error} busy={busy} onConfirm={remove} onClose={() => setDeleting(null)} onClearError={() => setError("")} />}
+  </div>;
 }

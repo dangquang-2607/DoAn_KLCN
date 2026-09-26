@@ -1,3 +1,18 @@
+/**
+ * ============================================================================
+ * TÊN FILE: design.jsx
+ * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
+ * MÀN HÌNH / PHÂN HỆ: Hệ thống thiết kế dùng chung
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Cung cấp các primitive giao diện nhất quán cho toàn bộ cổng quản trị.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   React, Lucide, Toast, Motion và class cf-* trong swiss.css.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Xuất PageHead, Panel, Stat, form field, modal, pagination và các trạng thái.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Primitive chỉ trình bày; không tự gọi API hoặc quyết định quyền truy cập.
+ * ============================================================================
+ */
 "use client";
 import Toast from "./Toast";
 import { MotionValue } from "./Motion";

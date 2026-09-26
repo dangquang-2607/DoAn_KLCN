@@ -1,3 +1,18 @@
+/**
+ * ============================================================================
+ * TÊN FILE: SecuritySettings.jsx
+ * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
+ * MÀN HÌNH / PHÂN HỆ: Bảo mật tài khoản quản trị
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Đổi mật khẩu, xử lý lần đăng nhập đầu và hiển thị phiên đăng nhập hiện có.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Prop firstTime, React Query, admin API và các primitive form dùng chung.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Xuất form bảo mật dùng cho Settings và DashboardLayout.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Sau khi đổi mật khẩu phải xóa token và yêu cầu đăng nhập lại.
+ * ============================================================================
+ */
 "use client";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";

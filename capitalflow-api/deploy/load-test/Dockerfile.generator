@@ -1,0 +1,8 @@
+FROM python:3.12-slim-bookworm
+
+WORKDIR /app
+RUN pip install --no-cache-dir httpx==0.28.1 psutil==7.1.0
+COPY scripts/load_test/distributed.py ./scripts/load_test/distributed.py
+RUN mkdir -p /app/artifacts/load-tests
+
+ENTRYPOINT ["python", "scripts/load_test/distributed.py"]

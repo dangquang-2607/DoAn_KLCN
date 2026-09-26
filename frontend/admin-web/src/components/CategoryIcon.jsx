@@ -9,6 +9,4 @@ export {
   CategoryIcon,
   CategoryIconPicker,
   CategoryColorPicker,
-  categoryColors,
-  categoryIcons,
 } from "./CategoryIcon.tsx";

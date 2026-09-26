@@ -1,46 +1,50 @@
-﻿﻿﻿"use client";
-import { OcrSteps } from "@/components/Motion";
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import Link from "next/link";
+/**
+ * ============================================================================
+ * TÊN FILE: page.tsx
+ * MÀN HÌNH / PHÂN HỆ: Hóa đơn AI / OCR
+ * NHÓM VỆ TINH: page.tsx (Điều phối)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Điều phối dữ liệu, trạng thái và hành vi của màn hình tương ứng.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   TanStack Query, API client, state React và các component vệ tinh của phân hệ.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Xuất page để route hoặc component khác sử dụng.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Giới hạn định dạng/kích thước/số lượng tệp; chỉ tạo khoản chi sau bước người dùng xác nhận.
+ * ============================================================================
+ */
+﻿"use client";
+/** Trang điều phối upload, theo dõi xử lý và kiểm duyệt kết quả hóa đơn OCR. */
+import { OcrSteps } from "@/components/ui/Motion";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Upload,
   ScanLine,
   Trash2,
   RefreshCw,
-  FileText,
   ZoomIn,
   ZoomOut,
   RotateCw,
-  Check,
-  Plus,
   ExternalLink,
-  Save,
 } from "lucide-react";
 import api from "@/lib/api";
 import {
   PageHead,
   Panel,
-  Field,
   Modal,
   Alert,
   Loading,
   ErrorState,
   Empty,
-  Pagination,
-} from "@/components/ui";
-import {
-  money,
-  localDate,
-  errorMessage,
-  type Account,
-  type Category,
-  type Money,
-} from "@/lib/finance";
-import InvoiceStatusBadge from "@/components/ocr/InvoiceStatusBadge";
-import InvoiceDetailForm from "@/components/ocr/InvoiceDetailForm";
-import type { Invoice } from "@/components/ocr/InvoiceTypes";
-import { STATUSES } from "@/components/ocr/InvoiceTypes";
+} from "@/components/ui/ui";
+import { errorMessage } from "@/lib/finance";
+import InvoiceStatusBadge from "./_components/InvoiceStatusBadge";
+import InvoiceDetailForm from "./_components/InvoiceDetailForm";
+import InvoiceQueueList from "./_components/InvoiceQueueList";
+import InvoiceUploadZone from "./_components/InvoiceUploadZone";
+import type { Invoice } from "./_components/InvoiceTypes";
+import { ocrStyles } from "./_styles/ocr.styles";
 export default function Ocr() {
   const cache = useQueryClient(),
     uploadInput = useRef<HTMLInputElement>(null);
@@ -70,28 +74,29 @@ export default function Ocr() {
     refetchInterval: (q) =>
       q.state.data?.items.some((i) => i.status === "PROCESSING") ? 4000 : false,
   });
+  const list = query.data?.items || [];
+  const activeSelectedId = selectedId || list[0]?.id || null;
   const detail = useQuery<Invoice>({
-    queryKey: ["invoice", selectedId],
-    queryFn: async () => (await api.get("/invoices/" + selectedId)).data,
-    enabled: !!selectedId,
+    queryKey: ["invoice", activeSelectedId],
+    queryFn: async () => (await api.get("/invoices/" + activeSelectedId)).data,
+    enabled: !!activeSelectedId,
     refetchOnWindowFocus: false,
     refetchInterval: (q) => q.state.data?.status === "PROCESSING" ? 4000 : false,
   });
-  const list = query.data?.items || [];
-  useEffect(() => {
-    if (!selectedId && list.length) setSelectedId(list[0].id);
-  }, [list, selectedId]);
   useEffect(() => {
     let active = true,
       url = "";
-    setBlob("");
-    setPreviewError(false);
-    setZoom(1);
-    setRotation(0);
-    if (!selectedId) return;
-    setPreviewBusy(true);
+    queueMicrotask(() => {
+      if (!active) return;
+      setBlob("");
+      setPreviewError(false);
+      setZoom(1);
+      setRotation(0);
+      setPreviewBusy(Boolean(activeSelectedId));
+    });
+    if (!activeSelectedId) return;
     api
-      .get("/invoices/" + selectedId + "/file", { responseType: "blob" })
+      .get("/invoices/" + activeSelectedId + "/file", { responseType: "blob" })
       .then((res) => {
         if (active) {
           url = URL.createObjectURL(res.data);
@@ -108,7 +113,8 @@ export default function Ocr() {
       active = false;
       if (url) URL.revokeObjectURL(url);
     };
-  }, [selectedId, previewVersion]);
+  }, [activeSelectedId, previewVersion]);
+  // Xác nhận OCR có thể tạo khoản chi nên phải làm mới cả hóa đơn và các cache tài chính.
   const invalidate = async () => {
     await Promise.all(
       [
@@ -122,6 +128,7 @@ export default function Ocr() {
       ].map((key) => cache.invalidateQueries({ queryKey: [key] })),
     );
   };
+  // Kiểm tra định dạng và giới hạn 10 MB trước khi tuần tự tải từng tệp lên backend.
   const upload = async (files: FileList | null) => {
     if (!files?.length || busy) return;
     const valid = Array.from(files);
@@ -159,6 +166,7 @@ export default function Ocr() {
       if (uploadInput.current) uploadInput.current.value = "";
     }
   };
+  // Giới hạn tối đa năm hóa đơn mỗi lô và bỏ qua tài liệu đang xử lý/đã xác nhận.
   const scan = async (ids: string[]) => {
     if (!ids.length) return;
     if (ids.length > 5) {
@@ -196,13 +204,14 @@ export default function Ocr() {
       setBusy("");
     }
   };
+  // Chỉ sau bước người dùng xác nhận mới tạo khoản chi và cập nhật số dư tài khoản.
   const confirm = async (payload: Record<string, unknown>) => {
-    if (!selectedId) return;
+    if (!activeSelectedId) return;
     setBusy("confirm");
     setError("");
     setNotice("");
     try {
-      await api.post("/invoices/" + selectedId + "/confirm", payload);
+      await api.post("/invoices/" + activeSelectedId + "/confirm", payload);
       await invalidate();
       setVersion((v) => v + 1);
       setNotice("Đã xác nhận hóa đơn và cập nhật khoản chi trong tài khoản.");
@@ -212,6 +221,7 @@ export default function Ocr() {
       setBusy("");
     }
   };
+  // Xóa tệp hóa đơn đã chọn nhưng giữ lại giao dịch đã được ghi nhận trước đó.
   const remove = async () => {
     if (!deleting) return;
     setBusy("delete");
@@ -220,7 +230,7 @@ export default function Ocr() {
       const { data } = await api.post("/invoices/batch-delete", {
         invoice_ids: deleting,
       });
-      const removedCurrent = deleting.includes(selectedId || "");
+    const removedCurrent = deleting.includes(activeSelectedId || "");
       setChecked([]);
       setDeleting(null);
       await invalidate();
@@ -264,165 +274,44 @@ export default function Ocr() {
               <Upload />
               {busy === "upload" ? "Đang tải…" : "Tải hóa đơn"}
             </button>
-            <input
-              type="file"
-              ref={uploadInput}
-              accept=".jpg,.jpeg,.png,.webp,.pdf,.xml"
-              multiple
-              hidden
-              onChange={(e) => upload(e.target.files)}
-            />
           </>
         }
       />
       {error && <Alert onDismiss={() => setError("")}>{error}</Alert>}
       {notice && <Alert kind="success" onDismiss={() => setNotice("")}>{notice}</Alert>}
-      <div
-        className="cf-ocr-drop"
-        onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("is-dragging"); }}
-        onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) e.currentTarget.classList.remove("is-dragging"); }}
-        onDrop={(e) => {
-          e.preventDefault();
-          e.currentTarget.classList.remove("is-dragging");
-          upload(e.dataTransfer.files);
-        }}
-      >
-        <Upload size={20} />
-        <span>Kéo thả hóa đơn vào đây, hoặc</span>
-        <button
-          className="cf-btn cf-btn-sm"
-          disabled={!!busy}
-          onClick={() => uploadInput.current?.click()}
-        >
-          Chọn tệp
-        </button>
-        <span className="cf-muted">JPG, PNG, WEBP, PDF · Tối đa 10 MB</span>
-      </div>
+      <InvoiceUploadZone inputRef={uploadInput} busy={!!busy} onUpload={upload} />
       <div className="cf-ocr-grid">
-        <Panel className="cf-ocr-list" title="Tài liệu">
-          <div className="cf-panel-body" style={{ padding: 16 }}>
-            <Field label="Trạng thái">
-              <select
-                className="cf-input"
-                value={status}
-                disabled={!!busy}
-                onChange={(e) => {
-                  setStatus(e.target.value);
-                  setPage(1);
-                  setSelectedId(null);
-                  setChecked([]);
-                }}
-              >
-                <option value="">Tất cả hóa đơn</option>
-                {Object.entries(STATUSES).map(([v, l]) => (
-                  <option key={v} value={v}>
-                    {l}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          </div>
-          {checked.length > 0 && (
-            <div
-              className="cf-panel-body"
-              style={{ padding: 12, borderTop: "1px solid var(--cf-line)" }}
-            >
-              <div className="cf-row">
-                <strong style={{ fontSize: 13 }}>
-                  {checked.length} đã chọn
-                </strong>
-                <button
-                  className="cf-btn cf-btn-sm"
-                  disabled={!!busy || !eligible.length || eligible.length > 5}
-                  onClick={() => scan(eligible)}
-                >
-                  <ScanLine />
-                  Quét {eligible.length}/5
-                </button>
-                <button
-                  className="cf-icon-btn"
-                  disabled={!!busy}
-                  aria-label="Xóa các hóa đơn đã chọn"
-                  onClick={() => setDeleting(checked)}
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
-          )}
-          {query.isPending ? (
-            <Loading />
-          ) : query.isError ? (
-            <ErrorState retry={() => query.refetch()} />
-          ) : !list.length ? (
-            <Empty
-              title="Chưa có hóa đơn"
-              description="Tải ảnh hoặc PDF, tối đa 10 MB mỗi tệp."
-            />
-          ) : (
-            <div className="cf-ocr-documents">
-              {list.map((i) => (
-                <div
-                  key={i.id}
-                  className={`cf-ocr-document ${selectedId === i.id ? "selected" : ""}`}
-                >
-                  <input
-                    type="checkbox"
-                    aria-label={`Chọn ${i.original_filename}`}
-                    disabled={!!busy || i.status === "PROCESSING"}
-                    checked={checked.includes(i.id)}
-                    onChange={(e) =>
-                      setChecked((ids) =>
-                        e.target.checked
-                          ? [...ids, i.id]
-                          : ids.filter((id) => id !== i.id),
-                      )
-                    }
-                  />
-                  <button
-                    className="cf-ocr-document-button"
-                    disabled={!!busy}
-                    onClick={() => setSelectedId(i.id)}
-                  >
-                    <span
-                      style={{ display: "flex", gap: 10, alignItems: "center" }}
-                    >
-                      <FileText size={20} />
-                      <strong>{i.merchant_name || i.original_filename}</strong>
-                    </span>
-                    <span
-                      className="cf-row cf-between"
-                      style={{ marginTop: 12 }}
-                    >
-                      <InvoiceStatusBadge value={i.status} />
-                      <span className="cf-number">
-                        {i.total_amount
-                          ? money(i.total_amount, i.currency)
-                          : "—"}
-                      </span>
-                    </span>
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          <Pagination
-            page={page}
-            pageSize={15}
-            total={query.data?.total || 0}
-            onChange={(p) => {
-              if (busy) return;
-              setPage(p);
-              setSelectedId(null);
-              setChecked([]);
-            }}
-          />
-        </Panel>
+        <InvoiceQueueList
+          query={query}
+          list={list}
+          status={status}
+          page={page}
+          checked={checked}
+          eligible={eligible}
+          selectedId={activeSelectedId}
+          busy={!!busy}
+          onStatusChange={(value) => {
+            setStatus(value);
+            setPage(1);
+            setSelectedId(null);
+            setChecked([]);
+          }}
+          onPageChange={(nextPage) => {
+            if (busy) return;
+            setPage(nextPage);
+            setSelectedId(null);
+            setChecked([]);
+          }}
+          onCheckedChange={setChecked}
+          onSelect={setSelectedId}
+          onScan={scan}
+          onDelete={setDeleting}
+        />
         <Panel
           title="Kiểm tra thông tin"
           action={inv && <InvoiceStatusBadge value={inv.status} />}
         >
-          {!selectedId ? (
+          {!activeSelectedId ? (
             <Empty
               title="Chọn một hóa đơn"
               description="Thông tin nhận diện sẽ xuất hiện ở đây."
@@ -504,8 +393,8 @@ export default function Ocr() {
           }
         >
           {inv && <OcrSteps status={inv.status} />}
-          <div className={`cf-ocr-preview-body ${inv?.status === "PROCESSING" ? "is-processing" : ""}`}>
-            {!selectedId ? (
+          <div style={ocrStyles.preview} className={`cf-ocr-preview-body ${inv?.status === "PROCESSING" ? "is-processing" : ""}`}>
+          {!activeSelectedId ? (
               <Empty title="Chưa chọn tài liệu" />
             ) : previewBusy ? (
               <Loading />
@@ -534,6 +423,8 @@ export default function Ocr() {
                 </object>
               ) : (
                 <div className="cf-image-scroll">
+                  {/* URL blob là bản xem trước cục bộ nên không thể dùng tối ưu ảnh của Next.js. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={blob}
                     alt={inv?.original_filename || "Bản gốc hóa đơn"}

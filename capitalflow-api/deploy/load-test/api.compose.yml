@@ -1,0 +1,17 @@
+services:
+  api-loadtest:
+    build:
+      context: ../..
+      dockerfile: deploy/load-test/Dockerfile.api
+    restart: "no"
+    env_file:
+      - ${CAPITALFLOW_LOADTEST_API_ENV:-.env.api}
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=10)"]
+      interval: 10s
+      timeout: 15s
+      retries: 5
+      start_period: 20s
+

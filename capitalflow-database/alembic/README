@@ -1,0 +1,5 @@
+Alembic độc lập của CapitalFlow Database.
+
+Không chạy migration từ startup của API. Xem ../README.md để biết quy tắc an
+toàn, cách kiểm chứng và yêu cầu xác nhận trước thao tác phá hủy.
+

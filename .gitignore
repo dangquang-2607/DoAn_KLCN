@@ -37,12 +37,16 @@ yarn-error.log*
 .coverage
 htmlcov/
 coverage/
+.mypy_cache/
+.ruff_cache/
 
 # Uploads (File hóa đơn test, ảnh test của user)
 uploads/*
 !uploads/.gitkeep
 **/uploads/*
 !**/uploads/.gitkeep
+email_previews/
+**/email_previews/
 
 # Typescript
 *.tsbuildinfo

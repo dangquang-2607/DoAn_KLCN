@@ -1,3 +1,18 @@
+/**
+ * ============================================================================
+ * TÊN FILE: App.jsx
+ * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
+ * MÀN HÌNH / PHÂN HỆ: Router ứng dụng
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Khai báo chín route lazy-load và khung bảo vệ dành cho quản trị viên.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   React Router, Suspense, ProtectedRoute và DashboardLayout.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Xuất component gốc App cho main.jsx.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   ProtectedRoute chỉ kiểm tra token phía client; backend vẫn xác minh quyền ADMIN.
+ * ============================================================================
+ */
 import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import DashboardLayout from './components/DashboardLayout';
@@ -13,6 +28,7 @@ const SystemAnalytics = lazy(() => import('./pages/SystemAnalytics'));
 const OcrMonitor = lazy(() => import('./pages/OcrMonitor'));
 const EmailLogs = lazy(() => import('./pages/EmailLogs'));
 
+// Fallback gọn nhẹ được hiển thị trong lúc tải chunk của từng route.
 const PageLoader = () => (
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
     <div style={{

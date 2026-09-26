@@ -1,9 +1,19 @@
-﻿// shared/finance.ts — canonical finance utilities, source of truth
-// Synced to: user-web/lib/finance.ts (TS), admin-web/src/services/format.js (JS)
-
-// ── Types ─────────────────────────────────────────────────────────────────────
+/**
+ * ============================================================================
+ * TÊN FILE: finance.ts
+ * MÀN HÌNH / PHÂN HỆ: Hạ tầng và tiện ích cốt lõi
+ * NHÓM VỆ TINH: lib (Dịch vụ và tiện ích cốt lõi)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Cung cấp kiểu tài chính, định dạng tiền/ngày, lỗi và xuất CSV an toàn.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Kiểu dữ liệu API và API trình duyệt phục vụ tải CSV.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Xuất kiểu dữ liệu, hằng số và hàm tiện ích cho các module liên quan.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Định dạng không được làm thay đổi giá trị gốc; dữ liệu CSV phải được chống formula injection.
+ * ============================================================================
+ */
 export type Money = number | string;
-
 export interface Account {
   id: string;
   name: string;
@@ -13,7 +23,6 @@ export interface Account {
   currency: string;
   is_active: boolean;
 }
-
 export interface Category {
   id: string;
   name: string;
@@ -25,7 +34,6 @@ export interface Category {
   sort_order: number;
   is_active: boolean;
 }
-
 export interface Transaction {
   id: string;
   account_id: string;
@@ -42,7 +50,6 @@ export interface Transaction {
   category_source?: string | null;
   category_was_auto?: boolean;
 }
-
 export interface Budget {
   budget_id: string;
   budget_name: string;
@@ -59,7 +66,6 @@ export interface Budget {
   currency: string;
   is_active: boolean;
 }
-
 export interface Profile {
   id: string;
   full_name: string;
@@ -68,30 +74,28 @@ export interface Profile {
   is_active: boolean;
   must_change_password: boolean;
 }
-
-// ── Formatters ────────────────────────────────────────────────────────────────
-
-export function money(value: Money = 0, currency = "VND"): string {
+// Định dạng để hiển thị; không làm tròn hoặc ghi ngược giá trị vào dữ liệu nguồn.
+export function money(value: Money = 0, currency = "VND") {
   return new Intl.NumberFormat("vi-VN", {
     style: "currency",
     currency,
     maximumFractionDigits: currency === "VND" ? 0 : 2,
   }).format(Number(value) || 0);
 }
-
-export function localDate(date = new Date()): string {
+// Tạo ngày cục bộ thay vì UTC để tránh lệch một ngày theo múi giờ Việt Nam.
+export function localDate(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
-
-export function dateLabel(value?: string | null): string {
+// Gắn giờ giữa trưa cho chuỗi chỉ có ngày nhằm tránh dịch ngày khi trình duyệt đổi múi giờ.
+export function dateLabel(value?: string | null) {
   return value
     ? new Date(
         value.length === 10 ? `${value}T12:00:00` : value,
       ).toLocaleDateString("vi-VN")
-    : "-";
+    : "—";
 }
-
-export function errorMessage(error: unknown): string {
+// Chuẩn hóa lỗi API thành thông báo an toàn, không lộ payload hoặc chi tiết nội bộ.
+export function errorMessage(error: unknown) {
   const e = error as {
     response?: { status?: number; data?: { detail?: unknown } };
   };
@@ -100,22 +104,21 @@ export function errorMessage(error: unknown): string {
   if (Array.isArray(detail))
     return detail.map((d: { msg?: string }) => d.msg).join(". ");
   if (e?.response?.status === 429)
-    return "Ban thao tac qua nhanh. Vui long cho mot phut roi thu lai.";
-  return "Khong the hoan tat thao tac. Vui long thu lai.";
+    return "Bạn thao tác quá nhanh. Vui lòng chờ một phút rồi thử lại.";
+  return "Không thể hoàn tất thao tác. Vui lòng thử lại.";
 }
-
 export const accountTypes: Record<string, string> = {
-  CASH: "Tien mat",
-  BANK: "Ngan hang",
-  E_WALLET: "Vi dien tu",
-  CREDIT_CARD: "The tin dung",
-  SAVINGS: "Tiet kiem",
-  INVESTMENT: "Dau tu",
-  CRYPTO: "Tai san so",
-  OTHER: "Khac",
+  CASH: "Tiền mặt",
+  BANK: "Ngân hàng",
+  E_WALLET: "Ví điện tử",
+  CREDIT_CARD: "Thẻ tín dụng",
+  SAVINGS: "Tiết kiệm",
+  INVESTMENT: "Đầu tư",
+  CRYPTO: "Tài sản số",
+  OTHER: "Khác",
 };
-
-export function exportCsv(name: string, rows: unknown[][]): void {
+// Escape ô CSV và chặn ký tự mở đầu có thể bị ứng dụng bảng tính thực thi như công thức.
+export function exportCsv(name: string, rows: unknown[][]) {
   const escape = (value: unknown) => {
     let s = String(value ?? "");
     if (/^[=+@\-\t\r]/.test(s)) s = "'" + s;

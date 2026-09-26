@@ -1,3 +1,23 @@
+/**
+ * ============================================================================
+ * TÊN FILE: api.ts
+ * MÀN HÌNH / PHÂN HỆ: Hạ tầng và tiện ích cốt lõi
+ * NHÓM VỆ TINH: lib (Dịch vụ và tiện ích cốt lõi)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Cấu hình Axios, access token, refresh token và xử lý phiên hết hạn.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Axios, biến môi trường NEXT_PUBLIC_API_URL và Web Storage.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Xuất Axios client đã cấu hình để các phân hệ gọi backend.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Không ghi log mật khẩu/token; khóa thao tác khi đang gửi và xử lý phiên hết hạn nhất quán.
+ * ============================================================================
+ */
+/**
+ * HTTP client duy nhất của user-web.
+ * File này gắn access token, phối hợp refresh token một lần khi hết hạn và
+ * phát sự kiện đăng xuất khi phiên không thể khôi phục.
+ */
 import axios from "axios";
 
 const BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000")
@@ -8,6 +28,7 @@ const api = axios.create({
   baseURL: `${BASE_URL}/api/v1`,
 });
 
+// Gắn khóa idempotency ổn định cho thao tác tiền để retry mạng không tạo bản ghi trùng.
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
     const method = (config.method || "get").toLowerCase();
@@ -18,7 +39,7 @@ api.interceptors.request.use((config) => {
       if (!key) { key = crypto.randomUUID(); sessionStorage.setItem(storageKey, key); }
       config.headers["Idempotency-Key"] = key;
     }
-    // Only set Authorization if not already explicitly provided on config.headers
+    // Chỉ gắn Authorization khi request chưa chủ động truyền header này.
     if (!config.headers.Authorization) {
       const token = sessionStorage.getItem("user_access_token");
       if (token) {
@@ -32,9 +53,10 @@ api.interceptors.request.use((config) => {
 let isRefreshing = false;
 let refreshQueue: Array<{
   resolve: (token: string) => void;
-  reject: (err: any) => void;
+  reject: (err: unknown) => void;
 }> = [];
 
+// Xóa khóa idempotency sau phản hồi thành công và khôi phục phiên tập trung khi gặp 401.
 api.interceptors.response.use(
   (res) => {
     if (typeof window !== "undefined" && res.config.headers["Idempotency-Key"]) {
@@ -69,6 +91,7 @@ api.interceptors.response.use(
       }
 
       originalReq._retry = true;
+      // Các request 401 đồng thời chờ chung một lần refresh thay vì xoay token nhiều lần.
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           refreshQueue.push({ resolve, reject });
@@ -95,7 +118,7 @@ api.interceptors.response.use(
 
         originalReq.headers.Authorization = `Bearer ${newToken}`;
         return api(originalReq);
-      } catch (refreshErr) {
+      } catch {
         refreshQueue.forEach(({ reject }) => reject(err));
         refreshQueue = [];
         _doLogout();
@@ -109,6 +132,7 @@ api.interceptors.response.use(
 );
 
 function _doLogout() {
+  // Thu hồi refresh token theo khả năng tốt nhất rồi luôn xóa thông tin phiên tại trình duyệt.
   if (typeof window !== "undefined") {
     const refreshToken = sessionStorage.getItem("user_refresh_token");
     if (refreshToken) {
@@ -118,6 +142,8 @@ function _doLogout() {
     }
     sessionStorage.removeItem("user_access_token");
     sessionStorage.removeItem("user_refresh_token");
+    // Module Axios dùng chung chạy ngoài React nên không có router instance để điều hướng.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = "/login";
   }
 }

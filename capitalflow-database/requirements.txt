@@ -1,0 +1,6 @@
+# Công cụ database tái sử dụng model và service của API khi seed/verify.
+-r ../capitalflow-api/requirements.txt
+
+# Alembic chỉ thuộc project database, không nằm trong image runtime của API.
+alembic==1.19.1
+

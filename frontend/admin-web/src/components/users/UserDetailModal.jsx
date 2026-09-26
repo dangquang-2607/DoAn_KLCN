@@ -1,13 +1,24 @@
-﻿import { Modal, Loading, ErrorState } from "../design";
-
 /**
- * UserDetailModal - Modal hien thi chi tiet nguoi dung: thong ke giao dich, hoa don, ngay tao.
+ * ============================================================================
+ * TÊN FILE: UserDetailModal.jsx
+ * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
+ * MÀN HÌNH / PHÂN HỆ: Quản lý người dùng
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Hiển thị hồ sơ và thống kê tổng hợp của một người dùng được chọn.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   userId, query chi tiết và callback đóng từ Users.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Xuất modal chi tiết hoặc null khi chưa chọn tài khoản.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Chỉ hiển thị dữ liệu backend cho phép admin truy cập.
+ * ============================================================================
  */
+import { Modal, Loading, ErrorState } from "../design";
 export default function UserDetailModal({ userId, query, onClose }) {
   if (!userId) return null;
 
   return (
-    <Modal title="Chi tiet nguoi dung" onClose={onClose}>
+    <Modal title="Chi tiết người dùng" onClose={onClose}>
       {query.isPending ? (
         <Loading />
       ) : query.isError ? (
@@ -20,16 +31,16 @@ export default function UserDetailModal({ userId, query, onClose }) {
           </div>
           <div className="cf-form-grid">
             <div>
-              <div className="cf-eyebrow">Giao dich</div>
+              <div className="cf-eyebrow">Giao dịch</div>
               {query.data.stats?.transactions_count ?? 0}
             </div>
             <div>
-              <div className="cf-eyebrow">Hoa don</div>
+              <div className="cf-eyebrow">Hóa đơn</div>
               {query.data.stats?.invoices_count ?? 0}
             </div>
           </div>
           <div>
-            <div className="cf-eyebrow">Ngay tao</div>
+            <div className="cf-eyebrow">Ngày tạo</div>
             {new Date(query.data.created_at).toLocaleString("vi-VN")}
           </div>
         </div>

@@ -20,20 +20,20 @@ copyFileSync(src("swiss.css"), adm("swiss.css"));
 console.log("  Synced: swiss.css -> both projects");
 
 // ── 2. Toast.jsx ──────────────────────────────────────────────────────────
-copyFileSync(src("Toast.jsx"), user("components/Toast.jsx"));
+copyFileSync(src("Toast.jsx"), user("components/ui/Toast.jsx"));
 copyFileSync(src("Toast.jsx"), adm("components/Toast.jsx"));
-console.log("  Synced: Toast.jsx -> both projects");
+console.log("  Synced: Toast.jsx -> user components/ui and admin components");
 
 // ── 3. Motion.jsx ─────────────────────────────────────────────────────────
-copyFileSync(src("Motion.jsx"), user("components/Motion.jsx"));
+copyFileSync(src("Motion.jsx"), user("components/ui/Motion.jsx"));
 copyFileSync(src("Motion.jsx"), adm("components/Motion.jsx"));
-console.log("  Synced: Motion.jsx -> both projects");
+console.log("  Synced: Motion.jsx -> user components/ui and admin components");
 
 // ── 4. CategoryIcon.tsx ───────────────────────────────────────────────────
 // Vite transpiles .tsx automatically via esbuild (no tsconfig needed)
-copyFileSync(src("CategoryIcon.tsx"), user("components/CategoryIcon.tsx"));
+copyFileSync(src("CategoryIcon.tsx"), user("components/ui/CategoryIcon.tsx"));
 copyFileSync(src("CategoryIcon.tsx"), adm("components/CategoryIcon.tsx"));
-console.log("  Synced: CategoryIcon.tsx -> both projects (Vite/esbuild handles TSX)");
+console.log("  Synced: CategoryIcon.tsx -> user components/ui and admin components");
 
 // ── 5. finance.ts / format.ts ─────────────────────────────────────────────
 // user-web uses it as lib/finance.ts

@@ -1,3 +1,12 @@
+/*
+ * ============================================================================
+ * TÊN FILE: index.css
+ * PHÂN HỆ: Nền tảng giao diện admin-web
+ * MỤC ĐÍCH: Thiết lập font, reset, layout quản trị và các lớp giao diện cũ.
+ * PHỤ THUỘC: Được main.jsx nạp sau Bootstrap và trước swiss.css.
+ * LƯU Ý: Giữ thứ tự cascade; ưu tiên class dùng chung thay vì sinh styles.js theo feature.
+ * ============================================================================
+ */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 * {

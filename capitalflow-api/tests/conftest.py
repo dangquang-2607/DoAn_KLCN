@@ -1,4 +1,4 @@
-"""Offline integration fixtures: isolated SQLite DB, no SMTP/AI/external sockets."""
+"""Fixture tích hợp offline: SQLite cô lập, không gọi SMTP, AI hoặc socket bên ngoài."""
 import socket
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
@@ -10,29 +10,30 @@ from fastapi.testclient import TestClient
 from fastapi import Request
 from uuid import uuid4
 from app.main import app as application
-from app.models.base import Base
-from app.api.dependencies import get_db
-from app.models.user import User
-from app.core.security import hash_password, create_access_token
-from app.core.limiter import limiter
-import app.models
+from app.shared.database.base import Base
+from app.shared.http.dependencies import get_db
+from app.modules.dangnhap.persistence.user import User
+from app.shared.security.passwords import hash_password
+from app.shared.security.tokens import create_access_token
+from app.shared.http.rate_limit import limiter
+import app.shared.database.model_registry
 
 
 @pytest.fixture(autouse=True)
 def offline(monkeypatch):
     original_connect = socket.socket.connect
     def blocked(sock, address):
-        # Windows asyncio implements its internal socketpair using loopback TCP.
+        # Windows asyncio triển khai socketpair nội bộ bằng kết nối TCP loopback.
         import inspect
         if any(frame.function == "_fallback_socketpair" and frame.filename.endswith("socket.py") for frame in inspect.stack()):
             return original_connect(sock, address)
         raise AssertionError("External network is forbidden in automated tests")
     monkeypatch.setattr(socket.socket, "connect", blocked)
     monkeypatch.setattr(socket.socket, "connect_ex", blocked)
-    from app.services.email_service import EmailService
+    from app.modules.email.service import EmailService
     sender = MagicMock(return_value=True)
     monkeypatch.setattr(EmailService, "send_email_sync", sender)
-    from app.api.middleware import audit_middleware
+    from app.shared.http.middleware import audit as audit_middleware
     monkeypatch.setattr(audit_middleware, "_write_audit_log", MagicMock())
     limiter.reset()
     yield sender
@@ -58,8 +59,8 @@ def client(db, monkeypatch):
         db.info["request"] = request
         return db
     application.dependency_overrides[get_db] = request_db
-    # Background budget checking opens a separate session in production.
-    from app.api.routes import transactions
+    # Kiểm tra ngân sách chạy nền sẽ mở một phiên riêng trong môi trường vận hành thật.
+    from app.modules.taichinh.transactions import api as transactions
     class BorrowedSession:
         def __getattr__(self, name): return getattr(db, name)
         def close(self): pass

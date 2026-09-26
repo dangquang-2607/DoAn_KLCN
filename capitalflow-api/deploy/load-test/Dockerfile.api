@@ -1,0 +1,16 @@
+FROM python:3.12-slim-bookworm
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates unixodbc \
+    && curl -fsSLo /tmp/packages-microsoft-prod.deb https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb \
+    && dpkg -i /tmp/packages-microsoft-prod.deb \
+    && apt-get update && ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql18 \
+    && rm -f /tmp/packages-microsoft-prod.deb \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY app/ ./app/
+COPY scripts/load_test/target.py ./scripts/load_test/target.py
+
+CMD ["uvicorn", "scripts.load_test.target:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--no-access-log"]
