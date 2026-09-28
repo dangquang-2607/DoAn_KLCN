@@ -141,27 +141,3 @@ Sau khi build backend image, smoke-test production artifact:
 cd capitalflow-api
 .\.venv\Scripts\python.exe -m scripts.verify_docker
 ```
-
-## Chẩn đoán triển khai
-
-```powershell
-cd capitalflow-api
-.\.venv\Scripts\python.exe -m scripts.diagnose_deployment
-```
-
-Chỉ triển khai khi lệnh trả `ready: true`. Không xử lý lỗi chứng chỉ bằng cách
-bật `TrustServerCertificate=yes`; hãy cài đúng CA, hostname và certificate.
-
-Runbook chi tiết:
-
-- [Docker và SQL Server](capitalflow-api/docs/docker-sql-server.md)
-- [Toàn vẹn tài chính](capitalflow-api/docs/financial-integrity-release.md)
-- [Khả năng phục hồi](capitalflow-api/docs/resilience-release.md)
-- [Xóa người dùng](capitalflow-api/docs/user-deletion-release.md)
-
-## Quy tắc repository
-
-- Không commit dump CSDL, ảnh hóa đơn, email preview, `.env`, cache hoặc build output.
-- `frontend/shared/` là nguồn chuẩn của `Motion.jsx`, `Toast.jsx` và `swiss.css`.
-  Sau khi sửa, chạy `node frontend/shared/sync-design.mjs` rồi kiểm tra diff.
-- `capitalflow-api/scripts/manual/legacy_clean_install_schema.sql` là script phá hủy và dựng lại schema cho database phát triển dùng một lần; không chạy trên production.
