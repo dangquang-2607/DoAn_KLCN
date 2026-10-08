@@ -21,7 +21,7 @@ function Invoke-DemoCheck([string]$Name, [string]$Directory, [scriptblock]$Actio
 $env:PYTHONPATH = Join-Path $demoRoot 'capitalflow-api'
 $env:DEMO_VERSION = $demoCommit.Substring(0,12)
 $demoPython = Join-Path $demoRoot 'capitalflow-api/.venv/Scripts/python.exe'
-Invoke-DemoCheck 'backend-suite' $demoRoot { & $demoPython -m pytest qa/acceptance_20261008/tests -q --junitxml=(Join-Path $demoOutput 'pytest.xml') }
+Invoke-DemoCheck 'backend-suite' $demoRoot { & $demoPython -m pytest qa/acceptance_20261008/tests -q --junitxml (Join-Path $demoOutput 'pytest.xml') }
 Invoke-DemoCheck 'refresh-suite' $demoRoot { node --test qa/acceptance_20261008/refresh-client.test.cjs }
 Invoke-DemoCheck 'user-lint' "$demoRoot/frontend/user-web" { npm run lint }
 Invoke-DemoCheck 'user-typecheck' "$demoRoot/frontend/user-web" { npm run typecheck }
