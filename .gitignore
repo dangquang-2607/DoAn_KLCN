@@ -2,6 +2,9 @@
 .env
 .env.*
 .env*.local
+.demo.local.json
+demo-uploads/
+qa/release-runs/
 !.env.example
 !.env.docker.example
 

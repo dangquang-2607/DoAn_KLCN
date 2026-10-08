@@ -1,0 +1,12 @@
+/* CSS riêng: danh-muc-he-thong. Giữ thứ tự breakpoint. */
+
+.adm-live .adm-category-library { padding:0; }
+.adm-live .adm-category-icon-large .cf-category-icon { margin:0; }
+.adm-live .adm-category-order .cf-row { display:flex; }
+.adm-live-category-actions { display:grid; gap:10px; }
+@container (max-width:1050px) {
+  .adm-live .adm-category-top { flex-wrap:wrap; }
+}
+@container (max-width:820px) {
+  .adm-live .adm-category-layout { grid-template-columns:1fr; }
+}

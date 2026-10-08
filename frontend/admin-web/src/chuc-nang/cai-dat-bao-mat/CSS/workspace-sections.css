@@ -1,0 +1,13 @@
+/* CSS riêng: cai-dat-bao-mat. Giữ thứ tự breakpoint. */
+
+.adm-settings-link-card { display:flex; gap:13px; padding:22px; border:1px solid #e5deee; border-radius:16px; background:#f6f1fa; }
+.adm-settings-link-card > svg { flex:0 0 auto; color:#8a6aaa; }
+.adm-settings-link-card strong { font-size:14px; }
+.adm-settings-link-card p { color:#82798b; font-size:11px; line-height:1.6; }
+.adm-settings-link-card a { display:inline-flex; align-items:center; gap:6px; color:#755994; font-size:11px; font-weight:800; text-decoration:none; }
+.adm-settings-format { display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-top:18px; padding:16px 20px; border:1px solid #e9e4de; border-radius:13px; background:#fff; }
+.adm-settings-format > div { display:flex; align-items:center; gap:8px; margin-right:auto; }
+.adm-settings-format > div svg { color:#a6755b; }
+.adm-settings-format strong { font-size:12px; }
+.adm-settings-format > span { padding:6px 9px; border-radius:6px; color:#657383; background:#f3f4f4; font-size:10px; }
+.adm-settings-format small { width:100%; color:#a0a8ae; font-size:10px; }

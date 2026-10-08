@@ -1,0 +1,19 @@
+/* CSS riêng: email-cau-hinh. Giữ thứ tự breakpoint. */
+
+.adm-live .adm-email-top { flex-wrap:wrap; }
+.adm-live .adm-email-metrics { flex:1; }
+.adm-live .adm-email-metrics > div { flex:1; min-width:0; }
+.adm-live .adm-email-inspector h2 { margin:0 0 12px; }
+.adm-live .adm-email-row-meta small { text-align:right; }
+.adm-live .adm-email-mode .adm-rest-dl dt { color:#b3cacd; }
+.adm-live .adm-email-mode .adm-rest-dl > div { border-color:#ffffff25; }
+.adm-live .adm-email-mode .cf-data-note { color:#c6d5d6; }
+.adm-live .adm-email-mode button { color:#bde7db; }
+.adm-live .adm-email-config-grid .cf-field { display:grid; }
+@container (max-width:820px) {
+  .adm-live .adm-email-layout, .adm-live .adm-email-settings { grid-template-columns:1fr; }
+}
+@container (max-width:550px) {
+  .adm-live .adm-email-metrics > div { padding:3px 10px; }
+  .adm-live .adm-email-metrics > div:first-child { padding-left:0; }
+}

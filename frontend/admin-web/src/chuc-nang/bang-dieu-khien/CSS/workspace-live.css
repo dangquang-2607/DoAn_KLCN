@@ -1,0 +1,16 @@
+/* CSS riêng: bang-dieu-khien. Giữ thứ tự breakpoint. */
+
+.adm-live .adm-activity-list time { font-size:11px; }
+@container (max-width:1050px) {
+  .adm-live .adm-dashboard-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@container (max-width:820px) {
+  .adm-live .adm-ops-grid { grid-template-columns:1fr; }
+}
+@container (max-width:550px) {
+  .adm-live .adm-dashboard-kpis { grid-template-columns:1fr; }
+  .adm-live .adm-activity-list { padding:0 18px 8px; }
+  .adm-live .adm-activity-list li { flex-wrap:wrap; }
+  .adm-live .adm-activity-list li > div { flex:1; }
+  .adm-live .adm-activity-list time { margin-left:47px; }
+}

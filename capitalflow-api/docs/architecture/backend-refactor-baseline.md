@@ -1,5 +1,7 @@
 # Baseline tái cấu trúc `capitalflow-api`
 
+> Đây là mốc lịch sử ngày 23–25/09/2026. Cây thư mục và lệnh worker hiện hành nằm trong [bản đồ cấu trúc API](capitalflow-api-structure.md).
+
 Ngày ghi nhận: 23/09/2026.
 
 Tài liệu này lưu mốc kỹ thuật trước khi thực hiện kế hoạch tái cấu trúc backend. Đây không phải báo cáo release và không thay thế các runbook vận hành.
@@ -35,11 +37,11 @@ Mọi đợt tiếp theo phải so sánh với baseline này, chạy lại compi
 
 - Source runtime chỉ còn ba nhánh cấp cao: `bootstrap`, `modules` và `shared`.
 - Các import từ `app.api`, `app.core`, `app.models`, `app.schemas` và `app.services` đã được loại bỏ.
-- Worker chuyển sang điểm vào `app.modules.jobs.runner` và Docker Compose đã được cập nhật tương ứng.
+- Worker chuyển sang điểm vào `app.dung_chung.tac_vu_nen.trinh_chay` và Docker Compose đã được cập nhật tương ứng.
 - Test, script và tài liệu đã được nhóm lại theo module/mục đích.
 - `python -m compileall -q app scripts tests`: đạt.
 - `python -m pytest -q`: 97 test đạt, 1 cảnh báo deprecation từ Starlette TestClient.
 - OpenAPI tiếp tục có 58 paths và 74 operations.
-- `docker compose config --quiet` và CLI `python -m app.modules.jobs.runner --help`: đạt.
+- `docker compose config --quiet` và CLI `python -m app.dung_chung.tac_vu_nen.trinh_chay --help`: đạt.
 
 Không có DDL/DML hoặc thao tác phá hủy dữ liệu nào được thực hiện trong giai đoạn tái cấu trúc này.

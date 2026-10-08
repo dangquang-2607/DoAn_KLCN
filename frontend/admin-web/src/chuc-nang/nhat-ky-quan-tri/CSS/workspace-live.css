@@ -1,0 +1,25 @@
+/* CSS riêng: nhat-ky-quan-tri. Giữ thứ tự breakpoint. */
+
+.adm-live .adm-audit-detail { max-height:calc(100vh - 110px); }
+.adm-live .adm-audit-detail .cf-inspector-title { font-size:21px; }
+.adm-live .adm-audit-context dd { max-width:70%; }
+.adm-live .adm-audit-context code { overflow-wrap:anywhere; }
+.adm-live .adm-audit-mobile-list small { font-size:11px; }
+.adm-live .adm-audit-controls { justify-content:flex-end; }
+.adm-live .adm-audit-table td { overflow-wrap:anywhere; }
+.adm-live .adm-audit-action { white-space:normal; }
+.adm-live-advanced { padding:13px 18px; border:1px solid var(--ad-line); border-radius:12px; background:white; }
+.adm-live-advanced summary { cursor:pointer; font-size:12px; color:#617086; }
+.adm-live-advanced .cf-filter-bar { padding:14px 0 0; border:0; }
+@container (max-width:1050px) {
+  .adm-live .adm-audit-layout { grid-template-columns:minmax(0,1fr) 340px; gap:16px; }
+  .adm-live .adm-audit-toolbar { flex-wrap:wrap; }
+}
+@container (max-width:820px) {
+  .adm-live .adm-audit-layout { grid-template-columns:1fr; }
+}
+@container (max-width:550px) {
+  .adm-live .adm-audit-controls { width:100%; }
+  .adm-live .adm-audit-filter { flex:1; }
+  .adm-live .adm-audit-filter select { width:100%; }
+}

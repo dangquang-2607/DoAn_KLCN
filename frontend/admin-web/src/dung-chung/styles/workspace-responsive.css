@@ -1,0 +1,5 @@
+/* Nạp sau biến thể của các tab: khung chi tiết dùng chung phải bỏ giới hạn
+ * chiều cao trên màn hình hẹp, kể cả khi tab có chiều cao riêng trên desktop. */
+@container (max-width:820px) {
+  .adm-live .cf-inspector { position:static; max-height:none; }
+}

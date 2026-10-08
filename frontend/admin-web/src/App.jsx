@@ -4,29 +4,29 @@
  * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
  * MÀN HÌNH / PHÂN HỆ: Router ứng dụng
  * MỤC ĐÍCH CỤ THỂ:
- *   Khai báo chín route lazy-load và khung bảo vệ dành cho quản trị viên.
+ *   Khai báo các route admin được bảo vệ.
  * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
  *   React Router, Suspense, ProtectedRoute và DashboardLayout.
  * ĐẦU RA & CUNG CẤP (Outputs / Exports):
  *   Xuất component gốc App cho main.jsx.
  * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   ProtectedRoute chỉ kiểm tra token phía client; backend vẫn xác minh quyền ADMIN.
+ *   Các route admin đi qua ProtectedRoute và backend xác minh quyền ADMIN.
  * ============================================================================
  */
 import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import DashboardLayout from './components/DashboardLayout';
-import ProtectedRoute from './components/ProtectedRoute';
+import ProtectedRoute from './dung-chung/xac-thuc/ProtectedRoute';
 
-const Login = lazy(() => import('./pages/Login'));
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const Users = lazy(() => import('./pages/Users'));
-const Categories = lazy(() => import('./pages/Categories'));
-const Settings = lazy(() => import('./pages/Settings'));
-const AuditLogs = lazy(() => import('./pages/AuditLogs'));
-const SystemAnalytics = lazy(() => import('./pages/SystemAnalytics'));
-const OcrMonitor = lazy(() => import('./pages/OcrMonitor'));
-const EmailLogs = lazy(() => import('./pages/EmailLogs'));
+const DashboardLayout = lazy(() => import('./dung-chung/layouts/DashboardLayout'));
+const Login = lazy(() => import('./chuc-nang/dang-nhap'));
+const Dashboard = lazy(() => import('./chuc-nang/bang-dieu-khien'));
+const Users = lazy(() => import('./chuc-nang/nguoi-dung'));
+const Categories = lazy(() => import('./chuc-nang/danh-muc-he-thong'));
+const Settings = lazy(() => import('./chuc-nang/cai-dat-bao-mat'));
+const AuditLogs = lazy(() => import('./chuc-nang/nhat-ky-quan-tri'));
+const SystemAnalytics = lazy(() => import('./chuc-nang/phan-tich-van-hanh'));
+const OcrMonitor = lazy(() => import('./chuc-nang/giam-sat-hoa-don'));
+const EmailLogs = lazy(() => import('./chuc-nang/email-cau-hinh'));
 
 // Fallback gọn nhẹ được hiển thị trong lúc tải chunk của từng route.
 const PageLoader = () => (

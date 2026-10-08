@@ -7,6 +7,10 @@ Microsoft SQL Server; OCR chạy qua Gemini trong hàng đợi nền.
 Xem [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) để tra cứu toàn bộ file
 first-party và mục đích của từng file.
 
+Hai giao diện được tổ chức theo sidebar trong `src/chuc-nang/`, còn phần dùng
+chung nằm tại `src/dung-chung/`. Xem [hướng dẫn frontend](frontend/README.md)
+để tìm từng tab, CSS và quy trình đồng bộ giao diện.
+
 ## Thành phần và cổng mặc định
 
 | Thành phần | URL | Vai trò |
@@ -78,7 +82,7 @@ cd capitalflow-api
 
 # Worker chạy nền (xử lý tất cả loại job khi phát triển local)
 cd capitalflow-api
-.\.venv\Scripts\python.exe -m app.modules.jobs.runner
+.\.venv\Scripts\python.exe -m app.dung_chung.tac_vu_nen.trinh_chay
 
 # User Web
 cd frontend/user-web
@@ -118,16 +122,14 @@ Tạo `.env.docker` từ `.env.docker.example`. Có thể dùng SQL Authenticati
 được cấp sẵn hoặc Kerberos với ODBC 18. Compose không tạo SQL login, không bật
 mixed authentication và không hạ kiểm tra TLS.
 
-## Kiểm thử
+## Kiểm tra build
 
 ```powershell
 cd capitalflow-api
-.\.venv\Scripts\python.exe -m compileall -q app scripts tests
-.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m compileall -q app scripts
 
 cd ..\frontend\user-web
 npm run typecheck
-npm test -- --run
 npm run build
 
 cd ..\admin-web

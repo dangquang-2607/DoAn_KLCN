@@ -35,7 +35,7 @@ def verify(api_image, worker_image):
     # Kiểm tra dependency không hỏng và worker xử lý hàng đợi rỗng không gây tác dụng phụ.
     isolated(api_image, ["python", "-m", "pip", "check"])
     isolated(api_image, ["python", "-c", "from pathlib import Path; import pyodbc; assert not Path('/app/.env').exists(); assert not Path('/app/.venv').exists(); assert not Path('/app/tests').exists(); assert not Path('/app/scripts').exists(); assert not Path('/app/docs').exists(); assert not Path('/app/migrations').exists(); assert not Path('/app/alembic').exists(); assert 'ODBC Driver 18 for SQL Server' in pyodbc.drivers(); print('Image isolation, runtime whitelist and ODBC driver: PASS')"])
-    isolated(worker_image, ["python", "-c", "import sys, runpy; import app.shared.database.model_registry; from app.shared.database.base import Base; from app.shared.database.engine import engine; Base.metadata.create_all(engine); sys.argv=['worker','--once']; runpy.run_module('app.modules.jobs.runner',run_name='__main__'); print('Worker CLI, empty isolated queue: PASS')"])
+    isolated(worker_image, ["python", "-c", "import sys, runpy; import app.dung_chung.database.dang_ky_mo_hinh; from app.dung_chung.database.nen_tang import Base; from app.dung_chung.database.ket_noi import engine; Base.metadata.create_all(engine); sys.argv=['worker','--once']; runpy.run_module('app.dung_chung.tac_vu_nen.trinh_chay',run_name='__main__'); print('Worker CLI, empty isolated queue: PASS')"])
 
     name = "capitalflow-build-check-" + uuid4().hex[:12]
     start = "from pathlib import Path; import os; Path(os.environ['UPLOAD_DIR']).mkdir(); os.execvp('uvicorn',['uvicorn','app.main:app','--host','0.0.0.0','--port','8000'])"

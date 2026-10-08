@@ -1,0 +1,16 @@
+name: capitalflow-demo
+services:
+  user-web:
+    image: capitalflow-demo-user:${DEMO_VERSION:-candidate}
+    build:
+      context: ./frontend/user-web
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8028
+    ports: ["127.0.0.1:3028:3010"]
+  admin-web:
+    image: capitalflow-demo-admin:${DEMO_VERSION:-candidate}
+    build:
+      context: ./frontend/admin-web
+      args:
+        VITE_API_URL: http://localhost:8028
+    ports: ["127.0.0.1:4028:80"]

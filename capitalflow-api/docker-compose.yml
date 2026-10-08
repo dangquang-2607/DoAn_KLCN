@@ -20,7 +20,7 @@ services:
   capitalflow-worker:
     build: .
     restart: unless-stopped
-    command: ["python", "-m", "app.modules.jobs.runner", "--kinds", "EMAIL,BUDGET,FILE_DELETE,USER_PURGE,USER_FILE_PURGE"]
+    command: ["python", "-m", "app.dung_chung.tac_vu_nen.trinh_chay", "--kinds", "EMAIL,BUDGET,FILE_DELETE,USER_PURGE,USER_FILE_PURGE"]
     env_file:
       - ${CAPITALFLOW_ENV_FILE:-.env}
     volumes:
@@ -29,7 +29,7 @@ services:
   capitalflow-ocr-worker:
     build: .
     restart: unless-stopped
-    command: ["python", "-m", "app.modules.jobs.runner", "--kinds", "OCR"]
+    command: ["python", "-m", "app.dung_chung.tac_vu_nen.trinh_chay", "--kinds", "OCR"]
     env_file:
       - ${CAPITALFLOW_ENV_FILE:-.env}
     volumes:

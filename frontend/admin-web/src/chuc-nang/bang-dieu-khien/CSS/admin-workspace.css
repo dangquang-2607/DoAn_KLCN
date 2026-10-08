@@ -1,0 +1,28 @@
+/* CSS riêng: bang-dieu-khien. Giữ thứ tự breakpoint. */
+
+.cf-admin .cf-operations-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.1fr); gap:26px; }
+.cf-admin .cf-operations-primary { display:flex; flex-direction:column; align-items:flex-start; padding:24px; border-radius:14px; background:var(--tint); border:1px solid color-mix(in srgb,var(--accent) 20%,white); }
+.cf-admin .cf-operations-primary .cf-eyebrow { margin:20px 0 12px; color:var(--accent); }
+.cf-admin .cf-operations-count { font-size:54px; line-height:1; letter-spacing:-.05em; color:var(--accent); font-variant-numeric:tabular-nums; }
+.cf-admin .cf-operations-primary h3 { margin:15px 0 8px; font-size:20px; }
+.cf-admin .cf-operations-primary > p:not(.cf-eyebrow) { color:#5d6c7f; font-size:13px; line-height:1.7; }
+.cf-admin .cf-operations-primary a { margin-top:auto; padding-top:15px; }
+.cf-admin .cf-operations-queue { display:grid; align-content:start; }
+.cf-admin .cf-queue-row { display:flex; gap:15px; padding:18px 0; border-bottom:1px solid var(--admin-border); }
+.cf-admin .cf-queue-row:first-child { padding-top:0; }
+.cf-admin .cf-queue-row:last-child { border-bottom:0; padding-bottom:0; }
+.cf-admin .cf-queue-row > div { flex:1; min-width:0; }
+.cf-admin .cf-queue-row strong { float:right; font-size:26px; line-height:1; font-variant-numeric:tabular-nums; }
+.cf-admin .cf-queue-row small { display:block; margin:6px 0 10px; color:#6a788c; font-size:12px; }
+.cf-admin .cf-queue-row a { font-size:12px; }
+.cf-admin .cf-operations-footer { display:flex; flex-wrap:wrap; gap:16px 28px; border-top:1px solid var(--admin-border); padding:16px 24px; color:#6d798a; font-size:12px; }
+.cf-admin .cf-operations-footer span { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+.cf-admin .cf-operations-footer strong { color:#263447; }
+@media (max-width:1100px) {
+  .cf-admin .cf-operations-grid { gap:18px; }
+}
+@media (max-width:767px) {
+  .cf-admin .cf-operations-grid { grid-template-columns:1fr; }
+  .cf-admin .cf-operations-primary { padding:20px; }
+  .cf-admin .cf-operations-footer { padding:16px; }
+}

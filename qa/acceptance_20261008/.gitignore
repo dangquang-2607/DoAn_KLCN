@@ -1,0 +1,10 @@
+__pycache__/
+.pytest_cache/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+ui-uploads/
+user-web-fixture/
+admin-build/
+.qa-worker.key
+admin-build-followup/

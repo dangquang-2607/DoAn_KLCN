@@ -1,0 +1,2022 @@
+{
+  "captured_at": "2026-10-08T08:34:57.2386450+07:00",
+  "git_head": "cfece804289dfd39a17b1ed04a9688c9a1d4a126",
+  "working_tree_note": "Dirty working tree; source hashes identify the closing snapshot, not a clean release commit.",
+  "tests": "92",
+  "failures": "0",
+  "errors": "0",
+  "screenshots": [
+    "admin-analytics-desktop-top.jpg",
+    "admin-analytics-mobile-charts.jpg",
+    "admin-analytics-mobile.jpg",
+    "admin-analytics-tablet.jpg",
+    "admin-audit-desktop.jpg",
+    "admin-audit-mobile.jpg",
+    "admin-categories-desktop.jpg",
+    "admin-categories-mobile.jpg",
+    "admin-dashboard-desktop.jpg",
+    "admin-dashboard-mobile.jpg",
+    "admin-email-desktop.jpg",
+    "admin-email-mobile.jpg",
+    "admin-login-mobile-offscreen.jpg",
+    "admin-login-mobile-reloaded.jpg",
+    "admin-ocr-desktop.jpg",
+    "admin-ocr-mobile.jpg",
+    "admin-settings-desktop.jpg",
+    "admin-settings-mobile.jpg",
+    "admin-users-desktop.jpg",
+    "admin-users-mobile.jpg",
+    "user-accounts-desktop.jpg",
+    "user-accounts-mobile.jpg",
+    "user-analytics-desktop.jpg",
+    "user-analytics-mobile.jpg",
+    "user-budgets-desktop.jpg",
+    "user-budgets-mobile.jpg",
+    "user-categories-desktop.jpg",
+    "user-categories-mobile.jpg",
+    "user-login-mobile.jpg",
+    "user-ocr-desktop.jpg",
+    "user-ocr-mobile.jpg",
+    "user-overview-desktop.jpg",
+    "user-overview-mobile.jpg",
+    "user-settings-desktop.jpg",
+    "user-settings-mobile.jpg",
+    "user-support-desktop.jpg",
+    "user-support-mobile.jpg",
+    "user-transaction-modal-mobile.jpg",
+    "user-transactions-desktop.jpg",
+    "user-transactions-mobile.jpg",
+    "user-transactions-tablet.jpg"
+  ],
+  "user_source_differences_from_qa_copy": [],
+  "sources": [
+    {
+      "path": "capitalflow-api/app/__init__.py",
+      "sha256": "F04303E2DEDBAD6C288EA742D90E2EADF83D3395EBB9DF89D09C4A31571294DD"
+    },
+    {
+      "path": "capitalflow-api/app/main.py",
+      "sha256": "041EDA01847CAF5641B49D70708C9037AB298E5C70F21E0417E4BCE09EFF2A98"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/__init__.py",
+      "sha256": "6E0B66F3CDA613E91708CDF98082BAEC945228042958D057645E0158960BEB7C"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/__init__.py",
+      "sha256": "CFB8D46872E2C78BC3E704F6CBE6E7819FD8DBDF5CAA2E04550B868D7FCAA4B7"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/dang_nhap/__init__.py",
+      "sha256": "1FBA4B27A5ED5187508FFB45BD36282647EDBA5D4B3C734947A7BFDE99789C8A"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/dang_nhap/routes.py",
+      "sha256": "C6EFA4E16C6E715EC988238EF067D4C38CFA93F5B9DF0F07098C3F57E2F6A30C"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/dang_nhap/api/__init__.py",
+      "sha256": "1E5CAA8D5F500F4408F7C8EC0FC220000D0DE8CEF8BCC42E9687FAE2F3FEFA8A"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/dang_nhap/api/routes.py",
+      "sha256": "8044722B57F15F5947650A9D0AC0FC2134DDF0ACFB31D11BF3D6B18291CAF0E8"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/dang_nhap/luu_tru/__init__.py",
+      "sha256": "3AC2E6383A886BC693812B25E617A8959E9154A2F430C1E99EB8A34822503BE9"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/dang_nhap/luu_tru/dat_lai_mat_khau.py",
+      "sha256": "E3A1A9931445602ADE818263947C8B8377A33807BECF06C71DAB3FFBE6237A2C"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/dang_nhap/luu_tru/nguoi_dung.py",
+      "sha256": "1D0EF745C1993866FC52AE7D5949E6339D2BED397314C77D78BD27ED1A7AA02A"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/dang_nhap/luu_tru/refresh_token.py",
+      "sha256": "8D40D3E245863DC043A49776837EFDC9AFB804AC60EA4BA5E336783C9184B245"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/dang_nhap/nghiep_vu/__init__.py",
+      "sha256": "F935878039B37870149D4A5073089F3AADC2C21B7251D81111E0FB84E60EDF52"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/dang_nhap/nghiep_vu/khoi_phuc_mat_khau.py",
+      "sha256": "71ADDB0E0A3D318581A8E6BF0592CB02030075C30F995A8EF8816D2DE7C67ECA"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/dang_nhap/nghiep_vu/session_management.py",
+      "sha256": "16637A7BEDD736F84DCDAD0DD227408D7470D4655D0EFDA2A8A7EAE330BB34F2"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/dang_nhap/nghiep_vu/tokens.py",
+      "sha256": "606240DD903190FC48366FDB7607E7FCF8F726A6C3F745A57690D9F468887124"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/dang_nhap/schemas/__init__.py",
+      "sha256": "9A8894F63F94225FA975D027320C0501337D1F336A18B15150FBA9C907B1E09B"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/dang_nhap/schemas/auth.py",
+      "sha256": "8E427FA1A1B675ADB4F6EA95177D3BDFF09EA77180118EF2B6225D58DBFD5DD4"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/danh_muc/__init__.py",
+      "sha256": "0FD4D4867E6F224570488EA5E516F7BA462775B100EF65DB22AC5A5A21054A3D"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/danh_muc/api.py",
+      "sha256": "8A8186C98EEFFC08961C05CE8E7B818BA3666A8CAE9682E8AD0DD4982C82A2D7"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/danh_muc/phan_loai.py",
+      "sha256": "3137C0F88502E38382581C88B57622CA0411DB39E8E250C5EBC7B1641FC68ABD"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/danh_muc/routes.py",
+      "sha256": "B3C3790849B7C8EC9375AC9242A2B032F45CA68E7589BFE47534CA60C09E1820"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/danh_muc/schemas.py",
+      "sha256": "54C7A1E006603E7E8A5E80F1236E81B3228433E0CD504707795B9E4007D2ECBC"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/danh_muc/luu_tru/__init__.py",
+      "sha256": "1BA081CA0A6A4E49E2122D6AF6F90A1C59467F8EDE19C7DCBF7F0DF34BFA3610"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/danh_muc/luu_tru/danh_muc.py",
+      "sha256": "E6644658DFB53CB8C2CE0BD4C3BB0BD46A017C1CA0332B20182948D685A38220"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/hoa_don_ai/__init__.py",
+      "sha256": "D230205162F989255D60E42330F3BACAB3D54606E60EF30C95C04D5528BBFF64"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/hoa_don_ai/routes.py",
+      "sha256": "40E7CAC19EA3CC886515E94F88A23E4500D2DEECA6AA33F7FE28DF25DFED4881"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/hoa_don_ai/api/__init__.py",
+      "sha256": "4089AE40B5A4E9EDB40EA9F2CAB81596ED3365AFE7542384A61654D1C4D1DC8A"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/hoa_don_ai/api/routes.py",
+      "sha256": "2F11F85C49FBCC44903ADEADEBE89BD2C2D2CFDE3C8B230E434C3C73A377879D"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/hoa_don_ai/ha_tang/__init__.py",
+      "sha256": "7054C191B34BBE3A196C95CE4B2868545580EC03E43D06B96B12137AA60A739E"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/hoa_don_ai/ha_tang/gemini.py",
+      "sha256": "703C0E94AE6250B069C7FD047EB5B3F107A0892127BF887BC8DA41B0A8EDCB48"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/hoa_don_ai/ha_tang/invoice_xml.py",
+      "sha256": "F19C526D64B94F34C73DD8CE646BCBEB423658864BA53E4E17A3FB808AC35CCD"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/hoa_don_ai/luu_tru/__init__.py",
+      "sha256": "91CB58F9468B7D8E85FCDC0EB2E8313A1ECE0E1D42F99F41B3D9544CACBFB1BA"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/hoa_don_ai/luu_tru/invoice_item.py",
+      "sha256": "2E6DFB057A1D98136A914C27E83432895A8B5625E59A1F59E83249F4DFB03885"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/hoa_don_ai/luu_tru/invoice.py",
+      "sha256": "DDA27E351434C189D70A6B43BFE2143E11D261F1F4839648C1FFCF6958756759"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/hoa_don_ai/luu_tru/tac_vu_ocr.py",
+      "sha256": "FFBE5CD239EFBBCBDED285194B6CF5FBBEB7F65DD16786A13C37EDF24A391CC2"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/hoa_don_ai/nghiep_vu/__init__.py",
+      "sha256": "AC889CFD2B9D4B72844219361A11D90EB53B85C036A71B26A634655288F93518"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/hoa_don_ai/nghiep_vu/deletion.py",
+      "sha256": "80E7A9EC45DF3E070B507B3A8C5C631A6BE4361E2C92FC6C061E3AC7B051CBE7"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/hoa_don_ai/nghiep_vu/phan_tich_du_lieu.py",
+      "sha256": "5788C63324426DFA773902D9448738E88341F50AB79C346648C24BEFB170A9BE"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/hoa_don_ai/nghiep_vu/phat_hien_trung_lap.py",
+      "sha256": "0895ECA7132CD38F5847CFF06C00BA0D81CA2E5494C7BCD133572C152E5D18DC"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/hoa_don_ai/schemas/__init__.py",
+      "sha256": "871023244592C1E9CEA986201B6EAB54240B4C1A6BF0AC29F4C2E4A294FEC5D4"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/hoa_don_ai/schemas/invoice.py",
+      "sha256": "83E399D6325FFF5F225A470169F52326C851142166E36D723DAF01628C6CC771"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/hoa_don_ai/schemas/ocr.py",
+      "sha256": "A0E10A1A448B2FC218AF5EA9A8B57EEBE4EF3A8AE20ABC513FCA6843097A9085"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/__init__.py",
+      "sha256": "4AC839C943727362C554576EC5AC55E0DCDDF156D969BFB8C946E28AEBA0A9FA"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/routes.py",
+      "sha256": "3995A95B8FA6655BF24DD259F811BADF3FDD4F71ED91726B727482B84251FE72"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/bao_cao_tai_chinh/__init__.py",
+      "sha256": "98D3A04FB46615026A7B24DC5D670DB11FBFADAD186391321F5DCDB8CF190351"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/bao_cao_tai_chinh/dashboard.py",
+      "sha256": "85CF06495EAD3ECEFF022013803A31C0FA0FBD4F0D1C279E3858B522322BB1BA"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/bao_cao_tai_chinh/dich_vu.py",
+      "sha256": "A5B099DD4BE1D4C2D000E79C88238DD7CE800123934F6B1C810800AC976E1833"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/bao_cao_tai_chinh/phan_tich.py",
+      "sha256": "15CE37E895D434CBDAE195F6BEB5E84956243DABB6E96FA47FB95E4E81354734"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/giao_dich/__init__.py",
+      "sha256": "DC504C1B8579BED9FF4675BC01A6AC786E9DE1375EDE234516927DBED87987D1"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/giao_dich/api.py",
+      "sha256": "C4DD1EBC8FFBA3F62B93AF560DCA981411435AC6416EA98F6EC909BC135B80E1"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/giao_dich/luy_dang.py",
+      "sha256": "08ACEA4B3B04FAADC79BCB048DF77EE1E3DC4BAD1B64786367E18E37055CA50E"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/giao_dich/schemas.py",
+      "sha256": "E2B6617388B544247CEACC1DD433A33E8A22C336DCA7D5A3DED50AEA44401681"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/giao_dich/so_cai.py",
+      "sha256": "CABE818CBB07E333ACB13DE2658A000CCC4FB3EDD307760C3F16774477C39B94"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/giao_dich/luu_tru/__init__.py",
+      "sha256": "4AC469FFB150228458C5865812C498D612DA524B42C1F804C407A94555CB8C57"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/giao_dich/luu_tru/ban_ghi_luy_dang.py",
+      "sha256": "DFEA257EFDA5AC2BCD4ABB325E85261E6E59340671013C9865393CA4A3CAB9F8"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/giao_dich/luu_tru/giao_dich.py",
+      "sha256": "1ADD5E8F0D422BA4C2E9055EE861ED84FE3C078F778A7073FAB31E3468540C4E"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/ngan_sach/__init__.py",
+      "sha256": "696F2BF8E2A1EAA167D8B4438701ADFCEC783C9E3215FA18851128012E0C1A61"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/ngan_sach/api.py",
+      "sha256": "E8FE27525BCF334CCDB4F4DCC64C556F3E0538D152CBF6983AB5911393178BB0"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/ngan_sach/ky_han.py",
+      "sha256": "A8FEBDD48723B10ECE88A94D132805B426084370249F93FCDBF15CCCADF47572"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/ngan_sach/schemas.py",
+      "sha256": "B9E8AC0547C3478D2A0CB0BC51348FFDFD41FE49DCABA7870B18BB0E685FB598"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/ngan_sach/luu_tru/__init__.py",
+      "sha256": "3FED1F8EE10B88A74024D9967306DA60DBB47BF4C3B1D17FD79B6A80FC72DB4B"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/ngan_sach/luu_tru/ngan_sach.py",
+      "sha256": "A8C47A1AC14F82D236C7DA97AB6C9A3D5FADD6CA5AD33297921750113C9E7464"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/thong_bao/__init__.py",
+      "sha256": "5A2FB91C290422D339324650599F5EBDB698809597DA10E9A3F308D892880598"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/thong_bao/api.py",
+      "sha256": "34F6779038912839EE542F7CE7B429215258A88CAC08570DF59AD21D5C13C3BC"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/thong_bao/dich_vu.py",
+      "sha256": "CB87BC560C86FFD004FB506DCC6B147BA98E4D4820A5DDE454B99E222C38A4AE"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/thong_bao/luu_tru/__init__.py",
+      "sha256": "7C76072545CE628E3A7F033EC069D1025D3FF8F4D7245B2BC394E6D8C7B5C492"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/thong_bao/luu_tru/thong_bao.py",
+      "sha256": "A17E5FFE68DC744F31DC4C994D897D7B15B3307E41548A70C66D6D1D09C83B2B"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/vi_tai_khoan/__init__.py",
+      "sha256": "4691FED1481CC82BD5DD91DCE84D440AAC6FC3E2A3141E01006DE5871E95A62F"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/vi_tai_khoan/api.py",
+      "sha256": "4653843C62AC9CF1B4E8029AF94AD7CD01A2D180FF7236A7A86A50EF3482BA8B"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/vi_tai_khoan/bank.py",
+      "sha256": "C51710697A0B0494403B5AF5FB4ED559854FF07D7BD1697C7C2406DB7CDBA5A2"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/vi_tai_khoan/deletion.py",
+      "sha256": "35089A9CA06C84135B6B788ED51106089975C154C7745AAA3303B419A61254CF"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/vi_tai_khoan/schemas.py",
+      "sha256": "1E339CC0082C691EAB6E0A93114170042D30053934FC6F444AB409B18E01FB54"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/vi_tai_khoan/luu_tru/__init__.py",
+      "sha256": "3D70C7A84BFA9047BA79926B6E250AEA57F00AA2362CE12121CCB2E4B7120179"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/nguoi_dung/tai_chinh/vi_tai_khoan/luu_tru/account.py",
+      "sha256": "303773C1A3B4D63C53285CAEF855F97D875B3AF3E72FAAC50CBBAFAED5DFD054"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/quan_tri/__init__.py",
+      "sha256": "BC0EA9ED5B00C6064963BC6E48A19910A24F4BF430C063F8EF13474005FCDB4A"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/quan_tri/routes.py",
+      "sha256": "953B1C4E0A8C85DF0FF8B7EA051ED77FFA339902E87C840CACDBC17DF705205D"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/quan_tri/bang_dieu_khien/__init__.py",
+      "sha256": "C5A1F2A8EA61C6DE8F569A7F8B50344270E9A355BBA895C52385FD3C17EDD4A9"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/quan_tri/bang_dieu_khien/api.py",
+      "sha256": "7AF0AAEB0642606E9A98731FE7CE70AF9EA803C0760C2FC5668990C41976DA48"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/quan_tri/danh_muc_he_thong/__init__.py",
+      "sha256": "73BF9BA16004B4C85759111393578021821485EFB19C86CBF3DC689B44B0A752"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/quan_tri/danh_muc_he_thong/api.py",
+      "sha256": "C44EAE0C544C3FAA68C009EF1927D47B38F642F4D2023FDD332023A479E8BAFC"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/quan_tri/dung_chung/__init__.py",
+      "sha256": "4023514D5E515FB2C7C4C7CB8BDDA37E55286AFC2244CCEAC606F5E11F08C979"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/quan_tri/dung_chung/tien_ich.py",
+      "sha256": "A8CEC18814E9512AADAAAC5E0154E551A43CED40233FB80826510EB4EECF3946"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/quan_tri/email_cau_hinh/__init__.py",
+      "sha256": "BC150D9E69BCB41C41984D46BD34893A23C01B553DB0AA77DF8A1AD2CE0AD594"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/quan_tri/email_cau_hinh/api.py",
+      "sha256": "DCD50E61CED1FCA588E8073544D6428D99143FFFA8E30E0C1171C4D5B3F89B6B"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/quan_tri/giam_sat_hoa_don/__init__.py",
+      "sha256": "9214F1657BA60705C93A9BD59E04DB254460A6B7A925F10E9490EDA9413B5090"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/quan_tri/giam_sat_hoa_don/api.py",
+      "sha256": "BB42EF85F97710FFE4FEC50FCA5B93327E2E632AA7DCB3F3CF381DC11AEC394F"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/quan_tri/nguoi_dung/__init__.py",
+      "sha256": "D509CCFB571D061602575FCC04667CAE8280803A10DD7DA8EFB9282F4F70E29C"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/quan_tri/nguoi_dung/api.py",
+      "sha256": "72D932374F5A7A3EBCD3F2D4AD45067C7BA12BBF11434A81D4350050A3E3AB30"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/quan_tri/nguoi_dung/luu_tru/__init__.py",
+      "sha256": "9D95C619F58658E83A8CFC9448F1390697DC658E8C19819B3ED2749CD9247D78"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/quan_tri/nguoi_dung/luu_tru/xoa_nguoi_dung.py",
+      "sha256": "80D7A3681BC8F0670184831C7B68689DB378D03361AC596C2CE1854713B1F4AA"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/quan_tri/nguoi_dung/vong_doi/__init__.py",
+      "sha256": "09F2A6B11CF8C3077039BFCE39CD0A78640F1F18C5803D87B51EDCB868942C28"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/quan_tri/nguoi_dung/vong_doi/api.py",
+      "sha256": "6ACD1DA147A5B87E1FA8AB7BBA34977EA452ECD8B4A1FDFB409D613556F4FF98"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/quan_tri/nguoi_dung/vong_doi/dich_vu.py",
+      "sha256": "3D337125246B4A2A5FCA78791DE1DAA310A23902B45154253A2D67B36D859F1D"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/quan_tri/nhat_ky_quan_tri/__init__.py",
+      "sha256": "E64894D9A0488A05837BF9747BA767833B7FC0565F2BF664EDDAB82D07991D9C"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/quan_tri/nhat_ky_quan_tri/api.py",
+      "sha256": "E0C458B35FBEFE702277F4CFA29328C15EB5BCCD5EEE51F4CF84EA1D7070F1EA"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/quan_tri/nhat_ky_quan_tri/luu_tru/__init__.py",
+      "sha256": "B0E9174473F0CE5EAAB1EE6A809823E1F560B6567CFF129C498CEA109F7FE1EE"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/quan_tri/nhat_ky_quan_tri/luu_tru/nhat_ky.py",
+      "sha256": "5677A730D22E6AD91D8F3EDD851870EDC6184EA859E6DEB6F56C8563D0A6BD99"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/quan_tri/phan_tich_van_hanh/__init__.py",
+      "sha256": "7FEAED8E638DE2F3C0046308CAD5D7FAEF97FF0835F419304328AB42F6CFB8A9"
+    },
+    {
+      "path": "capitalflow-api/app/chuc_nang/quan_tri/phan_tich_van_hanh/api.py",
+      "sha256": "8AB404BC3BFBA5AA766931D5A104486E4E277A92F86C0FB033546D25E8BA0742"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/__init__.py",
+      "sha256": "E0A395F65CB96F229FDEDC4641538DDD600CF6EF6EFA553E5722207F1817DAB6"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/config.py",
+      "sha256": "6C0AFEE93D39211289D30F298D09C6228C10EFABB01721E0B741AB2EC0D63658"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/database/__init__.py",
+      "sha256": "42FE6818A2D16DAD4A31AAB6A690B07E809D7BC628A6E25F68656FAE4416BACD"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/database/dang_ky_mo_hinh.py",
+      "sha256": "9E4639AEF547A3A052DEB2CABC137FBF329A233C27F20450950BAAA57DD0918D"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/database/ket_noi.py",
+      "sha256": "BB950D1061929F32156D31ABCE78FF838A25A1A9DE7DDC482989712E8B493A34"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/database/nen_tang.py",
+      "sha256": "B1D2596DA12C7B7E39901EE369164CF65A46B2EA1479045E0257BDE1DF2AFC1D"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/database/session.py",
+      "sha256": "096181FCD56E5C61D2845542DE9DD8F055313A41C4A40B484666F8624A991AAD"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/email/__init__.py",
+      "sha256": "F7D217039BB72E2A84DDCA2408D477714235D19ABF3B62017ACEE7FD760B6010"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/email/dich_vu.py",
+      "sha256": "C2A5D56A71D5284487B5398D513348F4C9E46B4D62389E778A4F180367E1894C"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/email/luu_tru/__init__.py",
+      "sha256": "BD8FD58ECDB8E6AC01DFAFC1EB276B7DF3EED0C1C97AFEA705BC3835CF998017"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/email/luu_tru/cau_hinh_he_thong.py",
+      "sha256": "D8A08F54FA29B3FB48282E3D508C34311DDAF4069D4EC1B2B7778222886715AC"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/email/luu_tru/nhat_ky_email.py",
+      "sha256": "6A39F6A05494A8A7CA43E28A764E6569CAF28B1CC2ADE00BFB592B026BAC2E1C"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/http/__init__.py",
+      "sha256": "33AAC2D804DB5CB318408D65482C21910E36E6AD99991719AECBDC9C54100121"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/http/gioi_han_tan_suat.py",
+      "sha256": "3515F323CD09E4167E474846D9B686ED387E58DAF2E081DC8BE7B598EA82303C"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/http/phu_thuoc.py",
+      "sha256": "A2317A9C9B3E2DED3DD97DF91480E710223F98A7101E816ACD77AE8F8DDDD544"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/http/trung_gian/__init__.py",
+      "sha256": "E30EA685998AC319546BDB2CF965E0BE5091068458B3251D970AAD9E207D50FD"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/http/trung_gian/gioi_han_noi_dung.py",
+      "sha256": "C7A87F5DCC814302B62543AB247931F00D56C4162B18D1DD4BED46349F1292C6"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/http/trung_gian/kiem_toan.py",
+      "sha256": "DE0E14D295B6491DD4B17B2CF3854C9D237F85812F86604596F702A7CAC34510"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/quan_sat/__init__.py",
+      "sha256": "A4519CCDAFDD6317B31328973F0D632F62C33E8890EAAAEBF14885826F369CFA"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/quan_sat/do_luong.py",
+      "sha256": "874EA95983A9F8542F34A633085F29E809798F5E4C8337A1F1CDBFF3DD17B537"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/security/__init__.py",
+      "sha256": "82B28A2063CD7B2E65ED5C6876E6E72B7AB7173205AEC4763752282F886473FE"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/security/passwords.py",
+      "sha256": "F1D05B4DBCB257A82503CAC1F762198091A5AF61ABC1D9E2BDC2FCF24E21854F"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/security/secrets.py",
+      "sha256": "13B05B48954BE63774A62957D826FAB1F7733E4E607B46B91D7F072CE6ABC75B"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/security/tokens.py",
+      "sha256": "EAF1B8923342E30C4408B2317694DBAA68587DF48F1BA94257633B64A9CC7C43"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/tac_vu_nen/__init__.py",
+      "sha256": "C63BFD464E081EF328E212DE0631D3927615CCBB6055BDB9A452D8AFB0455285"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/tac_vu_nen/hang_doi.py",
+      "sha256": "98668728EB1B41F72C5FDFDF59A4D75986EA38F11E9119BE8340798B5EE85B39"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/tac_vu_nen/trinh_chay.py",
+      "sha256": "64DB356B4F12EEE7B38219B4C5FAC50BC00AD26845946C2A5079CAE6633AEE50"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/tac_vu_nen/luu_tru/__init__.py",
+      "sha256": "69A204FE60801922076D1714678CE245E5ECD53EEFD016A6C3CDDD2718F9FD2B"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/tac_vu_nen/luu_tru/tac_vu_nen.py",
+      "sha256": "654DC0BE6C69855E3F76A279A847850838061513203249EB49F08771CDD2C877"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/text/__init__.py",
+      "sha256": "416D7CE78167090D17D597410EA75C22164F2A2B59AED7CBAF764242D84FAB1C"
+    },
+    {
+      "path": "capitalflow-api/app/dung_chung/text/unicode.py",
+      "sha256": "A14B550FA927AE03F67BDCBF317EC0CDA14457714CB909BFF05A391BA65ACF80"
+    },
+    {
+      "path": "capitalflow-api/app/khoi_dong/__init__.py",
+      "sha256": "B74CE2416FD05E846B5B1C5357C7DAC2FDC28DC296D873989CA8A6490059E45A"
+    },
+    {
+      "path": "capitalflow-api/app/khoi_dong/bo_xu_ly.py",
+      "sha256": "65A8888B25F24B79D68391F02DC9E8FEED07D8D0F6900F0110CFCE787C4A8F37"
+    },
+    {
+      "path": "capitalflow-api/app/khoi_dong/routes.py",
+      "sha256": "11BBFF12BA8E700FC6FEA6F10A9E609D20AC9BEC45A87ECB6DB36B34F2F9A519"
+    },
+    {
+      "path": "capitalflow-api/app/khoi_dong/tao_ung_dung.py",
+      "sha256": "4684395799BC396B2B2E54390DED5A66B97072908E0ECB06DC88C8B2B601987A"
+    },
+    {
+      "path": "capitalflow-api/app/khoi_dong/trang_thai.py",
+      "sha256": "4513B055B4AD6CA2D219F640E53759577358126E1A4BEB12C1D2D26EF1660F80"
+    },
+    {
+      "path": "capitalflow-api/app/khoi_dong/vong_doi.py",
+      "sha256": "9478C494FAD1CAA39EC409817DFB97BA005BAD584B5A0C832F8C340CAD1ECFB7"
+    },
+    {
+      "path": "frontend/admin-web/src/App.jsx",
+      "sha256": "74DF276032F80BA3F1D2ECC5B13CAE26AC26AC019AF384A09D7CCD8478DBE5D4"
+    },
+    {
+      "path": "frontend/admin-web/src/main.jsx",
+      "sha256": "5B87444D7E53E30EE62A109173F2802862D421649BF5E359729A9A575E17060E"
+    },
+    {
+      "path": "frontend/admin-web/src/workspace.css",
+      "sha256": "5ABC29D3213015597BFC43331D871DB9E94D6EFFC5DBE392A73775672D8A14AE"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/bang-dieu-khien/Dashboard.jsx",
+      "sha256": "C6E90E42A13788662A1BB884D9B798ACB17022DCFBC46A6A943B1DC858A84614"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/bang-dieu-khien/index.js",
+      "sha256": "19607FBAFB5EA9A46C13A2E3AECDB211AB74950ACBB2F46702A8E16D30467233"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/bang-dieu-khien/CSS/admin-workspace.css",
+      "sha256": "B3B8447ED101C7822C202694728A7F7FD3CF60507B5C30477D6BE961C4D9B392"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/bang-dieu-khien/CSS/workspace-live.css",
+      "sha256": "545E24F53917A5B581DC44A20AB539084330A636BF15CDCFF49C4CD381430C69"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/bang-dieu-khien/CSS/workspace-pages.css",
+      "sha256": "A6A4D0DF9552DB7236AEB5E32355513145DA81F003C5BA70EC0285F87288BE51"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/bang-dieu-khien/thanh-phan/DashboardStats.jsx",
+      "sha256": "BB7D007D7710F55E65D6AD5613AB82AFB4BFF7FE816792C5C276D060C2CC6004"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/bang-dieu-khien/thanh-phan/InvoiceProgressWidget.jsx",
+      "sha256": "7CB88630814D313E800422668E2828FEDF21EDC2620832E7A6B748C92A2F23ED"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/bang-dieu-khien/thanh-phan/OperationsCenter.jsx",
+      "sha256": "207F6D23EC5844F540927502B61D71B06821B8FF1F8B1BA9FD4B5AEE58E4F723"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/bang-dieu-khien/thanh-phan/QuickManagementLinks.jsx",
+      "sha256": "9B3351BC667F831E9179FA350EF5A143F8BA57D2DC28AFCF05D9F6581CB72EA1"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/bang-dieu-khien/thanh-phan/RecentAdminActivity.jsx",
+      "sha256": "F62122AEB2BC51EE987DEA621BC4342AFAFB091096154C14EAE5FA496BE4B66F"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/cai-dat-bao-mat/index.js",
+      "sha256": "BED85B8334BFA9D4A26D502FAFE6C85A052E72974F0458F40D82B4EC92356F6F"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/cai-dat-bao-mat/Settings.jsx",
+      "sha256": "CF6CE8D709BF75D6B7582384421A28A7FC400CA8E69460CE9C9C1AF6922836F9"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/cai-dat-bao-mat/CSS/settings-workspace.css",
+      "sha256": "3B18638E0E93F616E5918AE470A1692E76AB424E3906469CC887B1975B4763C9"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/cai-dat-bao-mat/CSS/workspace-sections.css",
+      "sha256": "E8988B86C2274429D3561A11F02BBFAA5BFDC28A8752B68FE3BEDD9C0BFDFEFC"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/cai-dat-bao-mat/thanh-phan/DisplayPreferencesPanel.jsx",
+      "sha256": "B1DE96121D8C5A2430A7C62F1BDC4E2288772909DC4249DCD1D84707FA1FBA05"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/cai-dat-bao-mat/thanh-phan/EmailSettingsLink.jsx",
+      "sha256": "0B7AFBD86E0BC1F67651F20ABD62E1F383FC81957E453ABE784F9705A9BF11A5"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/dang-nhap/index.js",
+      "sha256": "0311E653AEA6D5D02330DAE7A3B7173E23DC79D4FA8347F247869ABBB03B5955"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/dang-nhap/Login.jsx",
+      "sha256": "79C2D7F448B7C00012628E973B797160683DF2A1382E65B6CECCDC6CC06BCBC6"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/dang-nhap/CSS/login.css",
+      "sha256": "F175140772E6CD07DBE18CF5E8CE256F4FA4151EEE36FA411F3561B5FAE21EBF"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/dang-nhap/thanh-phan/BruteForceLockout.jsx",
+      "sha256": "DCC89AE0F3D37CF78B0B995048A9A6F0B2DFB9226938C4086BED3E5AB42B453B"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/dang-nhap/thanh-phan/LampAnimation.jsx",
+      "sha256": "C8024D0DB97FEBEE2EE9E3BDEEFC7F2258192359F0AB21040760C622BF0095C0"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/dang-nhap/thanh-phan/LoginForm.jsx",
+      "sha256": "F14970C4AD61EECD1263FB4BBF12A638708EE1F45541A2E5666A178E91531E2E"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/danh-muc-he-thong/Categories.jsx",
+      "sha256": "188794B467F3CDC0C8536A0E1EB70D3692C599DD7FAD790CFDAF1386A496D499"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/danh-muc-he-thong/index.js",
+      "sha256": "961A2690D8375F2D4F991DFCC3A334BD2B16BF3AE1C00225B7AA0325E5C61C44"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/danh-muc-he-thong/CSS/admin-workspace.css",
+      "sha256": "B1D3A62813A227982E1912DF7A0144B2207A2EC8F2FA06C3E93E5E6D2E625967"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/danh-muc-he-thong/CSS/workspace-live.css",
+      "sha256": "5F1A99DC598CDD914D05C1BF881860B3F7F5DD82F2DAF46BBBE59CECCCFF85BE"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/danh-muc-he-thong/CSS/workspace-sections.css",
+      "sha256": "828BDB4770912B320572DBE0BF654C86BD5A10E21BE397C66D3D107F583CDD76"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/danh-muc-he-thong/thanh-phan/CategoryFilters.jsx",
+      "sha256": "A5D50C2F15A8B00629413679224B4FAA1B96B311115FB281AC21EF20F77B6D6E"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/danh-muc-he-thong/thanh-phan/CategoryList.jsx",
+      "sha256": "28A7800E42E31FC2E3711A354B61FFC06DFF6B9CBBA05391DE2DDCB382A44EFB"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/danh-muc-he-thong/thanh-phan/CategoryModal.jsx",
+      "sha256": "0B7F00E52325F25FA5E764EF6980DFACBE258820990FF35AF467CDD63469C6E1"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/danh-muc-he-thong/thanh-phan/CategoryOrderControls.jsx",
+      "sha256": "24FA859354A178A7B4F6B07DD081CFC68A5D1244407AE1096CCE38727FA68439"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/email-cau-hinh/EmailLogs.jsx",
+      "sha256": "39C317425755A5B2232757118C587FF676B9DC6CE519C871504DD4FCCBF06FC3"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/email-cau-hinh/index.js",
+      "sha256": "A997F9582809DFE3AB3146C186FE782655B2953B92FCEFE0226D4458CE9BD562"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/email-cau-hinh/CSS/admin-workspace.css",
+      "sha256": "40E54A1BD6A9EC18E9BBE108137EB32726210CEAF2228E56510B088B92EA60E7"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/email-cau-hinh/CSS/workspace-live.css",
+      "sha256": "B27F9395FB0545BA2F17C8036277FBB22A23E83C692F821F940D5E3C0202687D"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/email-cau-hinh/CSS/workspace-sections.css",
+      "sha256": "8D2776207392EE6C9E347AAF630CC56FD66D745DFEF37C2A718BBF8B357203C6"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/email-cau-hinh/thanh-phan/EmailDeliveryDetailModal.jsx",
+      "sha256": "32A7D7522A7B9318CE07D1BF2334122DCF52FDE66A00A5ACD3692A21ADCB1EA3"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/email-cau-hinh/thanh-phan/EmailInspector.jsx",
+      "sha256": "EEF3E8EB00D686B86B200708AA5C8B61E75CA2B32B991B5052EABA91B735CA77"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/email-cau-hinh/thanh-phan/EmailLogFilters.jsx",
+      "sha256": "7983C29450CF7A587B0B8CA7EA85C2B40D2F7622C8D87B5F4CE97E6BE6C6ADCA"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/email-cau-hinh/thanh-phan/EmailLogTable.jsx",
+      "sha256": "B1A3270830F85FFBDFDD8131152D0CA39E9E7357E47FBCC8300E2E389DAFCE2F"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/email-cau-hinh/thanh-phan/SmtpModePanel.jsx",
+      "sha256": "A22184772BA01D3252004DFF9CD9306ADE7EBAC8572120924F73D744F1808505"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/email-cau-hinh/thanh-phan/SmtpSettingsForm.jsx",
+      "sha256": "3AFBEFCF2BF95DAABE90E5AA6ECE6578F2D320FC98B9C65A779D3605AA446F81"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/email-cau-hinh/thanh-phan/SmtpTestModal.jsx",
+      "sha256": "68D6263DA2472F60F9363ED250FF78EBC38B8653EB6F12BEC954DA8B5DC4C4CB"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/email-cau-hinh/xu-ly/emailStatus.js",
+      "sha256": "E70AB80C015D2393AB8CD141C32532B504193FFEF2E25174BD705F3508C04C21"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/giam-sat-hoa-don/index.js",
+      "sha256": "C256EF3B44AD6A5FF7DEA4B24B7143EE53F4EBAC949B43519F05C599B82D74B5"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/giam-sat-hoa-don/OcrMonitor.jsx",
+      "sha256": "2367507C50F5521FF34A91AE231895CD9BD948C11387ADEB1D516D34992DEE60"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/giam-sat-hoa-don/CSS/admin-workspace.css",
+      "sha256": "C1FB50B50FB62CF63FBD63BB856BC6D901C66475200AA1F68CA9294BA198D0CF"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/giam-sat-hoa-don/CSS/workspace-live.css",
+      "sha256": "60F382F3FC8D25C6AB5D96A8BB04C638A776FC82025B175E169C00A43F47CDDC"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/giam-sat-hoa-don/CSS/workspace-pages.css",
+      "sha256": "9A5B05420C40FE733E829DC54293592E98E78ABBE3082953B9588B8D8C644D07"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/giam-sat-hoa-don/thanh-phan/InvoiceStatusSummary.jsx",
+      "sha256": "29FC0D4D1086A40567267B38CE3944D47DE7514C4D6373BE78F5548513A212BA"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/giam-sat-hoa-don/thanh-phan/ocr-status-donut.css",
+      "sha256": "A5313FAA4539B690B92D19DA071E312247B0F9468AC19EF028010E9109CFFA43"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/giam-sat-hoa-don/thanh-phan/OcrFailureTable.jsx",
+      "sha256": "6FC33F20FA55D79473AE1BA434639C130F60869AB2A2F3083BCA1E0CDC0BC468"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/giam-sat-hoa-don/thanh-phan/OcrRetryButton.jsx",
+      "sha256": "EFD24B70E0ABD26CC297AB9D004A0A31B7821327D5BC66C3398054982ECE0411"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/giam-sat-hoa-don/thanh-phan/OcrStatsGrid.jsx",
+      "sha256": "D110627FF7EB7B1904B92EB4142E007EA2659CE7723342DA276E222224E1DBE1"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/giam-sat-hoa-don/thanh-phan/OcrStatusDonut.jsx",
+      "sha256": "42A4128AC92574E410891E122084473FBBD92891D9B134B8DFFEB68B308FBC22"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/giam-sat-hoa-don/thanh-phan/OcrWorkspace.jsx",
+      "sha256": "270F2D9AF46F3F2C75E55027A88B1723C694A4A852458351C65833C82A85D50E"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/nguoi-dung/index.js",
+      "sha256": "78001DD69F076C40B2BAF2755179529E81AF387E085D0B0F6FF48742A19C2085"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/nguoi-dung/Users.jsx",
+      "sha256": "9A3FD2A6C23DCCEFCE5A0FE15E9818E4443285479135F6CE01D3637F446F4A60"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/nguoi-dung/CSS/admin-workspace.css",
+      "sha256": "95602F494ABCB740A01CD7FA8741F9C8D7C4C5C618560F1509DCC5FAE717D161"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/nguoi-dung/CSS/workspace-live.css",
+      "sha256": "053ACC263D7839872DF1A56DA15F6DD0AD1B54C2E0BC3BED992FBA6E298EA6A6"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/nguoi-dung/CSS/workspace-sections.css",
+      "sha256": "B00420BADA802772D1409CE5E160C50E6D1DD6804369D5924506899E052E6132"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/nguoi-dung/thanh-phan/index.js",
+      "sha256": "6EB887E33A385188726C1763C8BDFAF18C3CE95BF3E8F18AC8ED6B0D7FEA1E3B"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/nguoi-dung/thanh-phan/UserActionModal.jsx",
+      "sha256": "D3856856493ED411ECA360B80247F5C772423E1216D7A894C44CDE38A786D890"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/nguoi-dung/thanh-phan/UserBulkBar.jsx",
+      "sha256": "313CB288343C52D2FB01ECC64B3110474EE8535FE44D7F2B2656E05EE74EBDE3"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/nguoi-dung/thanh-phan/UserDetailModal.jsx",
+      "sha256": "238A72BC9CF3B641733D174871AEDE96CDE6874EB1AF580E5359FB9B221D1069"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/nguoi-dung/thanh-phan/UserFilters.jsx",
+      "sha256": "DDAD9A71D42E837A99F2509D91F1846426C2809D53592F83BA763021C220C3FB"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/nguoi-dung/thanh-phan/UserInspector.jsx",
+      "sha256": "422913458AB62F2BA3A4F2A0EDB02C68C35B9F24707D6AE97A5265D8A483DAE2"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/nguoi-dung/thanh-phan/UserRowActions.jsx",
+      "sha256": "22E02AFC5D552BEDAEF396C9A0945395BBD5678D37E1D59F3B5728B6F169BC51"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/nguoi-dung/thanh-phan/UserTable.jsx",
+      "sha256": "9DA75C03A94C81704CB246DFACCB18F359D755BFDC167BED7137641F5B033800"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/nguoi-dung/xu-ly/utils.js",
+      "sha256": "5147ED04610BB06F7BD85BEB40A6F21D728DC344EA1303760DF334831CCD9D7A"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/nhat-ky-quan-tri/AuditLogs.jsx",
+      "sha256": "CCC7E58F1A9609EC364AAD464ADAD4A2185FD63F7DB121FAD0EA6F5739E940FD"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/nhat-ky-quan-tri/index.js",
+      "sha256": "8EB424C2E62C6D4DADFC5F38B4C644F09DBFAF6002AA22FA23DB6D72B9455309"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/nhat-ky-quan-tri/CSS/workspace-live.css",
+      "sha256": "6821B1089A7BA51271F07012652DD3A5D960CFCDD86A5D294F3FE834F03AF7D5"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/nhat-ky-quan-tri/CSS/workspace-pages.css",
+      "sha256": "BEB91C3B5095B54D5D93481791AD264965F9175895E85CD3CCB5A388D74891A9"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/nhat-ky-quan-tri/thanh-phan/AuditDetailModal.jsx",
+      "sha256": "6715678CE59D8E9653B3009E1BCA6C8B289CA3920B798AA34E6883B21E69C94E"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/nhat-ky-quan-tri/thanh-phan/AuditInspector.jsx",
+      "sha256": "F57D9D4C30BDA0E05372620DAE3F3FE931B78ED8A92F71B3EF0163EAF2F726E7"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/nhat-ky-quan-tri/thanh-phan/AuditLogActions.jsx",
+      "sha256": "8E2F5F3F13E3C77C5C6368125FD579E2BCB928C25272D34319B1F1154DC5AFCB"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/nhat-ky-quan-tri/thanh-phan/AuditLogTable.jsx",
+      "sha256": "D6B961319F517BEB7C675BE6F0D0E752182FC7F705AAA92CEC8DFE499261F11A"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/phan-tich-van-hanh/index.js",
+      "sha256": "979DCD794DE49E95D70BF526900E59F0F84F9499E5E0248F64504FB7E3E4E0EB"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/phan-tich-van-hanh/SystemAnalytics.jsx",
+      "sha256": "388725F9AD14048C8C9BEDA7FBA13E4F3C5C65E7C6BBE1FE439A6332186FD383"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/phan-tich-van-hanh/CSS/admin-workspace.css",
+      "sha256": "3F7B5D33AEAB643D0B908A5A3EA49E51F1641F5958159A165A2A2AA6B4E6294C"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/phan-tich-van-hanh/CSS/system-analytics.css",
+      "sha256": "5F6AE907C3DBF3B5891F840926CCEE307ADF99934931A822F84F894B287F9665"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/phan-tich-van-hanh/CSS/workspace-live.css",
+      "sha256": "728A7594D681D56A425B07A576C2B02AC222CC9B42B0684F012476711541D7FB"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/phan-tich-van-hanh/thanh-phan/analytics-volume-chart.css",
+      "sha256": "546C29E557629FC38E7255DF20BA647712D5F8106971C401A571F261EBB780A6"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/phan-tich-van-hanh/thanh-phan/AnalyticsPeriodFilter.jsx",
+      "sha256": "128F74E1A367272A2AFC5351123980D6C0C00B1799D8AC92197CA62F6D43B326"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/phan-tich-van-hanh/thanh-phan/AnalyticsVolumeChart.jsx",
+      "sha256": "BC8367FAEFCD55B6A3208E942BC5219CB50BD887A59114D5CC01A346E754B453"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/phan-tich-van-hanh/thanh-phan/SystemMetricCards.jsx",
+      "sha256": "FB7CAF4E8D5B41246DE0CF41C768B74AD3FC912219F2C8D42BEA9D96CEA50897"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/phan-tich-van-hanh/thanh-phan/TopCategoriesChart.jsx",
+      "sha256": "63BA7277BE820FEED04750C1A5B7582992CDA294E27FE538A576947D8955800F"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/phan-tich-van-hanh/thanh-phan/TransactionCompositionWidget.jsx",
+      "sha256": "603DCD270458472A19177FB17F949F110270DB28398FD87231CBB0E7E3F03AAB"
+    },
+    {
+      "path": "frontend/admin-web/src/chuc-nang/phan-tich-van-hanh/xu-ly/report-period.js",
+      "sha256": "4F3B9DB6990BB10E8203C3F116FE3E76522977EFC9FEECA5F0F898927C665A0A"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/connect-api/api.js",
+      "sha256": "7DC1195FD891CB9AEA07C7FC3E289D17BACA6C5D69A26B46F7C26FB3C2238715"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/layouts/DashboardLayout.jsx",
+      "sha256": "107C18E367D077518F8A3908487F55535567F785AF9D7F906BC54D699C74B58D"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/nghiep-vu/auditPresentation.js",
+      "sha256": "1D9422428451D7D72D3CCDD6B75D4F3B74E2A13D26C661C177D6B1E564514574"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/nghiep-vu/finance.ts",
+      "sha256": "FFD6C88E342FA166332A8579772CED8C152E440ABEB96005A52BE4FAA9D1E158"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/styles/admin-workspace.css",
+      "sha256": "D5F1BC6B49E59E7001768F5B600B035C6BD0C38BA85B120BBC2F29DBC155A23F"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/styles/index.css",
+      "sha256": "6F9B1B772649E422565CA395BCECBF13B1F59C37915166357E0B8B64BCD46385"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/styles/swiss.css",
+      "sha256": "CD59880E7F7ADADB44A0CF2CE4F43B3BC6F25910CD0C7D7CCDE553C3DF77E6CC"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/styles/workspace-live.css",
+      "sha256": "F0E8E83280086A0547392D966EB9E3D5200870707F210D982A57D5D7311779D9"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/styles/workspace-pages.css",
+      "sha256": "E3B7A0038F8BD9821BA2325BD4BDAEA8FA6FEBC1EE664616552118D276940C95"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/styles/workspace-responsive.css",
+      "sha256": "FC87D774783DE8552943EEBBE1F666C9167E13142298CC075E902A6ACF4CEE9B"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/styles/workspace-sections.css",
+      "sha256": "1D8FE2D1AD6AF2D6F64792365C873477C442DEC63999E802B4A628D2C180C23C"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/tien-ich/adminPresentation.js",
+      "sha256": "19998347B56902A55F2FB14803B7B71F9E2C791A4316D1D7BE31CBA086775E7C"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/tien-ich/format.js",
+      "sha256": "A2EDA2BBEEA8AE134022838E3507028CA372420D5199098AEE0A62887C369491"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/tien-ich/format.ts",
+      "sha256": "B5CA9D63C329D50756DE70D04AF7AEE892DA41F85C5C422CF5B5181E74AE0ECF"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/tien-ich/useDebouncedValue.js",
+      "sha256": "4F9530E7D13D00141C0BE0D4DC4750279F051E1C4803A66E5F152AE2C925F192"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/tien-ich/useMotionAllowed.js",
+      "sha256": "571B182D819C234BACEDBEA023EC30A05E4603645AFE77A3062B81F60912DEA6"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/tien-ich/useToast.js",
+      "sha256": "D8763534155086020444A348D07CD77709466D40CAA7B09FF2AC87AA54B6B3C9"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/UI-chung/ActionMenu.jsx",
+      "sha256": "84F239C069241D542A77722DFC11E6E21EC4BD6CD70358B6C0451D1B8B536B87"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/UI-chung/CategoryIcon.jsx",
+      "sha256": "6F8404CA17050232ECFAAAC283162B60911961796ADDF3E4332BE479E8931D4A"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/UI-chung/CategoryIcon.tsx",
+      "sha256": "C45AD22BC798663F79F21A275EC0763B6E30741B9D7175A0AF023181B8082306"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/UI-chung/design.jsx",
+      "sha256": "7EBD5F63203CDF314066176144E37F2DA94DE20D7FE9F3AFAE4650FEB1A463AB"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/UI-chung/Inspector.jsx",
+      "sha256": "56B055F1E59D75BCE655D30E43CFCA6C7C769DBD1C66B7DF75C7C5F35C1EE096"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/UI-chung/Motion.jsx",
+      "sha256": "E1F1A2D688DFB1F99804BDC54314DAE70195538D6B155D1CB7BDC0266A98C394"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/UI-chung/Toast.jsx",
+      "sha256": "4C6719AFC4761BDFE66CC9CA2FE26581CFE99955D211C7EFAC847D09CA2672A6"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/UI-chung/WorkspaceHead.jsx",
+      "sha256": "753E9D3F72DBE70F9491196FAA2E1725B94FB218BA2EE0CF0E9A99B7EC64C16E"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/xac-thuc/admin-workspace.css",
+      "sha256": "34C70F865A62FC4C249DF18805C4B4928FE1C46B0B449128FC2B3F85D7A8BF37"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/xac-thuc/LoginSessions.jsx",
+      "sha256": "C4F54B5EE0A52ABEB5A4B2BA2EE22410063A8048BC992B090641834C751C2EDF"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/xac-thuc/ProtectedRoute.jsx",
+      "sha256": "BD0873AEEB4A3C09A20831B321A18EEC497C4F940400AAF47FF77EB3A1F69E7C"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/xac-thuc/SecuritySettings.jsx",
+      "sha256": "AB0728B1C72D92FD8631125D209ED3A8477A8C78671E7F915D624AA3CF975424"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/xac-thuc/sessionPresentation.js",
+      "sha256": "933C1F1A86AC25AD279752EBDE1AAA4FBD033A63899A17D10A6F174A19A56660"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/xac-thuc/workspace-live.css",
+      "sha256": "86060C3A0866F01653250253624AEA303EF5E652AC4C4E0B47E2362AB96E4869"
+    },
+    {
+      "path": "frontend/admin-web/src/dung-chung/xac-thuc/workspace-sections.css",
+      "sha256": "FB9D66A508727129CE08F8477450555A79059DDC21FD17C27AC03B81B8319A8F"
+    },
+    {
+      "path": "frontend/user-web/src/app/layout.tsx",
+      "sha256": "93E0A3D695909F36EC9AEFFD0258FFBBA04DC6C9B827510FA40B39C7D5D6DB18"
+    },
+    {
+      "path": "frontend/user-web/src/app/providers.tsx",
+      "sha256": "FFA458D85B3A321D1719289D7BA9CC0EC3443EAE7ADB308A5E54AE79055F8AF3"
+    },
+    {
+      "path": "frontend/user-web/src/app/(dashboard)/layout.tsx",
+      "sha256": "DB73222CB48CF9F52CF8853022DC1908827CBFA4E098CABD4035E2B8F11FFB3C"
+    },
+    {
+      "path": "frontend/user-web/src/app/(dashboard)/page.tsx",
+      "sha256": "CAAB0D36FA8174FFCED7CC8D9F88CBFACB22AD95D893E158A7A28D3B5FE0F88D"
+    },
+    {
+      "path": "frontend/user-web/src/app/(dashboard)/accounts/page.tsx",
+      "sha256": "A77F8A50CDC3322A3DEA14868FAF6D1E1D85CC99C4F4C04B805278A5A115D230"
+    },
+    {
+      "path": "frontend/user-web/src/app/(dashboard)/analytics/page.tsx",
+      "sha256": "6EB2E2C7C1382EE91AEB9F920A56A19761D1563F1DAC5A3B9DBBDDB64B582946"
+    },
+    {
+      "path": "frontend/user-web/src/app/(dashboard)/budgets/page.tsx",
+      "sha256": "9A68429D46CD86AE0409DFF5846500CEF3568B3256BB0BBBDC1E2D35F8EF2F68"
+    },
+    {
+      "path": "frontend/user-web/src/app/(dashboard)/categories/page.tsx",
+      "sha256": "A8CC63C6A737C4D234CC6B874C4167EC7202B19875DAEFB2BB16C9C0ACA6DB9D"
+    },
+    {
+      "path": "frontend/user-web/src/app/(dashboard)/ocr/page.tsx",
+      "sha256": "80BA52B75C3EFB7D208CACDAD186A4721DF778A1CBD45ED4BD7F82AAE4FF2F73"
+    },
+    {
+      "path": "frontend/user-web/src/app/(dashboard)/settings/page.tsx",
+      "sha256": "ED371C9DE566A70DF82BCCF80B0EEBF87DB0E748ED9200E6E8B75F43B798EC63"
+    },
+    {
+      "path": "frontend/user-web/src/app/(dashboard)/support/page.tsx",
+      "sha256": "4FC608739FA5E9A1DCB2D701DD9CA4F0FDFECAA327D2369419EBB704A3097A91"
+    },
+    {
+      "path": "frontend/user-web/src/app/(dashboard)/transactions/page.tsx",
+      "sha256": "DC8BA2637FF283B1B24795C027C5E9B9C6C40A79F2E70847A7CA3CDD98284437"
+    },
+    {
+      "path": "frontend/user-web/src/app/login/page.tsx",
+      "sha256": "6EB6642C4DF46037D4D89BBCA3276DA44D3359117478281E74747ACEE3DCC3DE"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/bao-cao-tai-chinh/index.ts",
+      "sha256": "6CC88E7A9A41BD1D922D9DBD0F68822BDF271F4E9296B3918F0575E0E4FBAD8C"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/bao-cao-tai-chinh/page.tsx",
+      "sha256": "643BDB9B60537491572772B431A52AD754EA97873FCFB36B8FBCD2444763A885"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/bao-cao-tai-chinh/CSS/analytics.module.css",
+      "sha256": "E5514356831C2815F0397CF85C08DA07233504A0B610A010B1CB11490A3FBC32"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/bao-cao-tai-chinh/CSS/analytics.styles.ts",
+      "sha256": "BC377942CE015446C5693F6318A5D9F345331BD89093EB5832300199D6901DCD"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/bao-cao-tai-chinh/thanh-phan/CashflowBarChart.tsx",
+      "sha256": "AF04B5250724B8F5ECBB80DA95E59B4FBC88900034568E51BCB31346016A2F49"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/bao-cao-tai-chinh/thanh-phan/CashflowSummaryTable.tsx",
+      "sha256": "FDF7FD87409012309D7B3B2E095A2AE0B34F17814775138EA7DBE9A8B18109A7"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/bao-cao-tai-chinh/thanh-phan/CategoryExpensePie.tsx",
+      "sha256": "B48663E693F51803A598EFE904FA4D6C4D05CFF91E9D945C0B4D3207922DCE2B"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/bao-cao-tai-chinh/thanh-phan/ReportCharts.tsx",
+      "sha256": "5D356B0BDDE7C098BD91AF5E2C0B319F39ED9E7AE4E005EFE72B74AD4C717C2D"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/bao-cao-tai-chinh/thanh-phan/ReportPeriodFilter.tsx",
+      "sha256": "E314D34251635D1D01CAECFAC8EE45887051E0BBAEDB13BC42CD3DC4BC9842A8"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/cai-dat-bao-mat/index.ts",
+      "sha256": "6CC88E7A9A41BD1D922D9DBD0F68822BDF271F4E9296B3918F0575E0E4FBAD8C"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/cai-dat-bao-mat/page.tsx",
+      "sha256": "87E3BAA08C2C48F509FB030F5136D0D20501D67C98ABBEB52A8A826E0DFB90E3"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/cai-dat-bao-mat/thanh-phan/SessionManager.tsx",
+      "sha256": "B18314BFBBE8465F34C0B8239DFC3452CB898C7FEE5B290127AC4FCB491AC60A"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/dang-nhap/index.ts",
+      "sha256": "6CC88E7A9A41BD1D922D9DBD0F68822BDF271F4E9296B3918F0575E0E4FBAD8C"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/dang-nhap/page.tsx",
+      "sha256": "56E462BD0ABF37064D735EF253CF0C0D6AD237EAE9615D950616BA6CB7EBD1C5"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/dang-nhap/CSS/login.styles.ts",
+      "sha256": "FC0DE9F348810FED327F28C296492970B177E9CAE7DB77594CA08795322B947D"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/dang-nhap/thanh-phan/FirstTimePasswordModal.tsx",
+      "sha256": "0E422AAC2E78E5AC460C6849243E10425FE8464428A279CD27DFF20DCA97EB28"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/dang-nhap/thanh-phan/ForgotPasswordModal.tsx",
+      "sha256": "A3373FABFAB97AF68E18B103F884557DB90F2FCAC1B4B77D9FD57B058C386060"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/dang-nhap/thanh-phan/PasswordStrengthBar.tsx",
+      "sha256": "A79191070AA420EDD3EEFAA0DB072A732BFD8F3EA247F764803F785645D178B7"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/danh-muc/index.ts",
+      "sha256": "6CC88E7A9A41BD1D922D9DBD0F68822BDF271F4E9296B3918F0575E0E4FBAD8C"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/danh-muc/page.tsx",
+      "sha256": "8E0F4C71C87E300481E591C108187DD8891FDE73F910A97A162B20BF99EEDE58"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/danh-muc/CSS/categories.module.css",
+      "sha256": "0D079F2C67D4BBE82584E33D75833DC514C82E30845A1CC92659FB0168A17D3C"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/danh-muc/CSS/categories.styles.ts",
+      "sha256": "1BF708AC1A07C2B2803959D402017B19523462AB3112D9AA8C8D8FBDE04A2243"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/danh-muc/thanh-phan/CategoryDeleteModal.tsx",
+      "sha256": "4E4D567598B0381A6BDFBE4450166069909D8678CF02FB403B7BC55AE21ECF51"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/danh-muc/thanh-phan/CategoryModal.tsx",
+      "sha256": "978F9175E6532CF3CECA4C5A1B251AAE421D9700CC419DFFAD5A1ECE2A67E382"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/danh-muc/thanh-phan/CategoryTable.tsx",
+      "sha256": "BB395EBC2784786665BE9A19F14F94359FD872CBED7C218E4D49959A259AE3A7"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/giao-dich/index.ts",
+      "sha256": "6CC88E7A9A41BD1D922D9DBD0F68822BDF271F4E9296B3918F0575E0E4FBAD8C"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/giao-dich/page.tsx",
+      "sha256": "0F182ABFD2D104F896076228EFBFDDBCDC204974EC505F8E0576225BB7BEE7DE"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/giao-dich/CSS/transactions.styles.ts",
+      "sha256": "65B87D27C988A4F9C5EE5049C9692A229493750B895806A7A16A927DB45C2EE8"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/giao-dich/thanh-phan/TransactionDeleteModal.tsx",
+      "sha256": "15A6C1FF35948AE107809F77D76E28252D8FC1894C51C103C55FD54505A560F1"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/giao-dich/thanh-phan/TransactionFilters.tsx",
+      "sha256": "999E93D70F8A5FAEC74B2CCDE3F8B434117B25C2CD92D1469D645DAEE4505682"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/giao-dich/thanh-phan/TransactionModal.tsx",
+      "sha256": "A7C63D53FFB4666C4A51B9490ABD043A05F16BAB0DA3D15E44F8DED126FE8D94"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/giao-dich/thanh-phan/TransactionTable.tsx",
+      "sha256": "A04D45BDBEE154F476BBD53A55C074E8F75FFAEE2F977F41D9C5923060829290"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/giao-dich/thanh-phan/TransferModal.tsx",
+      "sha256": "D4A8D7D9EA977637DF2136E7715BD51CE0FE9FA1B084A67E6F2252D97D17D969"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/hoa-don-ai/index.ts",
+      "sha256": "6CC88E7A9A41BD1D922D9DBD0F68822BDF271F4E9296B3918F0575E0E4FBAD8C"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/hoa-don-ai/page.tsx",
+      "sha256": "ACD5958AE4EC387618DB068678CC8DD437A499A61B2FDC34045D381CC2E91B6B"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/hoa-don-ai/CSS/ocr.css",
+      "sha256": "0EA71DEADD5E161FC5896C53DF4D47DAC759286A6132F50BBD2B269CC3B36DDC"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/hoa-don-ai/CSS/ocr.styles.ts",
+      "sha256": "7AF5F5BD281A747F2C35CBC335733D74F3D201E3F32EBE0D5508C028F128D664"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/hoa-don-ai/thanh-phan/InvoiceDetailForm.tsx",
+      "sha256": "B17F253731DD1FD7077C876D533602B5D6F70ED719DC125B9138221F60748896"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/hoa-don-ai/thanh-phan/InvoiceQueueList.tsx",
+      "sha256": "02E0DC6DE3E6F0578B4D47D5690A554E084E8661038D01F58F09AF5F9659017D"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/hoa-don-ai/thanh-phan/InvoiceStatusBadge.tsx",
+      "sha256": "234AED9EC98A8B0720D6846018FA4E62E6C175D62429FB7F977E6B2881C30987"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/hoa-don-ai/thanh-phan/InvoiceUploadZone.tsx",
+      "sha256": "453766662BF8A8C6FF9312AE2830098CDF35E2A727F0035BCCEA00E3E782CF55"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/hoa-don-ai/xu-ly/InvoiceTypes.ts",
+      "sha256": "BAC429D8CDBD473A03C84EBDDBB56CBFD90B074044C9CA53EBD58DC7673DEF80"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/ngan-sach/index.ts",
+      "sha256": "6CC88E7A9A41BD1D922D9DBD0F68822BDF271F4E9296B3918F0575E0E4FBAD8C"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/ngan-sach/page.tsx",
+      "sha256": "A475BD12F9D894120A43ADBE3DCD4F32E6BD70EBADF9B20FD373CE9C631AD691"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/ngan-sach/CSS/budget-history.module.css",
+      "sha256": "FC4D1D13E99581E83B982AFA522D3FE212F0FCEC80CDE92117FC654AE53498E3"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/ngan-sach/CSS/budget-workspace.module.css",
+      "sha256": "08EAA2E956B7F68B4AB1A804E7A149C811749BD800851738A39DDE3C94C939F2"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/ngan-sach/CSS/budgets.styles.ts",
+      "sha256": "2395D62605634A818CDD1147D3D59328B378B9B412A60B4CE54CEC508452EA7B"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/ngan-sach/thanh-phan/BudgetCard.tsx",
+      "sha256": "866ABE0FA06BD26B5AD3B3FD4B5E1EFBC38E9E7B5A3F5E162529B0CA9A9687AD"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/ngan-sach/thanh-phan/BudgetDeleteModal.tsx",
+      "sha256": "E3A2076623FAAB1E7B54B8CDDD2DF27BEA053199ED1FBF18131D6B8E16A4BEB4"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/ngan-sach/thanh-phan/BudgetModal.tsx",
+      "sha256": "8FE7CC539305F8C02E88BF459BBC351219E7092B5DCC490A47697E758A04CB58"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/ngan-sach/thanh-phan/BudgetWorkspace.tsx",
+      "sha256": "B073993BEB695BE713953ABB952E5030BC1CEAA3CC957945CE69067D70DF9D83"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/ngan-sach/xu-ly/budget-history.ts",
+      "sha256": "8C9A2D7122A9A6F1D9C8BB0FD992B93C054B2E8A37DB258CC8400029137D327D"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/tong-quan/index.ts",
+      "sha256": "6CC88E7A9A41BD1D922D9DBD0F68822BDF271F4E9296B3918F0575E0E4FBAD8C"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/tong-quan/page.tsx",
+      "sha256": "92750D3EB0279438DE536BD2E43A1178BC7E8F2A856E020BDC67A126C2F73F62"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/tong-quan/CSS/overview.module.css",
+      "sha256": "687458DB5B719DC919D44577F386C345C5B0CA48A58A56928C0674DE477A415F"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/tong-quan/CSS/overview.styles.ts",
+      "sha256": "D36C0AA602F8224753A47928C34B7A5C0B6F597849DD73B878AEB1A19E47EC8C"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/tong-quan/thanh-phan/AccountsWidget.tsx",
+      "sha256": "FB05790E7D5558B6090A7F8DBF61131833776538E7E9AEBF2472725568D33D4D"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/tong-quan/thanh-phan/BudgetsWidget.tsx",
+      "sha256": "9B0FCE75F00E52C35DABDCB54DBFCFB414E925BE8945667C35A7960A4F224C28"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/tong-quan/thanh-phan/OverviewCharts.tsx",
+      "sha256": "053BDB84EFBEFE30A4DCECBCF34684E551A60AC30171FBB98C9FCCB202DC2267"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/tong-quan/thanh-phan/OverviewStats.tsx",
+      "sha256": "E4B7C70A58DE14DAE4F088B8260EEF142E83B25E44A6EC3E652165505822A34A"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/tong-quan/thanh-phan/QuickActions.tsx",
+      "sha256": "E896D916B641CAFCCDF584619B4AE4CADF40AF0AADEF45C0FED6F387A9EEFFD6"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/tong-quan/thanh-phan/RecentTransactions.tsx",
+      "sha256": "AA15A58071A5F8F774E093F5B20C58476E179900B5F332712544B455C25798F7"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/trung-tam-ho-tro/index.ts",
+      "sha256": "6CC88E7A9A41BD1D922D9DBD0F68822BDF271F4E9296B3918F0575E0E4FBAD8C"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/trung-tam-ho-tro/page.tsx",
+      "sha256": "1B8F3C6CBD3DD3A44D13814CAD35D5CDAEE2D00402D5B58E15F6CBB16FF64E8A"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/trung-tam-ho-tro/CSS/support.styles.ts",
+      "sha256": "FFCED21503491079821523DCCB64993D728FF81776829242B4EFDF737C0116F0"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/trung-tam-ho-tro/thanh-phan/ContactSupportCard.tsx",
+      "sha256": "FFA6BF8834C51AF65DA1B0D1CCDA5E35447200AF2EDC0F688C92B5E45EF3326B"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/trung-tam-ho-tro/thanh-phan/FaqAccordion.tsx",
+      "sha256": "3308E9DBB0D7F09971E916C1E179BB0CE21936C6EE1129303A1707942119D5AB"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/vi-tai-khoan/index.ts",
+      "sha256": "6CC88E7A9A41BD1D922D9DBD0F68822BDF271F4E9296B3918F0575E0E4FBAD8C"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/vi-tai-khoan/page.tsx",
+      "sha256": "430489BA23C3DDA73E651544C98C2D4EFCB59F7B9AD406A3F5C416A8D9AAACE3"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/vi-tai-khoan/CSS/accounts.styles.ts",
+      "sha256": "4750CD80B940A195D5BC54A955DF23B4FC28C6C765CAACC54855EC1CB122DAE6"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/vi-tai-khoan/thanh-phan/AccountCard.module.css",
+      "sha256": "840B3CFAC3D15937E4B3E8F2CE2AE90C2BF77F80F3305E9AC91B1C3A1B9D34F1"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/vi-tai-khoan/thanh-phan/AccountCard.tsx",
+      "sha256": "FC9A36B657AD575B9C2B82AFE914AD4945D40AC0F5EE9190A9632D101C19DA7B"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/vi-tai-khoan/thanh-phan/AccountDeleteModal.tsx",
+      "sha256": "B0ACD172D0025570ED351859745C8A97E038792A7B4F3167330D1F16A85B9313"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/vi-tai-khoan/thanh-phan/AccountDetailsModal.tsx",
+      "sha256": "9D10DD19ACA5998F09A7A94DA0CED797C244EF6A26973B3E0CBFF58D2F1DBB19"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/vi-tai-khoan/thanh-phan/AccountModal.tsx",
+      "sha256": "8C2ED2ABB1C82FEB74A2FC4D2F9F7120A43FCD161A16C4F3C4C26A0A98CFF99C"
+    },
+    {
+      "path": "frontend/user-web/src/chuc-nang/vi-tai-khoan/thanh-phan/BankConnection.tsx",
+      "sha256": "A95B0C4C384FFAEEDBDA49416BF73AF9C3EAC079D91915D94AD6E7B95FC6246E"
+    },
+    {
+      "path": "frontend/user-web/src/dung-chung/connect-api/api.ts",
+      "sha256": "7051A71929C7B37892912B7EF37572E1A7302F64FFBF96822A9DCE1CA972B81E"
+    },
+    {
+      "path": "frontend/user-web/src/dung-chung/layouts/DashboardLayout.tsx",
+      "sha256": "2626B0AB42ED129E35ABF0BD11B2A8E02B5F45DC5A5DF0B325F8BBEB056A57FA"
+    },
+    {
+      "path": "frontend/user-web/src/dung-chung/nghiep-vu/finance.ts",
+      "sha256": "60A3A1FF2DBED76B81FDE05C7B67307B443B0308424268CC931C88A1EC9278A6"
+    },
+    {
+      "path": "frontend/user-web/src/dung-chung/nghiep-vu/report-period.ts",
+      "sha256": "3A4A4D6509FEBA2C05DAB307A5293093E6D2A6DA8E14A2CAA9A8F11F9577F541"
+    },
+    {
+      "path": "frontend/user-web/src/dung-chung/nghiep-vu/report-types.ts",
+      "sha256": "E5B466F03E32221B7A344A0A7320062ED2442893B6DD0E1E8D7A434399C45935"
+    },
+    {
+      "path": "frontend/user-web/src/dung-chung/nghiep-vu/danh-muc/categories.ts",
+      "sha256": "129ABEC653501A793AD4C5A3CD02291B76D961644BD9C91FE83A24931AE1B30E"
+    },
+    {
+      "path": "frontend/user-web/src/dung-chung/nghiep-vu/danh-muc/CategoryRestoreModal.tsx",
+      "sha256": "C3BFB72269C46711FA671A1FB53FC9A7BEE5DE84D13018BDE060F8D3665B04A1"
+    },
+    {
+      "path": "frontend/user-web/src/dung-chung/styles/finance-visuals.module.css",
+      "sha256": "665250B3468688163EEEFB9A868DF0C3E8C3731F81AC81C94B21F4DE90C57CD1"
+    },
+    {
+      "path": "frontend/user-web/src/dung-chung/styles/globals.css",
+      "sha256": "EF8769A6AF4A08392C5D7B7B8FD4D5B50CCA227E7E0B9E31851A1A30B1B2B4B4"
+    },
+    {
+      "path": "frontend/user-web/src/dung-chung/styles/swiss.css",
+      "sha256": "CD59880E7F7ADADB44A0CF2CE4F43B3BC6F25910CD0C7D7CCDE553C3DF77E6CC"
+    },
+    {
+      "path": "frontend/user-web/src/dung-chung/thong-bao/NotificationCenter.module.css",
+      "sha256": "A21902C9168FED523A3490A0720680EB3E6D2CFD782D0D2D7FC546416A20FA28"
+    },
+    {
+      "path": "frontend/user-web/src/dung-chung/thong-bao/NotificationCenter.tsx",
+      "sha256": "52FAFF348A6EB0221BF60F0F88BA04AE936658DF287F349DBADD6067C3851811"
+    },
+    {
+      "path": "frontend/user-web/src/dung-chung/thong-bao/notificationText.ts",
+      "sha256": "714867F9ADE0BAA0D6D1AFFF993DB8E421202A2CD360CD0BC32D89F35DAA7238"
+    },
+    {
+      "path": "frontend/user-web/src/dung-chung/tien-ich/finance.ts",
+      "sha256": "44C9DAF4A824533929D2C9E56AC414DCE36AE60C0391FD3D62D4747D708ACFB4"
+    },
+    {
+      "path": "frontend/user-web/src/dung-chung/tien-ich/useMotionAllowed.ts",
+      "sha256": "485ED33B1075033A7A2F146919440F31CBA7A43FE8AA84667899B3A3674DDADF"
+    },
+    {
+      "path": "frontend/user-web/src/dung-chung/UI-chung/CategoryIcon.tsx",
+      "sha256": "C45AD22BC798663F79F21A275EC0763B6E30741B9D7175A0AF023181B8082306"
+    },
+    {
+      "path": "frontend/user-web/src/dung-chung/UI-chung/DateInput.tsx",
+      "sha256": "A7851EFAB0BA60E35B0425615797CCD3937AA1EC3AD20C55FBAC07E79CC039FC"
+    },
+    {
+      "path": "frontend/user-web/src/dung-chung/UI-chung/ListDetailLayout.module.css",
+      "sha256": "C2D24D57C15E9343FD229A1318F703AE1E230FB834FA84EAFAE20421506AB120"
+    },
+    {
+      "path": "frontend/user-web/src/dung-chung/UI-chung/ListDetailLayout.tsx",
+      "sha256": "4C6A2ABD8C9FF8D5F397EFDB139BCED8EF46386C07EC1DAB529AAD2624A3F537"
+    },
+    {
+      "path": "frontend/user-web/src/dung-chung/UI-chung/Motion.d.ts",
+      "sha256": "226286DE38564118F124A5A3AFF7FD3F79A119729D581ED90B4B0D2C7838B560"
+    },
+    {
+      "path": "frontend/user-web/src/dung-chung/UI-chung/Motion.jsx",
+      "sha256": "E1F1A2D688DFB1F99804BDC54314DAE70195538D6B155D1CB7BDC0266A98C394"
+    },
+    {
+      "path": "frontend/user-web/src/dung-chung/UI-chung/Toast.d.ts",
+      "sha256": "8369986A43F71AB897EE0E6752B03761FAAD2CE95820306A9F57E766C78245B4"
+    },
+    {
+      "path": "frontend/user-web/src/dung-chung/UI-chung/Toast.jsx",
+      "sha256": "4C6719AFC4761BDFE66CC9CA2FE26581CFE99955D211C7EFAC847D09CA2672A6"
+    },
+    {
+      "path": "frontend/user-web/src/dung-chung/UI-chung/ui.tsx",
+      "sha256": "5F2642CF98A4FACBF7FF3BA3BE6761B1A425BE44DB4E9650782B0FA409A42498"
+    },
+    {
+      "path": "frontend/user-web/src/dung-chung/xac-thuc/SecuritySettings.tsx",
+      "sha256": "0BC74E34AF3055167E68EA757E955857812F9AC6FFEBD08B6C14E8F730971342"
+    },
+    {
+      "path": "frontend/user-web/src/dung-chung/xac-thuc/settings.styles.ts",
+      "sha256": "19A1F347B833D808C88C8FC5CB0B430333009347FE51DD6227269FB75DDE2B87"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/app/layout.tsx",
+      "sha256": "93E0A3D695909F36EC9AEFFD0258FFBBA04DC6C9B827510FA40B39C7D5D6DB18"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/app/providers.tsx",
+      "sha256": "FFA458D85B3A321D1719289D7BA9CC0EC3443EAE7ADB308A5E54AE79055F8AF3"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/app/(dashboard)/layout.tsx",
+      "sha256": "DB73222CB48CF9F52CF8853022DC1908827CBFA4E098CABD4035E2B8F11FFB3C"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/app/(dashboard)/page.tsx",
+      "sha256": "CAAB0D36FA8174FFCED7CC8D9F88CBFACB22AD95D893E158A7A28D3B5FE0F88D"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/app/(dashboard)/accounts/page.tsx",
+      "sha256": "A77F8A50CDC3322A3DEA14868FAF6D1E1D85CC99C4F4C04B805278A5A115D230"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/app/(dashboard)/analytics/page.tsx",
+      "sha256": "6EB2E2C7C1382EE91AEB9F920A56A19761D1563F1DAC5A3B9DBBDDB64B582946"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/app/(dashboard)/budgets/page.tsx",
+      "sha256": "9A68429D46CD86AE0409DFF5846500CEF3568B3256BB0BBBDC1E2D35F8EF2F68"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/app/(dashboard)/categories/page.tsx",
+      "sha256": "A8CC63C6A737C4D234CC6B874C4167EC7202B19875DAEFB2BB16C9C0ACA6DB9D"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/app/(dashboard)/ocr/page.tsx",
+      "sha256": "80BA52B75C3EFB7D208CACDAD186A4721DF778A1CBD45ED4BD7F82AAE4FF2F73"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/app/(dashboard)/settings/page.tsx",
+      "sha256": "ED371C9DE566A70DF82BCCF80B0EEBF87DB0E748ED9200E6E8B75F43B798EC63"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/app/(dashboard)/support/page.tsx",
+      "sha256": "4FC608739FA5E9A1DCB2D701DD9CA4F0FDFECAA327D2369419EBB704A3097A91"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/app/(dashboard)/transactions/page.tsx",
+      "sha256": "DC8BA2637FF283B1B24795C027C5E9B9C6C40A79F2E70847A7CA3CDD98284437"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/app/login/page.tsx",
+      "sha256": "6EB6642C4DF46037D4D89BBCA3276DA44D3359117478281E74747ACEE3DCC3DE"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/bao-cao-tai-chinh/index.ts",
+      "sha256": "6CC88E7A9A41BD1D922D9DBD0F68822BDF271F4E9296B3918F0575E0E4FBAD8C"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/bao-cao-tai-chinh/page.tsx",
+      "sha256": "643BDB9B60537491572772B431A52AD754EA97873FCFB36B8FBCD2444763A885"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/bao-cao-tai-chinh/CSS/analytics.module.css",
+      "sha256": "E5514356831C2815F0397CF85C08DA07233504A0B610A010B1CB11490A3FBC32"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/bao-cao-tai-chinh/CSS/analytics.styles.ts",
+      "sha256": "BC377942CE015446C5693F6318A5D9F345331BD89093EB5832300199D6901DCD"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/bao-cao-tai-chinh/thanh-phan/CashflowBarChart.tsx",
+      "sha256": "AF04B5250724B8F5ECBB80DA95E59B4FBC88900034568E51BCB31346016A2F49"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/bao-cao-tai-chinh/thanh-phan/CashflowSummaryTable.tsx",
+      "sha256": "FDF7FD87409012309D7B3B2E095A2AE0B34F17814775138EA7DBE9A8B18109A7"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/bao-cao-tai-chinh/thanh-phan/CategoryExpensePie.tsx",
+      "sha256": "B48663E693F51803A598EFE904FA4D6C4D05CFF91E9D945C0B4D3207922DCE2B"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/bao-cao-tai-chinh/thanh-phan/ReportCharts.tsx",
+      "sha256": "5D356B0BDDE7C098BD91AF5E2C0B319F39ED9E7AE4E005EFE72B74AD4C717C2D"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/bao-cao-tai-chinh/thanh-phan/ReportPeriodFilter.tsx",
+      "sha256": "E314D34251635D1D01CAECFAC8EE45887051E0BBAEDB13BC42CD3DC4BC9842A8"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/cai-dat-bao-mat/index.ts",
+      "sha256": "6CC88E7A9A41BD1D922D9DBD0F68822BDF271F4E9296B3918F0575E0E4FBAD8C"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/cai-dat-bao-mat/page.tsx",
+      "sha256": "87E3BAA08C2C48F509FB030F5136D0D20501D67C98ABBEB52A8A826E0DFB90E3"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/cai-dat-bao-mat/thanh-phan/SessionManager.tsx",
+      "sha256": "B18314BFBBE8465F34C0B8239DFC3452CB898C7FEE5B290127AC4FCB491AC60A"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/dang-nhap/index.ts",
+      "sha256": "6CC88E7A9A41BD1D922D9DBD0F68822BDF271F4E9296B3918F0575E0E4FBAD8C"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/dang-nhap/page.tsx",
+      "sha256": "56E462BD0ABF37064D735EF253CF0C0D6AD237EAE9615D950616BA6CB7EBD1C5"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/dang-nhap/CSS/login.styles.ts",
+      "sha256": "FC0DE9F348810FED327F28C296492970B177E9CAE7DB77594CA08795322B947D"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/dang-nhap/thanh-phan/FirstTimePasswordModal.tsx",
+      "sha256": "0E422AAC2E78E5AC460C6849243E10425FE8464428A279CD27DFF20DCA97EB28"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/dang-nhap/thanh-phan/ForgotPasswordModal.tsx",
+      "sha256": "A3373FABFAB97AF68E18B103F884557DB90F2FCAC1B4B77D9FD57B058C386060"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/dang-nhap/thanh-phan/PasswordStrengthBar.tsx",
+      "sha256": "A79191070AA420EDD3EEFAA0DB072A732BFD8F3EA247F764803F785645D178B7"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/danh-muc/index.ts",
+      "sha256": "6CC88E7A9A41BD1D922D9DBD0F68822BDF271F4E9296B3918F0575E0E4FBAD8C"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/danh-muc/page.tsx",
+      "sha256": "8E0F4C71C87E300481E591C108187DD8891FDE73F910A97A162B20BF99EEDE58"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/danh-muc/CSS/categories.module.css",
+      "sha256": "0D079F2C67D4BBE82584E33D75833DC514C82E30845A1CC92659FB0168A17D3C"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/danh-muc/CSS/categories.styles.ts",
+      "sha256": "1BF708AC1A07C2B2803959D402017B19523462AB3112D9AA8C8D8FBDE04A2243"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/danh-muc/thanh-phan/CategoryDeleteModal.tsx",
+      "sha256": "4E4D567598B0381A6BDFBE4450166069909D8678CF02FB403B7BC55AE21ECF51"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/danh-muc/thanh-phan/CategoryModal.tsx",
+      "sha256": "978F9175E6532CF3CECA4C5A1B251AAE421D9700CC419DFFAD5A1ECE2A67E382"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/danh-muc/thanh-phan/CategoryTable.tsx",
+      "sha256": "BB395EBC2784786665BE9A19F14F94359FD872CBED7C218E4D49959A259AE3A7"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/giao-dich/index.ts",
+      "sha256": "6CC88E7A9A41BD1D922D9DBD0F68822BDF271F4E9296B3918F0575E0E4FBAD8C"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/giao-dich/page.tsx",
+      "sha256": "0F182ABFD2D104F896076228EFBFDDBCDC204974EC505F8E0576225BB7BEE7DE"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/giao-dich/CSS/transactions.styles.ts",
+      "sha256": "65B87D27C988A4F9C5EE5049C9692A229493750B895806A7A16A927DB45C2EE8"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/giao-dich/thanh-phan/TransactionDeleteModal.tsx",
+      "sha256": "15A6C1FF35948AE107809F77D76E28252D8FC1894C51C103C55FD54505A560F1"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/giao-dich/thanh-phan/TransactionFilters.tsx",
+      "sha256": "999E93D70F8A5FAEC74B2CCDE3F8B434117B25C2CD92D1469D645DAEE4505682"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/giao-dich/thanh-phan/TransactionModal.tsx",
+      "sha256": "A7C63D53FFB4666C4A51B9490ABD043A05F16BAB0DA3D15E44F8DED126FE8D94"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/giao-dich/thanh-phan/TransactionTable.tsx",
+      "sha256": "A04D45BDBEE154F476BBD53A55C074E8F75FFAEE2F977F41D9C5923060829290"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/giao-dich/thanh-phan/TransferModal.tsx",
+      "sha256": "D4A8D7D9EA977637DF2136E7715BD51CE0FE9FA1B084A67E6F2252D97D17D969"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/hoa-don-ai/index.ts",
+      "sha256": "6CC88E7A9A41BD1D922D9DBD0F68822BDF271F4E9296B3918F0575E0E4FBAD8C"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/hoa-don-ai/page.tsx",
+      "sha256": "ACD5958AE4EC387618DB068678CC8DD437A499A61B2FDC34045D381CC2E91B6B"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/hoa-don-ai/CSS/ocr.css",
+      "sha256": "0EA71DEADD5E161FC5896C53DF4D47DAC759286A6132F50BBD2B269CC3B36DDC"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/hoa-don-ai/CSS/ocr.styles.ts",
+      "sha256": "7AF5F5BD281A747F2C35CBC335733D74F3D201E3F32EBE0D5508C028F128D664"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/hoa-don-ai/thanh-phan/InvoiceDetailForm.tsx",
+      "sha256": "B17F253731DD1FD7077C876D533602B5D6F70ED719DC125B9138221F60748896"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/hoa-don-ai/thanh-phan/InvoiceQueueList.tsx",
+      "sha256": "02E0DC6DE3E6F0578B4D47D5690A554E084E8661038D01F58F09AF5F9659017D"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/hoa-don-ai/thanh-phan/InvoiceStatusBadge.tsx",
+      "sha256": "234AED9EC98A8B0720D6846018FA4E62E6C175D62429FB7F977E6B2881C30987"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/hoa-don-ai/thanh-phan/InvoiceUploadZone.tsx",
+      "sha256": "453766662BF8A8C6FF9312AE2830098CDF35E2A727F0035BCCEA00E3E782CF55"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/hoa-don-ai/xu-ly/InvoiceTypes.ts",
+      "sha256": "BAC429D8CDBD473A03C84EBDDBB56CBFD90B074044C9CA53EBD58DC7673DEF80"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/ngan-sach/index.ts",
+      "sha256": "6CC88E7A9A41BD1D922D9DBD0F68822BDF271F4E9296B3918F0575E0E4FBAD8C"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/ngan-sach/page.tsx",
+      "sha256": "A475BD12F9D894120A43ADBE3DCD4F32E6BD70EBADF9B20FD373CE9C631AD691"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/ngan-sach/CSS/budget-history.module.css",
+      "sha256": "FC4D1D13E99581E83B982AFA522D3FE212F0FCEC80CDE92117FC654AE53498E3"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/ngan-sach/CSS/budget-workspace.module.css",
+      "sha256": "08EAA2E956B7F68B4AB1A804E7A149C811749BD800851738A39DDE3C94C939F2"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/ngan-sach/CSS/budgets.styles.ts",
+      "sha256": "2395D62605634A818CDD1147D3D59328B378B9B412A60B4CE54CEC508452EA7B"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/ngan-sach/thanh-phan/BudgetCard.tsx",
+      "sha256": "866ABE0FA06BD26B5AD3B3FD4B5E1EFBC38E9E7B5A3F5E162529B0CA9A9687AD"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/ngan-sach/thanh-phan/BudgetDeleteModal.tsx",
+      "sha256": "E3A2076623FAAB1E7B54B8CDDD2DF27BEA053199ED1FBF18131D6B8E16A4BEB4"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/ngan-sach/thanh-phan/BudgetModal.tsx",
+      "sha256": "8FE7CC539305F8C02E88BF459BBC351219E7092B5DCC490A47697E758A04CB58"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/ngan-sach/thanh-phan/BudgetWorkspace.tsx",
+      "sha256": "B073993BEB695BE713953ABB952E5030BC1CEAA3CC957945CE69067D70DF9D83"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/ngan-sach/xu-ly/budget-history.ts",
+      "sha256": "8C9A2D7122A9A6F1D9C8BB0FD992B93C054B2E8A37DB258CC8400029137D327D"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/tong-quan/index.ts",
+      "sha256": "6CC88E7A9A41BD1D922D9DBD0F68822BDF271F4E9296B3918F0575E0E4FBAD8C"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/tong-quan/page.tsx",
+      "sha256": "92750D3EB0279438DE536BD2E43A1178BC7E8F2A856E020BDC67A126C2F73F62"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/tong-quan/CSS/overview.module.css",
+      "sha256": "687458DB5B719DC919D44577F386C345C5B0CA48A58A56928C0674DE477A415F"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/tong-quan/CSS/overview.styles.ts",
+      "sha256": "D36C0AA602F8224753A47928C34B7A5C0B6F597849DD73B878AEB1A19E47EC8C"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/tong-quan/thanh-phan/AccountsWidget.tsx",
+      "sha256": "FB05790E7D5558B6090A7F8DBF61131833776538E7E9AEBF2472725568D33D4D"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/tong-quan/thanh-phan/BudgetsWidget.tsx",
+      "sha256": "9B0FCE75F00E52C35DABDCB54DBFCFB414E925BE8945667C35A7960A4F224C28"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/tong-quan/thanh-phan/OverviewCharts.tsx",
+      "sha256": "053BDB84EFBEFE30A4DCECBCF34684E551A60AC30171FBB98C9FCCB202DC2267"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/tong-quan/thanh-phan/OverviewStats.tsx",
+      "sha256": "E4B7C70A58DE14DAE4F088B8260EEF142E83B25E44A6EC3E652165505822A34A"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/tong-quan/thanh-phan/QuickActions.tsx",
+      "sha256": "E896D916B641CAFCCDF584619B4AE4CADF40AF0AADEF45C0FED6F387A9EEFFD6"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/tong-quan/thanh-phan/RecentTransactions.tsx",
+      "sha256": "AA15A58071A5F8F774E093F5B20C58476E179900B5F332712544B455C25798F7"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/trung-tam-ho-tro/index.ts",
+      "sha256": "6CC88E7A9A41BD1D922D9DBD0F68822BDF271F4E9296B3918F0575E0E4FBAD8C"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/trung-tam-ho-tro/page.tsx",
+      "sha256": "1B8F3C6CBD3DD3A44D13814CAD35D5CDAEE2D00402D5B58E15F6CBB16FF64E8A"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/trung-tam-ho-tro/CSS/support.styles.ts",
+      "sha256": "FFCED21503491079821523DCCB64993D728FF81776829242B4EFDF737C0116F0"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/trung-tam-ho-tro/thanh-phan/ContactSupportCard.tsx",
+      "sha256": "FFA6BF8834C51AF65DA1B0D1CCDA5E35447200AF2EDC0F688C92B5E45EF3326B"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/trung-tam-ho-tro/thanh-phan/FaqAccordion.tsx",
+      "sha256": "3308E9DBB0D7F09971E916C1E179BB0CE21936C6EE1129303A1707942119D5AB"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/vi-tai-khoan/index.ts",
+      "sha256": "6CC88E7A9A41BD1D922D9DBD0F68822BDF271F4E9296B3918F0575E0E4FBAD8C"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/vi-tai-khoan/page.tsx",
+      "sha256": "430489BA23C3DDA73E651544C98C2D4EFCB59F7B9AD406A3F5C416A8D9AAACE3"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/vi-tai-khoan/CSS/accounts.styles.ts",
+      "sha256": "4750CD80B940A195D5BC54A955DF23B4FC28C6C765CAACC54855EC1CB122DAE6"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/vi-tai-khoan/thanh-phan/AccountCard.module.css",
+      "sha256": "840B3CFAC3D15937E4B3E8F2CE2AE90C2BF77F80F3305E9AC91B1C3A1B9D34F1"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/vi-tai-khoan/thanh-phan/AccountCard.tsx",
+      "sha256": "FC9A36B657AD575B9C2B82AFE914AD4945D40AC0F5EE9190A9632D101C19DA7B"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/vi-tai-khoan/thanh-phan/AccountDeleteModal.tsx",
+      "sha256": "B0ACD172D0025570ED351859745C8A97E038792A7B4F3167330D1F16A85B9313"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/vi-tai-khoan/thanh-phan/AccountDetailsModal.tsx",
+      "sha256": "9D10DD19ACA5998F09A7A94DA0CED797C244EF6A26973B3E0CBFF58D2F1DBB19"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/vi-tai-khoan/thanh-phan/AccountModal.tsx",
+      "sha256": "8C2ED2ABB1C82FEB74A2FC4D2F9F7120A43FCD161A16C4F3C4C26A0A98CFF99C"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/chuc-nang/vi-tai-khoan/thanh-phan/BankConnection.tsx",
+      "sha256": "A95B0C4C384FFAEEDBDA49416BF73AF9C3EAC079D91915D94AD6E7B95FC6246E"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/dung-chung/connect-api/api.ts",
+      "sha256": "7051A71929C7B37892912B7EF37572E1A7302F64FFBF96822A9DCE1CA972B81E"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/dung-chung/layouts/DashboardLayout.tsx",
+      "sha256": "2626B0AB42ED129E35ABF0BD11B2A8E02B5F45DC5A5DF0B325F8BBEB056A57FA"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/dung-chung/nghiep-vu/finance.ts",
+      "sha256": "60A3A1FF2DBED76B81FDE05C7B67307B443B0308424268CC931C88A1EC9278A6"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/dung-chung/nghiep-vu/report-period.ts",
+      "sha256": "3A4A4D6509FEBA2C05DAB307A5293093E6D2A6DA8E14A2CAA9A8F11F9577F541"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/dung-chung/nghiep-vu/report-types.ts",
+      "sha256": "E5B466F03E32221B7A344A0A7320062ED2442893B6DD0E1E8D7A434399C45935"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/dung-chung/nghiep-vu/danh-muc/categories.ts",
+      "sha256": "129ABEC653501A793AD4C5A3CD02291B76D961644BD9C91FE83A24931AE1B30E"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/dung-chung/nghiep-vu/danh-muc/CategoryRestoreModal.tsx",
+      "sha256": "C3BFB72269C46711FA671A1FB53FC9A7BEE5DE84D13018BDE060F8D3665B04A1"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/dung-chung/styles/finance-visuals.module.css",
+      "sha256": "665250B3468688163EEEFB9A868DF0C3E8C3731F81AC81C94B21F4DE90C57CD1"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/dung-chung/styles/globals.css",
+      "sha256": "EF8769A6AF4A08392C5D7B7B8FD4D5B50CCA227E7E0B9E31851A1A30B1B2B4B4"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/dung-chung/styles/swiss.css",
+      "sha256": "CD59880E7F7ADADB44A0CF2CE4F43B3BC6F25910CD0C7D7CCDE553C3DF77E6CC"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/dung-chung/thong-bao/NotificationCenter.module.css",
+      "sha256": "A21902C9168FED523A3490A0720680EB3E6D2CFD782D0D2D7FC546416A20FA28"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/dung-chung/thong-bao/NotificationCenter.tsx",
+      "sha256": "52FAFF348A6EB0221BF60F0F88BA04AE936658DF287F349DBADD6067C3851811"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/dung-chung/thong-bao/notificationText.ts",
+      "sha256": "714867F9ADE0BAA0D6D1AFFF993DB8E421202A2CD360CD0BC32D89F35DAA7238"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/dung-chung/tien-ich/finance.ts",
+      "sha256": "44C9DAF4A824533929D2C9E56AC414DCE36AE60C0391FD3D62D4747D708ACFB4"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/dung-chung/tien-ich/useMotionAllowed.ts",
+      "sha256": "485ED33B1075033A7A2F146919440F31CBA7A43FE8AA84667899B3A3674DDADF"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/dung-chung/UI-chung/CategoryIcon.tsx",
+      "sha256": "C45AD22BC798663F79F21A275EC0763B6E30741B9D7175A0AF023181B8082306"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/dung-chung/UI-chung/DateInput.tsx",
+      "sha256": "A7851EFAB0BA60E35B0425615797CCD3937AA1EC3AD20C55FBAC07E79CC039FC"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/dung-chung/UI-chung/ListDetailLayout.module.css",
+      "sha256": "C2D24D57C15E9343FD229A1318F703AE1E230FB834FA84EAFAE20421506AB120"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/dung-chung/UI-chung/ListDetailLayout.tsx",
+      "sha256": "4C6A2ABD8C9FF8D5F397EFDB139BCED8EF46386C07EC1DAB529AAD2624A3F537"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/dung-chung/UI-chung/Motion.d.ts",
+      "sha256": "226286DE38564118F124A5A3AFF7FD3F79A119729D581ED90B4B0D2C7838B560"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/dung-chung/UI-chung/Motion.jsx",
+      "sha256": "E1F1A2D688DFB1F99804BDC54314DAE70195538D6B155D1CB7BDC0266A98C394"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/dung-chung/UI-chung/Toast.d.ts",
+      "sha256": "8369986A43F71AB897EE0E6752B03761FAAD2CE95820306A9F57E766C78245B4"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/dung-chung/UI-chung/Toast.jsx",
+      "sha256": "4C6719AFC4761BDFE66CC9CA2FE26581CFE99955D211C7EFAC847D09CA2672A6"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/dung-chung/UI-chung/ui.tsx",
+      "sha256": "5F2642CF98A4FACBF7FF3BA3BE6761B1A425BE44DB4E9650782B0FA409A42498"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/dung-chung/xac-thuc/SecuritySettings.tsx",
+      "sha256": "0BC74E34AF3055167E68EA757E955857812F9AC6FFEBD08B6C14E8F730971342"
+    },
+    {
+      "path": "qa/acceptance_20261008/user-web-fixture/src/dung-chung/xac-thuc/settings.styles.ts",
+      "sha256": "19A1F347B833D808C88C8FC5CB0B430333009347FE51DD6227269FB75DDE2B87"
+    }
+  ]
+}

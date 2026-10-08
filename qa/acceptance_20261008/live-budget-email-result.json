@@ -1,0 +1,26 @@
+{
+  "jobs": [
+    {
+      "kind": "BUDGET",
+      "status": "DONE",
+      "attempts": 1,
+      "error_code": null
+    },
+    {
+      "kind": "EMAIL",
+      "status": "DONE",
+      "attempts": 1,
+      "error_code": null
+    }
+  ],
+  "email_logs": [
+    {
+      "type": "BUDGET_ALERT",
+      "status": "SENT"
+    }
+  ],
+  "inbox_delivery": "recipient confirmed inbox in chat on 2026-10-08",
+  "production_writes": false,
+  "synthetic_budget": 100000,
+  "synthetic_spent": 120000
+}

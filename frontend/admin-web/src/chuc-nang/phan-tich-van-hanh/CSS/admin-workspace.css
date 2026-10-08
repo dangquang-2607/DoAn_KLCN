@@ -1,0 +1,31 @@
+/* CSS riêng: phan-tich-van-hanh. Giữ thứ tự breakpoint. */
+
+.cf-admin .cf-period-toolbar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:15px 18px; border:1px solid var(--admin-border); border-radius:14px; background:#fff; }
+.cf-admin .cf-period-title { margin-right:auto; }
+.cf-admin .cf-period-title strong, .cf-admin .cf-period-title small { display:block; }
+.cf-admin .cf-period-title small { margin-top:3px; color:#718096; font-size:12px; }
+.cf-admin .cf-period-toolbar > select { width:105px; }
+.cf-admin .cf-period-navigation { display:flex; align-items:center; gap:6px; }
+.cf-admin .cf-period-navigation .cf-input { width:175px; }
+.cf-admin .cf-scope-note { display:flex; align-items:center; flex-wrap:wrap; gap:10px; font-size:13px; color:#6c7b8d; }
+.cf-admin .cf-scope-note > strong { color:#2d3b50; }
+.cf-admin .cf-volume { margin-bottom:0; }
+.cf-admin .cf-category-ranking { display:grid; gap:22px; margin:0; list-style:none; }
+.cf-admin .cf-category-ranking li { display:grid; grid-template-columns:32px minmax(0,1fr); align-items:center; gap:10px; font-size:14px; }
+.cf-admin .cf-rank { color:#8793a4; font-size:12px; font-variant-numeric:tabular-nums; }
+.cf-admin .cf-ranking-track { height:9px; margin-top:10px; border-radius:10px; background:#f0efed; overflow:hidden; }
+.cf-admin .cf-ranking-track span { display:block; height:100%; border-radius:inherit; background:var(--accent); }
+.cf-admin .cf-composition-ring { display:grid; place-items:center; width:180px; height:180px; margin:0 auto; border-radius:50%; }
+.cf-admin .cf-composition-ring > div { display:flex; flex-direction:column; align-items:center; justify-content:center; width:130px; height:130px; border-radius:50%; background:white; }
+.cf-admin .cf-composition-ring strong { font-size:32px; letter-spacing:-.05em; }
+.cf-admin .cf-composition-ring small { color:#768498; font-size:12px; }
+.cf-admin .cf-composition-legend { display:grid; gap:13px; list-style:none; margin:0; padding:0; font-size:13px; }
+.cf-admin .cf-composition-legend li { display:grid; grid-template-columns:8px minmax(0,1fr) auto 45px; gap:10px; align-items:center; }
+.cf-admin .cf-composition-legend small { text-align:right; color:#778497; }
+@media (max-width:767px) {
+  .cf-admin .cf-period-toolbar { padding:14px; gap:10px; }
+  .cf-admin .cf-period-title { flex:1; }
+  .cf-admin .cf-period-title small { display:none; }
+  .cf-admin .cf-period-navigation { flex:1 1 100%; }
+  .cf-admin .cf-period-navigation .cf-input { flex:1; width:0; }
+}

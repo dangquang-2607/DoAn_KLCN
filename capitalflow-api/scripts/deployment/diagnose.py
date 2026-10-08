@@ -32,7 +32,7 @@ def validate_url(url):
 def diagnose():
     stage = "configuration"
     try:
-        from app.shared.config import settings
+        from app.dung_chung.config import settings
         from sqlalchemy.engine import make_url
         from cryptography.fernet import Fernet
         url = make_url(settings.database_url)
@@ -48,7 +48,7 @@ def diagnose():
         stage = "tcp"
         with socket.create_connection((url.host, url.port), timeout=5):pass
         stage = "sql_authentication_and_tls"
-        from app.shared.database.engine import engine
+        from app.dung_chung.database.ket_noi import engine
         from sqlalchemy import text
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))

@@ -1,0 +1,8 @@
+/* CSS riêng: danh-muc-he-thong. Giữ thứ tự breakpoint. */
+
+.cf-admin .cf-category-library { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr)); gap:18px; }
+.cf-admin .cf-category-tile h2 { margin:18px 0 8px; font-size:17px; }
+.cf-admin .cf-category-tile.is-selected { border-color:var(--admin-violet); box-shadow:0 0 0 2px #8066a814; }
+.cf-admin .cf-category-tile p { font-size:12px; }
+.cf-admin .cf-category-keywords { color:#7c8898; height:38px; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.cf-admin .cf-category-tile-foot { padding-top:15px; border-top:1px solid var(--admin-border); }

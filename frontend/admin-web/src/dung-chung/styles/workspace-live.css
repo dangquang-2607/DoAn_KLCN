@@ -1,0 +1,24 @@
+/* CSS dùng chung nhiều tab. Giữ thứ tự breakpoint. */
+
+.cf-admin .adm-live { width:100%; max-width:none; padding:0; margin:0; border:0; border-radius:0; display:grid; gap:20px; background:transparent; container-type:inline-size; }
+.cf-admin .adm-live > * { margin-top:0; margin-bottom:0; }
+.cf-admin .adm-live :is(article,section,aside,div) { min-width:0; }
+.cf-admin .adm-live .cf-btn-primary { background:#273449; border-color:#273449; box-shadow:none; }
+.cf-admin .adm-live-actions { flex-wrap:wrap; justify-content:flex-end; }
+.cf-admin .adm-live .cf-inspector { padding:23px; top:90px; border-radius:18px; box-shadow:none; }
+.cf-admin .adm-live .cf-inspector-title { margin:0 0 6px; font-size:23px; letter-spacing:-.045em; }
+.adm-live-inspector-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; }
+.adm-live-inspector-head > div { display:flex; align-items:center; gap:9px; }
+.adm-live-inspector-head .adm-eyebrow { margin:0; }
+.adm-live .adm-rest-avatar--large { width:53px; height:53px; }
+.adm-live .adm-rest-controls { justify-content:flex-end; }
+.adm-live .adm-rest-heading { align-items:flex-start; }
+.adm-live .adm-rest-guidance { align-items:flex-start; }
+@container (max-width:1050px) {
+  .adm-live .adm-rest-heading { flex-wrap:wrap; }
+}
+@container (max-width:550px) {
+  .adm-live .adm-rest-controls { width:100%; align-items:stretch; flex-direction:column; }
+  .adm-live .adm-rest-controls > label select { width:100%; }
+  .adm-live .adm-rest-search { min-width:0; }
+}

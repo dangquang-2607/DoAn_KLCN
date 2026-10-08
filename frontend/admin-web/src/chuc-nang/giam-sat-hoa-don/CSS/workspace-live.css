@@ -1,0 +1,12 @@
+/* CSS riêng: giam-sat-hoa-don. Giữ thứ tự breakpoint. */
+
+.adm-live .adm-ocr-signal.is-alert { border-color:#ecd0c4; background:#fbede8; }
+.adm-live .adm-ocr-signal.is-alert :is(.adm-ocr-signal-icon,.adm-ocr-signal-badge) { color:#b45d47; }
+.adm-live .adm-ocr-signal.is-alert p { color:#b45d47; }
+.adm-live .adm-ocr-signal.is-alert div > span { color:#815f56; }
+@container (max-width:1050px) {
+  .adm-live .adm-ocr-flow-layout { grid-template-columns:minmax(0,1fr) 300px; gap:15px; }
+}
+@container (max-width:820px) {
+  .adm-live .adm-ocr-flow-layout, .adm-live .adm-ocr-secondary-grid { grid-template-columns:1fr; }
+}

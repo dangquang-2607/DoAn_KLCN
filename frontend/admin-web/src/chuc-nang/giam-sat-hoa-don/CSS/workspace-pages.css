@@ -1,0 +1,52 @@
+/* CSS riêng: giam-sat-hoa-don. Giữ thứ tự breakpoint. */
+
+.adm-ocr-chart { margin:0 20px 19px; padding:4px 0 0; border-bottom:1px solid #f1eeea; }
+.adm-ocr-chart--compact .adm-donut-chart { padding-bottom:22px; }
+.adm-ocr-chart--compact .adm-donut { width:190px; height:190px; }
+.adm-ocr-signal { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:16px; margin:0 0 20px; padding:17px 20px; border:1px solid #cfe5dd; border-radius:16px; background:#eaf5f0; }
+.adm-ocr-signal-icon { display:grid; place-items:center; width:44px; height:44px; border-radius:12px; color:#247b64; background:#ffffffb8; }
+.adm-ocr-signal p { margin:0 0 4px; color:#418270; font-size:10px; font-weight:850; letter-spacing:.11em; }
+.adm-ocr-signal h2 { margin:0 0 3px; font-size:18px; font-weight:750; letter-spacing:-.035em; }
+.adm-ocr-signal div > span { color:#587469; font-size:12px; line-height:1.5; }
+.adm-ocr-signal-badge { padding:8px 11px; border-radius:8px; color:#267b64; background:#fff; font-size:11px; font-weight:800; white-space:nowrap; }
+.adm-ocr-flow-card { margin:0 0 20px; }
+.adm-ocr-flow-card .adm-card-head { padding-bottom:8px; }
+.adm-ocr-flow-layout { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(300px,.8fr); align-items:center; gap:22px; padding:0 22px 21px; }
+.adm-ocr-chart--orbit { min-width:0; margin:0; padding:0; border:0; }
+.adm-ocr-stage-panel { min-width:0; padding:15px; border:1px solid #e8e5e0; border-radius:14px; background:#fbfaf8; }
+.adm-ocr-stage-panel-head { display:flex; align-items:end; justify-content:space-between; gap:10px; padding:2px 3px 13px; border-bottom:1px solid #e9e5df; }
+.adm-ocr-stage-panel-head div { display:grid; gap:4px; }
+.adm-ocr-stage-panel-head span { color:#ad7058; font-size:10px; font-weight:850; letter-spacing:.11em; }
+.adm-ocr-stage-panel-head strong { font-size:15px; letter-spacing:-.025em; }
+.adm-ocr-stage-panel-head small { color:#7b8794; font-size:11px; white-space:nowrap; }
+.adm-ocr-stage-list { display:grid; margin:0; padding:0; list-style:none; }
+.adm-ocr-stage-row { display:grid; grid-template-columns:23px 36px minmax(0,1fr) auto; align-items:center; gap:9px; min-height:65px; padding:8px 2px; border-bottom:1px solid #ece8e2; }
+.adm-ocr-stage-row:last-child { border-bottom:0; }
+.adm-ocr-stage-number { color:#a1a8b1; font-size:10px; font-weight:800; font-variant-numeric:tabular-nums; }
+.adm-ocr-stage-icon { display:grid; place-items:center; width:34px; height:34px; border-radius:9px; background:#eef1f3; color:#8295a5; }
+.adm-ocr-stage-row--blue .adm-ocr-stage-icon { color:#5788c2; background:#ebf2fa; }
+.adm-ocr-stage-row--amber .adm-ocr-stage-icon { color:#aa782a; background:#fbf2e3; }
+.adm-ocr-stage-row--teal .adm-ocr-stage-icon { color:#258b80; background:#e7f4f0; }
+.adm-ocr-stage-row--coral .adm-ocr-stage-icon { color:#c66d54; background:#fbede8; }
+.adm-ocr-stage-row > div { display:grid; gap:2px; min-width:0; }
+.adm-ocr-stage-row > div strong { font-size:13px; }
+.adm-ocr-stage-row > div small { color:#748092; font-size:11px; line-height:1.3; }
+.adm-ocr-stage-row > b { font-size:24px; font-weight:750; letter-spacing:-.04em; font-variant-numeric:tabular-nums; }
+.adm-ocr-stage-row.is-zero > b { color:#9aa4af; }
+.adm-ocr-secondary-grid { display:grid; grid-template-columns:1fr 1fr; align-items:stretch; gap:20px; }
+.adm-ocr-performance .adm-card-head > svg { color:var(--ad-teal); }
+.adm-ocr-performance-stats { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; padding:0 22px 22px; }
+.adm-ocr-performance-stats > div { display:flex; flex-direction:column; justify-content:end; min-width:0; min-height:135px; padding:15px; border:1px solid #e2eae5; border-radius:11px; background:#f1f7f4; }
+.adm-ocr-performance-stats > div:nth-child(2) { border-color:#e8e2dc; background:#faf7f2; }
+.adm-ocr-performance-stats > div:nth-child(3) { border-color:#e5e0ed; background:#f6f3fa; }
+.adm-ocr-performance-stats span, .adm-ocr-performance-stats small { color:#687789; font-size:11px; }
+.adm-ocr-performance-stats strong { margin:7px 0 4px; font-size:32px; line-height:1; letter-spacing:-.055em; font-variant-numeric:tabular-nums; }
+.adm-ocr-performance-stats em { margin-left:3px; font-size:12px; font-style:normal; letter-spacing:0; }
+.adm-ocr-failures .adm-card-head { border-bottom:1px solid #f0ede9; }
+.adm-ocr-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:161px; text-align:center; gap:7px; padding:24px 18px; }
+.adm-ocr-empty svg { color:var(--ad-teal); }
+.adm-ocr-empty strong { font-size:14px; }
+.adm-ocr-empty span { max-width:410px; color:var(--ad-muted); font-size:12px; line-height:1.5; }
+@media (max-width:1000px) { .adm-ocr-flow-layout, .adm-ocr-secondary-grid { grid-template-columns:1fr; } .adm-ocr-chart--orbit { max-width:730px; margin:0 auto; } }
+@media (max-width:640px) { .adm-ocr-signal { grid-template-columns:auto minmax(0,1fr); align-items:start; } .adm-ocr-signal-badge { grid-column:2; justify-self:start; } .adm-ocr-flow-layout { gap:8px; padding:0 16px 18px; } .adm-ocr-stage-panel { padding:12px; } .adm-ocr-performance-stats { grid-template-columns:repeat(2,minmax(0,1fr)); padding:0 18px 18px; } .adm-ocr-performance-stats > div:nth-child(3) { grid-column:1 / -1; } }
+@media (max-width:390px) { .adm-ocr-stage-row { grid-template-columns:18px 32px minmax(0,1fr) auto; gap:7px; } }

@@ -3,27 +3,19 @@
 .venv
 __pycache__
 *.pyc
-.pytest_cache
 uploads
 email_previews
 .git
 
 # Script phát triển và mã sinh tự động không cần trong runtime.
 scripts/
-!scripts/
-scripts/*
-!scripts/load_test_target.py
-!scripts/distributed_load_test.py
-tests/
 docs/
 artifacts/
-requirements-dev.txt
 
 # Cấu hình IDE/editor.
 .vscode/
 .idea/
 pyrightconfig.json
-pytest.ini
 
 # Tài liệu và bản tổng kết.
 *.md

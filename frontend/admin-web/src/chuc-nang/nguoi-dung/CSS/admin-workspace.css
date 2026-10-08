@@ -1,0 +1,10 @@
+/* CSS riêng: nguoi-dung. Giữ thứ tự breakpoint. */
+
+.cf-admin .cf-user-identity { display:flex; gap:12px; align-items:center; }
+.cf-admin .cf-user-identity > div { min-width:0; }
+.cf-admin .cf-user-identity .cf-avatar { flex-shrink:0; }
+.cf-admin .cf-user-table td { padding-top:17px; padding-bottom:17px; }
+.cf-admin .cf-user-table td:first-child { width:38px; }
+.cf-admin .cf-user-state { display:flex; flex-direction:column; align-items:flex-start; gap:6px; }
+.cf-admin .cf-user-state small { color:#748398; font-size:11px; }
+.cf-admin .cf-user-actions { display:flex; flex-wrap:nowrap; gap:6px; }

@@ -1,0 +1,9 @@
+/* Form bảo mật dùng chung. Giữ thứ tự breakpoint. */
+
+.adm-live .adm-settings-password .cf-password input { padding-right:44px; }
+.adm-live .adm-settings-password .cf-password button { top:0; }
+.adm-live .adm-settings-session > div { min-width:0; overflow-wrap:anywhere; }
+.adm-live .adm-settings-hero div > span { overflow-wrap:anywhere; }
+@container (max-width:820px) {
+  .adm-live .adm-settings-layout { grid-template-columns:1fr; }
+}

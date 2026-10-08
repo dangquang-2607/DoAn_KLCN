@@ -13,10 +13,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "capitalflow-api"))
 
 from sqlalchemy import select
-from app.core.database import SessionLocal
-from app.core.security import hash_password
-from app.models.user import User, UserRole
-from app.models.category import Category, CategoryType
+from app.dung_chung.database.session import SessionLocal
+from app.dung_chung.security.passwords import hash_password
+from app.chuc_nang.nguoi_dung.dang_nhap.luu_tru.nguoi_dung import User, UserRole
+from app.chuc_nang.nguoi_dung.danh_muc.luu_tru.danh_muc import Category, CategoryType
 
 
 # Thông tin bootstrap không có giá trị mặc định và không được ghi vào log.
@@ -80,6 +80,7 @@ def seed():
             existing = db.scalar(
                 select(Category).where(
                     Category.name == cat_data["name"],
+                    Category.type == cat_data["type"],
                     Category.owner_user_id.is_(None),
                 )
             )
@@ -88,7 +89,7 @@ def seed():
                 created += 1
             else:
                 for key in ("icon", "color", "sort_order", "keywords"):
-                    setattr(existing, key, cat_data[key])
+                    setattr(existing, key, cat_data.get(key))
 
         db.commit()
         print(f"  [OK]   Danh mục hệ thống: {created} mới / {len(SYSTEM_CATEGORIES)} tổng")

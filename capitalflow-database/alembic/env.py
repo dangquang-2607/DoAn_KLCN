@@ -26,9 +26,9 @@ API_ROOT = REPOSITORY_ROOT / "capitalflow-api"
 sys.path.insert(0, str(API_ROOT))
 
 # Import tập trung đăng ký đủ 17 bảng nghiệp vụ vào Base.metadata.
-import app.models  # noqa: E402,F401
-from app.core.config import settings  # noqa: E402
-from app.models.base import Base  # noqa: E402
+import app.dung_chung.database.dang_ky_mo_hinh  # noqa: E402,F401
+from app.dung_chung.config import settings  # noqa: E402
+from app.dung_chung.database.nen_tang import Base  # noqa: E402
 
 
 config = context.config

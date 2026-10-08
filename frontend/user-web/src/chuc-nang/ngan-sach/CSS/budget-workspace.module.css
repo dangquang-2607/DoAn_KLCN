@@ -1,0 +1,14 @@
+.groups { display: grid; gap: 22px; padding: 0 20px 20px; }
+.group { min-width: 0; }
+.group h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; color: var(--cf-muted); font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.group h3 span { display: inline-grid; place-items: center; min-width: 20px; min-height: 20px; border-radius: 5px; background: #f1f4f7; letter-spacing: 0; }
+.list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.list li { min-width: 0; }
+.description { display: grid; gap: 3px; }
+.description > span:last-child { font-size: 11px; }
+.summary { display: grid; gap: 6px; max-width: 160px; text-align: right; overflow-wrap: anywhere; }
+.summary strong { font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.summary > span { color: var(--cf-muted); font-size: 11px; line-height: 1.4; }
+.summary > span[data-status="EXCEEDED"] { color: var(--cf-danger); }
+.summary > span[data-status="WARNING"] { color: #946400; }
+@media (max-width: 520px) { .groups { padding: 0 12px 12px; } .summary { max-width: none; text-align: left; gap: 3px; } }

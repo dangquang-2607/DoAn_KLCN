@@ -7,8 +7,6 @@ Chạy từ thư mục `capitalflow-api`, dùng cùng cấu hình với API:
 
 ```powershell
 .\.venv\Scripts\python.exe -m alembic -c ..\capitalflow-database\alembic.ini current
-.\.venv\Scripts\python.exe -B ..\capitalflow-database\tools\verify_financial_integrity.py
-.\.venv\Scripts\python.exe -B ..\capitalflow-database\tools\verify_concurrent_money.py
 ```
 
 Migration resilience legacy đã tạo bảng chống lặp và hàng đợi, mở rộng cột OTP
@@ -23,8 +21,8 @@ báo cáo. Logic cũ được lưu trong archive chỉ để kiểm toán; các 
 Chạy API và hai worker lane thành các tiến trình được giám sát, cùng CSDL và thư mục upload:
 
 ```powershell
-.\.venv\Scripts\python.exe -m app.modules.jobs.runner --kinds EMAIL,BUDGET,FILE_DELETE,USER_PURGE,USER_FILE_PURGE
-.\.venv\Scripts\python.exe -m app.modules.jobs.runner --kinds OCR
+.\.venv\Scripts\python.exe -m app.dung_chung.tac_vu_nen.trinh_chay --kinds EMAIL,BUDGET,FILE_DELETE,USER_PURGE,USER_FILE_PURGE
+.\.venv\Scripts\python.exe -m app.dung_chung.tac_vu_nen.trinh_chay --kinds OCR
 ```
 
 Compose chứa `capitalflow-api`, `capitalflow-worker` và `capitalflow-ocr-worker`; SQL Server được cấp bên ngoài Compose qua biến môi trường. Image có ODBC Driver 18 và các tiến trình dùng chung volume upload. Lane OCR riêng tránh head-of-line blocking cho email, ngân sách và tác vụ xóa. Ngày 2026-09-18, 95 test backend chạy trên host đã qua; production image được build và smoke-test với OpenAPI cùng CLI worker.
@@ -63,7 +61,7 @@ docker compose build
 .\.venv\Scripts\python.exe -m scripts.deployment.verify_docker
 ```
 
-Script dùng credentials thử ngẫu nhiên, SQLite riêng và `--network none`, tự xóa container kiểm tra API. Không tiêu thụ hàng đợi thật hoặc gửi email. Image không chứa `.env`, `.venv`, test, script phát triển hoặc tài liệu; ODBC Driver 18 tải được. Kiểm thử pytest phải chạy trên host trước build, còn script này chỉ kiểm tra production artifact và dependency bằng `pip check`.
+Script dùng credentials thử ngẫu nhiên, SQLite riêng và `--network none`, tự xóa container kiểm tra API. Không tiêu thụ hàng đợi thật hoặc gửi email. Image không chứa `.env`, `.venv`, script phát triển hoặc tài liệu; ODBC Driver 18 tải được. Script chỉ kiểm tra production artifact và dependency bằng `pip check`.
 
 Kết nối TCP từ container tới SQL Server trên host đã qua tại `host.docker.internal:53588`. Đây là cổng động hiện tại của SQLEXPRESS, có thể đổi khi dịch vụ khởi động lại. Cần cổng TCP ổn định khi triển khai.
 

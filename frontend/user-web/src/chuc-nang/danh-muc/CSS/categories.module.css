@@ -1,0 +1,14 @@
+.list { display: grid; gap: 8px; margin: 0; padding: 0 20px 20px; list-style: none; }
+.list li { min-width: 0; }
+.details { display: grid; gap: 22px; }
+.facts { display: grid; gap: 0; margin: 0; }
+.facts > div { display: flex; justify-content: space-between; gap: 20px; padding: 14px 0; border-bottom: 1px solid var(--cf-line); font-size: 13px; }
+.facts dt { color: var(--cf-muted); }
+.facts dd { margin: 0; text-align: right; font-weight: 550; }
+.keywords h3 { margin: 0 0 10px; font-size: 13px; font-weight: 600; }
+.keywords p { margin: 0; font-size: 13px; color: var(--cf-muted); }
+.tags { display: flex; flex-wrap: wrap; gap: 7px; }
+.tags span { max-width: 100%; padding: 5px 9px; border: 1px solid var(--cf-line); border-radius: 6px; background: #f8fafb; color: var(--cf-muted); font-size: 12px; overflow-wrap: anywhere; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.notice { margin: 0; padding: 14px; border-radius: 9px; background: #f5f7fa; color: var(--cf-muted); font-size: 12px; line-height: 1.7; }
+@media (max-width: 520px) { .list { padding: 0 12px 12px; } .actions > button { width: 100%; } }

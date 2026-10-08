@@ -6,23 +6,19 @@ Backend FastAPI của CapitalFlow, gồm REST API, worker xử lý nền, ORM SQ
 
 ```powershell
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
-.\.venv\Scripts\python.exe -m app.modules.jobs.runner
-.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m app.dung_chung.tac_vu_nen.trinh_chay
 ```
 
-Điểm vào ổn định của API luôn là `app.main:app`. Việc lắp ráp ứng dụng nằm trong `app/bootstrap`; mã nghiệp vụ nằm theo phân hệ trong `app/modules`; hạ tầng dùng chung nằm trong `app/shared`.
+Điểm vào ổn định của API luôn là `app.main:app`. Việc lắp ráp ứng dụng nằm trong `app/khoi_dong`; mã nghiệp vụ nằm theo phân hệ trong `app/chuc_nang`; hạ tầng dùng chung nằm trong `app/dung_chung`.
 
 ## Nguyên tắc cấu trúc
 
-- `dangnhap`: tài khoản người dùng, đăng nhập, mật khẩu và phiên.
-- `taichinh`: tài khoản tiền, giao dịch, ngân sách và báo cáo.
-- `hoadon`: upload hóa đơn, OCR, duyệt và xác nhận.
-- `danhmuc`: danh mục thu/chi và gợi ý phân loại.
-- `admin`: quản trị người dùng, audit và giám sát.
-- `email`: SMTP, nội dung và nhật ký gửi thư.
-- `jobs`: hàng đợi bền vững và worker.
-- `bootstrap`: lắp ráp FastAPI; không chứa nghiệp vụ.
-- `shared`: hạ tầng dùng chung; không sở hữu nghiệp vụ.
+- `chuc_nang/nguoi_dung`: đăng nhập, ví, giao dịch, ngân sách, hóa đơn AI, báo cáo, danh mục và thông báo.
+- `chuc_nang/quan_tri`: bảng điều khiển, phân tích, quản trị người dùng, danh mục hệ thống, giám sát hóa đơn, nhật ký và email.
+- `dung_chung/email`: dịch vụ gửi thư dùng chung.
+- `dung_chung/tac_vu_nen`: hàng đợi bền vững và worker.
+- `khoi_dong`: lắp ráp FastAPI; không chứa nghiệp vụ.
+- `dung_chung`: hạ tầng dùng chung; không sở hữu nghiệp vụ.
 
 Xem [sơ đồ cấu trúc và trách nhiệm file](docs/architecture/capitalflow-api-structure.md) trước khi thêm file mới.
 

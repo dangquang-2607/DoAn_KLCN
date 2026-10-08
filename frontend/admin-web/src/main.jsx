@@ -22,8 +22,9 @@ import 'bootstrap/dist/css/bootstrap.min.css'
 import 'bootstrap/dist/js/bootstrap.bundle.min.js'
 
 // Nạp style dự án sau Bootstrap; không đảo thứ tự nếu chưa kiểm tra trực quan.
-import './index.css'
-import './swiss.css'
+import './dung-chung/styles/index.css'
+import './dung-chung/styles/swiss.css'
+import './workspace.css'
 import App from './App.jsx'
 
 const queryClient = new QueryClient({

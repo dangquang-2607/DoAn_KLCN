@@ -1,0 +1,225 @@
+.cardBody {
+  display: flex;
+  min-height: 210px;
+  height: 100%;
+  flex-direction: column;
+  padding: 18px;
+}
+
+.cardBody .cardName {
+  margin: 16px 0 0;
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+
+.cardSubtitle {
+  margin: 3px 0 0;
+  color: var(--cf-muted);
+  font-size: 12px;
+}
+
+.cardSummary {
+  margin: 14px 0;
+}
+
+.cardFooter {
+  margin-top: auto;
+}
+
+.details {
+  display: grid;
+  gap: 18px;
+}
+
+.detailHero {
+  display: grid;
+  justify-items: start;
+  gap: 5px;
+  padding: 18px;
+  border: 1px solid #dbe5fa;
+  border-radius: 12px;
+  background: #f5f8ff;
+}
+
+.detailHero > :first-child {
+  margin-bottom: 7px;
+}
+
+.detailBalance {
+  color: var(--cf-ink);
+  font-size: clamp(24px, 4vw, 32px);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.infoGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 18px;
+}
+
+.infoGrid > div {
+  min-width: 0;
+}
+
+.infoGrid strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.bankDetails {
+  display: grid;
+  gap: 14px;
+  padding-top: 18px;
+  border-top: 1px solid var(--cf-line);
+}
+
+.bankDetails h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.bankDetails button {
+  justify-self: start;
+}
+
+.detailActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 18px;
+  border-top: 1px solid var(--cf-line);
+}
+
+.savings {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid #e2e8f4;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.label {
+  display: block;
+  color: var(--cf-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.goal,
+.deadline {
+  min-width: 0;
+}
+
+.goalValue {
+  display: block;
+  margin-top: 2px;
+  color: var(--cf-ink);
+  font-size: clamp(20px, 2vw, 26px);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.deadlineValue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 8px;
+  font-size: 13px;
+}
+
+.deadlineValue time {
+  font-weight: 650;
+}
+
+.days {
+  color: var(--cf-muted);
+}
+
+.achieved {
+  color: var(--cf-success);
+  font-weight: 650;
+}
+
+.progressHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-top: 12px;
+  border-top: 1px solid var(--cf-line);
+  font-size: 14px;
+}
+
+.progressHeader span {
+  color: var(--cf-success);
+  font-weight: 700;
+}
+
+.amounts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.amounts > div {
+  min-width: 0;
+}
+
+.amounts > div:last-child {
+  text-align: right;
+}
+
+.amounts strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.saved {
+  color: #1768c7;
+}
+
+.needed {
+  color: #c25061;
+}
+
+.progress {
+  display: block;
+  width: 100%;
+  height: 9px;
+  border: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #e3e8ef;
+  accent-color: #26a65b;
+}
+
+.progress::-webkit-progress-bar {
+  border-radius: 999px;
+  background: #e3e8ef;
+}
+
+.progress::-webkit-progress-value {
+  border-radius: 999px;
+  background: #26a65b;
+}
+
+.progress::-moz-progress-bar {
+  border-radius: 999px;
+  background: #26a65b;
+}
+
+@media (max-width: 520px) {
+  .infoGrid {
+    grid-template-columns: 1fr;
+  }
+}

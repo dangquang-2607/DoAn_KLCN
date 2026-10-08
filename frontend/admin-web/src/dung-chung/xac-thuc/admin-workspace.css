@@ -1,0 +1,17 @@
+/* Form bảo mật dùng chung. Giữ thứ tự breakpoint. */
+
+.cf-admin .cf-security-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:22px; align-items:start; }
+.cf-admin .cf-security-profile { grid-column:1 / -1; background:linear-gradient(100deg,#fff,#f4eff9); }
+.cf-admin .cf-security-profile .cf-label { margin-left:auto; }
+.cf-admin .cf-security-profile h2 { margin:0 0 5px; font-size:22px; }
+.cf-admin .cf-security-profile p { margin:0; }
+.cf-admin .cf-security-profile .cf-eyebrow { margin:0 0 8px; }
+.cf-admin .cf-security-layout.is-first-time { display:block; }
+.cf-admin .cf-session-row { display:grid; grid-template-columns:42px minmax(0,1fr); align-items:start; gap:14px; }
+.cf-admin .cf-session-row > .cf-muted { grid-column:2; font-size:11px; }
+.cf-admin .cf-session-row strong { overflow-wrap:anywhere; }
+@media (max-width:767px) {
+  .cf-admin .cf-security-layout { grid-template-columns:1fr; }
+  .cf-admin .cf-security-profile .cf-row { flex-wrap:wrap; }
+  .cf-admin .cf-security-profile .cf-row > div { flex:1; min-width:160px; }
+}

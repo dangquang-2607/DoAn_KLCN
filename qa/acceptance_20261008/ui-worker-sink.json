@@ -1,0 +1,130 @@
+{
+  "processed": 4,
+  "external_emails_sent": 0,
+  "smtp_sink_calls": 3,
+  "jobs": [
+    {
+      "kind": "BUDGET",
+      "status": "DEAD",
+      "error": "ValueError"
+    },
+    {
+      "kind": "BUDGET",
+      "status": "DEAD",
+      "error": "ValueError"
+    },
+    {
+      "kind": "BUDGET",
+      "status": "DEAD",
+      "error": "ValueError"
+    },
+    {
+      "kind": "BUDGET",
+      "status": "DEAD",
+      "error": "ValueError"
+    },
+    {
+      "kind": "BUDGET",
+      "status": "DEAD",
+      "error": "ValueError"
+    },
+    {
+      "kind": "OCR",
+      "status": "DONE",
+      "error": null
+    },
+    {
+      "kind": "BUDGET",
+      "status": "DEAD",
+      "error": "ValueError"
+    },
+    {
+      "kind": "EMAIL",
+      "status": "DONE",
+      "error": null
+    },
+    {
+      "kind": "EMAIL",
+      "status": "DONE",
+      "error": null
+    },
+    {
+      "kind": "EMAIL",
+      "status": "DONE",
+      "error": null
+    },
+    {
+      "kind": "EMAIL",
+      "status": "DONE",
+      "error": null
+    },
+    {
+      "kind": "EMAIL",
+      "status": "DONE",
+      "error": null
+    },
+    {
+      "kind": "BUDGET",
+      "status": "DONE",
+      "error": null
+    },
+    {
+      "kind": "EMAIL",
+      "status": "DONE",
+      "error": null
+    },
+    {
+      "kind": "EMAIL",
+      "status": "DONE",
+      "error": null
+    },
+    {
+      "kind": "EMAIL",
+      "status": "DONE",
+      "error": null
+    },
+    {
+      "kind": "EMAIL",
+      "status": "DONE",
+      "error": null
+    }
+  ],
+  "email_logs": [
+    {
+      "type": "ACCOUNT_CREATED",
+      "status": "SENT"
+    },
+    {
+      "type": "ACCOUNT_BANNED",
+      "status": "SENT"
+    },
+    {
+      "type": "ACCOUNT_UNBANNED",
+      "status": "SENT"
+    },
+    {
+      "type": "ACCOUNT_DELETED",
+      "status": "SENT"
+    },
+    {
+      "type": "ACCOUNT_RESTORED",
+      "status": "SENT"
+    },
+    {
+      "type": "BUDGET_ALERT",
+      "status": "SENT"
+    },
+    {
+      "type": "ROLE_UPDATED",
+      "status": "SENT"
+    },
+    {
+      "type": "ROLE_UPDATED",
+      "status": "SENT"
+    },
+    {
+      "type": "RESET_PASSWORD_TEMP",
+      "status": "SENT"
+    }
+  ]
+}

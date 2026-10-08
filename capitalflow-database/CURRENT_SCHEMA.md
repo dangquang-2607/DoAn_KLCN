@@ -1,5 +1,41 @@
 # Schema hiện tại của CapitalFlow
 
+## Cập nhật ngân sách định kỳ ngày 2026-10-02
+
+- Database chính `personal_finance` đã nâng lên `cfdb_recurring_budgets`. Năm ngân sách cũ vẫn là ngân sách có ngày cố định; không tự đổi thành định kỳ.
+- Thêm `budgets.is_recurring`, `budgets.recurrence_end_date` và bảng `budget_changes` để lưu tên, hạn mức, ngưỡng, tạm dừng/tiếp tục theo ngày hiệu lực.
+- Đã thử migration và `alembic check` trên SQL Server tạm `capitalflow_budget_verify_20261002_014038` (được giữ để đối chiếu).
+- Đã tạo backup `COPY_ONLY` và `RESTORE VERIFYONLY` thành công: `C:\Program Files\Microsoft SQL Server\MSSQL16.SQLEXPRESS\MSSQL\Backup\CapitalFlow_pre_recurring_budgets_20261002_014044.bak`.
+- Sau nâng cấp, số bản ghi `users`, `categories`, `budgets`, `transactions`, `notifications` giữ nguyên; cả năm ngân sách cũ có `is_recurring = 0`.
+
+## Cập nhật trung tâm thông báo ngày 2026-09-30
+
+- Database chính `personal_finance` hiện ở revision `cfdb_notifications`.
+  Migration thêm bảng `notifications` (gắn với `users`, có loại, mức độ,
+  nguồn phát sinh, liên kết điều hướng, thời điểm đọc và khóa chống trùng).
+- Trước khi nâng, bản sao lưu `COPY_ONLY` đã vượt `RESTORE VERIFYONLY`:
+  `C:\Program Files\Microsoft SQL Server\MSSQL16.SQLEXPRESS\MSSQL\Backup\CapitalFlow_pre_notifications_20260930_083310.bak`.
+- Đối chiếu trước/sau nâng: `accounts` 18, `transactions` 187; một thông báo
+  cũ trong `accounts.savings_state` được chuyển sang bảng mới, giữ trạng thái
+  đã đọc nếu có. JSON cũ chưa bị xóa bởi migration để giữ khả năng đối chiếu.
+- Đã thử migration và `alembic check` trên SQL Server tạm
+  `capitalflow_notification_verify_20260930_082723`. Database kiểm chứng
+  được giữ lại, chưa xóa.
+- Các phần bên dưới là lịch sử của các đợt baseline và ví mô phỏng; không
+  phản ánh revision mới nhất nếu đọc riêng lẻ.
+
+## Cập nhật ví và ngân hàng mô phỏng ngày 2026-09-29
+
+- Database chính `personal_finance` đã nâng từ `cfdb_20260924_baseline` lên
+  `cfdb_wallet_demo` sau khi migration được thử trên SQL Server tạm theo chuỗi
+  nâng → hạ → nâng và backup `COPY_ONLY` qua `RESTORE VERIFYONLY`.
+- Số bản ghi sau nâng giữ nguyên: `accounts` 12, `transactions` 176.
+- Bổ sung 7 cột `accounts`, 1 cột `transactions` và unique index có điều kiện
+  cho tham chiếu giao dịch ngân hàng; không thêm bảng và không xóa dữ liệu cũ.
+- `alembic current` báo `cfdb_wallet_demo (head)`; `alembic check` không phát hiện
+  thay đổi schema còn thiếu.
+- Các mục kiểm kê phía dưới ghi lại đợt baseline ngày 24/09 để đối chiếu lịch sử.
+
 ## Nguồn kiểm kê
 
 - SQL Server: `localhost\SQLEXPRESS`.

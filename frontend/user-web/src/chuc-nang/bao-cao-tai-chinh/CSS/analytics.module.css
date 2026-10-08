@@ -1,0 +1,80 @@
+/* Style riêng của tab; các class nền được compose từ dung-chung. */
+.canvas { composes: canvas from "../../../dung-chung/styles/finance-visuals.module.css"; }
+.overline { composes: overline from "../../../dung-chung/styles/finance-visuals.module.css"; }
+.sectionHead { composes: sectionHead from "../../../dung-chung/styles/finance-visuals.module.css"; }
+.charts { composes: charts from "../../../dung-chung/styles/finance-visuals.module.css"; }
+.panel { composes: panel from "../../../dung-chung/styles/finance-visuals.module.css"; }
+.panelPurple { composes: panelPurple from "../../../dung-chung/styles/finance-visuals.module.css"; }
+.panelOlive { composes: panelOlive from "../../../dung-chung/styles/finance-visuals.module.css"; }
+.legend { composes: legend from "../../../dung-chung/styles/finance-visuals.module.css"; }
+.dot { composes: dot from "../../../dung-chung/styles/finance-visuals.module.css"; }
+.chart { composes: chart from "../../../dung-chung/styles/finance-visuals.module.css"; }
+.donut { composes: donut from "../../../dung-chung/styles/finance-visuals.module.css"; }
+.donutCenter { composes: donutCenter from "../../../dung-chung/styles/finance-visuals.module.css"; }
+.miniList { composes: miniList from "../../../dung-chung/styles/finance-visuals.module.css"; }
+.empty { composes: empty from "../../../dung-chung/styles/finance-visuals.module.css"; }
+
+.secondary { display: grid; grid-template-columns: minmax(0, 1.13fr) minmax(0, .87fr); gap: 18px; }
+.kpis { border-radius: 17px; }
+.panelSand { background: #f7f3ed; }
+.chartTall { height: 310px; }
+.chartSmall { height: 220px; }
+.reportHeading { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.reportHeading h1 { font-size: clamp(28px, 2.6vw, 39px); margin: 5px 0 3px; letter-spacing: -.06em; }
+.reportHeading p { margin: 0; color: var(--muted); font-size: 12px; }
+.partial { display: inline-block; margin-left: 9px; border-radius: 999px; background: #f9e6d6; color: #955d42; padding: 5px 9px; font-size: 10px; font-weight: 750; vertical-align: middle; }
+.reportActions { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; justify-content: flex-end; }
+.filter { position: relative; z-index: 5; display: flex; align-items: center; gap: 5px; min-height: 46px; padding: 4px; border: 1px solid #e7e0dc; border-radius: 13px; background: #fffefa; }
+.modeMenu { position: relative; }
+.modeMenu summary { list-style: none; min-width: 102px; height: 36px; padding: 0 8px; border-radius: 9px; display: flex; align-items: center; gap: 8px; cursor: pointer; color: #654482; font-size: 12px; font-weight: 750; }
+.modeMenu summary::-webkit-details-marker { display: none; }
+.modeMenu summary:hover, .modeMenu[open] summary { background: #f2eaf5; }
+.modeMenu summary svg:last-child { margin-left: auto; }
+.modeOptions { position: absolute; top: calc(100% + 11px); left: -5px; width: 270px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: #fffefa; border: 1px solid #e7e0dc; border-radius: 14px; padding: 10px; box-shadow: 0 16px 40px #28213418; }
+.modeOptions > span { grid-column: 1 / -1; color: #a1869c; font-size: 9px; letter-spacing: .13em; font-weight: 800; padding: 5px 8px; }
+.modeOptions button { display: flex; align-items: center; gap: 8px; border: 0; border-radius: 9px; background: transparent; color: #6e6871; text-align: left; font-size: 12px; font-weight: 650; padding: 10px 9px; }
+.modeOptions button:hover, .modeOptions button.active { background: #f1e8f6; color: #694699; }
+.filterDivider { height: 21px; width: 1px; background: #e8e2dc; }
+.periodPicker { display: flex; align-items: center; background: #f4f1f4; border-radius: 9px; }
+.periodPicker button { display: grid; place-items: center; height: 36px; width: 31px; border: 0; border-radius: 9px; background: transparent; color: #776d7a; }
+.periodPicker button:hover:not(:disabled) { background: #e9e0ed; }
+.periodPicker button:disabled { color: #c8c1c7; }
+.periodPicker > span { min-width: 145px; height: 24px; padding: 0 9px; border-left: 1px solid #e2dce3; border-right: 1px solid #e2dce3; display: grid; place-items: center; color: #3f3545; font-size: 12px; font-weight: 730; white-space: nowrap; }
+.reset { width: 30px; height: 30px; display: grid; place-items: center; color: #78559b; border: 0; border-radius: 8px; background: transparent; }
+.reset:hover { background: #f2eaf5; }
+.dates { display: flex; align-items: center; gap: 6px; padding: 0 5px; }
+.dates > div { display: flex; align-items: center; gap: 5px; }
+.dates label { color: #8b848e; font-size: 10px; font-weight: 700; }
+.dates :global(.cf-date-input) { width: 123px; }
+.dates :global(.cf-date-input-field) { min-height: 34px; height: 34px; background: #f4f1f4; border: 0; border-radius: 7px; padding: 6px 30px 6px 8px; font-size: 11px; }
+.allLabel { white-space: nowrap; color: #756679; font-size: 11px; padding: 0 9px; }
+.kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: #fffefa; border: 1px solid var(--line); overflow: hidden; }
+.kpis > div { min-width: 0; display: grid; gap: 7px; padding: 21px 25px; border-right: 1px solid var(--line); }
+.kpis > div:last-child { border: 0; background: #f6f0fa; }
+.kpis span { color: #8e8790; font-size: 12px; }
+.kpis strong { font-size: clamp(21px, 2vw, 31px); line-height: 1.2; white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: -.05em; }
+.kpis > div:first-child strong { color: var(--teal); }
+.kpis > div:nth-child(2) strong { color: var(--coral); }
+.kpis > div:last-child strong { color: var(--purple); }
+.kpis small, .footnote { color: #928b93; font-size: 11px; }
+.compareList { display: grid; gap: 13px; margin-top: 20px; }
+.compareTop { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; }
+.compareTop span { display: inline-flex; gap: 7px; align-items: center; }
+.compareBars { display: grid; gap: 3px; margin-top: 6px; }
+.compareBars span { display: block; height: 5px; border-radius: 9px; }
+.compareBars span:last-child { background: #d9d5d1; }
+.compareRow small { color: #9a929a; font-size: 10px; }
+.footnote { margin: -2px 0 0; }
+.reportCanvas .overline { font-size: 11px; }
+.reportCanvas .reportHeading p, .reportCanvas .sectionHead p { font-size: 14px; line-height: 1.5; }
+.reportCanvas .sectionHead h2 { font-size: 23px; }
+.reportCanvas .legend, .reportCanvas .miniList > div, .reportCanvas .compareTop { font-size: 13px; }
+.reportCanvas .miniList strong, .reportCanvas .donutCenter small, .reportCanvas .compareRow small { font-size: 12px; }
+.reportCanvas .kpis span, .reportCanvas .empty { font-size: 14px; }
+.reportCanvas .kpis small, .reportCanvas .footnote { font-size: 13px; line-height: 1.5; }
+.reportCanvas .modeMenu summary, .reportCanvas .modeOptions button, .reportCanvas .periodPicker > span, .reportCanvas .allLabel { font-size: 13px; }
+.reportCanvas .dates label { font-size: 12px; }
+.reportCanvas .dates :global(.cf-date-input-field) { font-size: 13px; }
+@media (max-width: 1200px) { .reportHeading { flex-wrap: wrap; } .reportActions { justify-content: flex-start; } }
+@media (max-width: 800px) { .secondary { grid-template-columns: 1fr; } .kpis strong { font-size: 22px; } }
+@media (max-width: 540px) { .reportActions { width: 100%; } .filter { width: 100%; flex-wrap: wrap; } .periodPicker { flex: 1; } .periodPicker > span { flex: 1; min-width: 0; padding: 0 3px; font-size: 11px; } .dates { flex-wrap: wrap; } .kpis { grid-template-columns: 1fr 1fr; } .kpis > div { padding: 15px; } .kpis > div:nth-child(2) { border-right: 0; } .kpis > div:last-child { grid-column: 1 / -1; border-top: 1px solid var(--line); } .kpis strong { font-size: clamp(14px, 4vw, 19px); white-space: normal; overflow-wrap: anywhere; } }

@@ -1,0 +1,31 @@
+/* Danh sách import CSS của router. Giữ thứ tự nền → trang → responsive.
+ * Nội dung riêng nằm tại chuc-nang/<tab>/CSS; không thêm rule tại đây. */
+@import "./dung-chung/styles/admin-workspace.css";
+@import "./chuc-nang/bang-dieu-khien/CSS/admin-workspace.css";
+@import "./chuc-nang/phan-tich-van-hanh/CSS/admin-workspace.css";
+@import "./chuc-nang/giam-sat-hoa-don/CSS/admin-workspace.css";
+@import "./chuc-nang/danh-muc-he-thong/CSS/admin-workspace.css";
+@import "./chuc-nang/email-cau-hinh/CSS/admin-workspace.css";
+@import "./dung-chung/xac-thuc/admin-workspace.css";
+@import "./chuc-nang/nguoi-dung/CSS/admin-workspace.css";
+@import "./dung-chung/styles/workspace-pages.css";
+@import "./chuc-nang/bang-dieu-khien/CSS/workspace-pages.css";
+@import "./chuc-nang/giam-sat-hoa-don/CSS/workspace-pages.css";
+@import "./chuc-nang/nhat-ky-quan-tri/CSS/workspace-pages.css";
+@import "./dung-chung/styles/workspace-sections.css";
+@import "./chuc-nang/nguoi-dung/CSS/workspace-sections.css";
+@import "./chuc-nang/danh-muc-he-thong/CSS/workspace-sections.css";
+@import "./chuc-nang/email-cau-hinh/CSS/workspace-sections.css";
+@import "./dung-chung/xac-thuc/workspace-sections.css";
+@import "./chuc-nang/cai-dat-bao-mat/CSS/workspace-sections.css";
+@import "./chuc-nang/phan-tich-van-hanh/CSS/system-analytics.css";
+@import "./dung-chung/styles/workspace-live.css";
+@import "./chuc-nang/nguoi-dung/CSS/workspace-live.css";
+@import "./chuc-nang/danh-muc-he-thong/CSS/workspace-live.css";
+@import "./chuc-nang/email-cau-hinh/CSS/workspace-live.css";
+@import "./dung-chung/xac-thuc/workspace-live.css";
+@import "./chuc-nang/nhat-ky-quan-tri/CSS/workspace-live.css";
+@import "./chuc-nang/phan-tich-van-hanh/CSS/workspace-live.css";
+@import "./chuc-nang/giam-sat-hoa-don/CSS/workspace-live.css";
+@import "./chuc-nang/bang-dieu-khien/CSS/workspace-live.css";
+@import "./dung-chung/styles/workspace-responsive.css";

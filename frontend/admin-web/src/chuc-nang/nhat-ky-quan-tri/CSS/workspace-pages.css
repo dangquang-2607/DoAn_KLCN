@@ -1,0 +1,58 @@
+/* CSS riêng: nhat-ky-quan-tri. Giữ thứ tự breakpoint. */
+
+.adm-audit-chart { margin-bottom:20px; }
+.adm-audit-chart .adm-donut-chart { justify-content:center; }
+.adm-audit-toolbar { display:flex; align-items:end; justify-content:space-between; gap:20px; margin:0 0 14px; }
+.adm-audit-toolbar h2 { margin:0 0 3px; font-size:21px; letter-spacing:-.04em; }
+.adm-audit-toolbar > div:first-child > span { color:var(--ad-muted); font-size:12px; }
+.adm-audit-controls { display:flex; gap:8px; flex-wrap:wrap; }
+.adm-audit-search, .adm-audit-filter { display:flex; align-items:center; gap:7px; height:40px; padding:0 11px; border:1px solid #e4dfd9; border-radius:9px; background:#fff; color:#8c94a0; }
+.adm-audit-search:focus-within, .adm-audit-filter:focus-within { outline:2px solid #8eafbe; outline-offset:1px; }
+.adm-audit-search input, .adm-audit-filter select { border:0; outline:0; min-width:0; background:transparent; color:var(--ad-ink); font:inherit; font-size:12px; }
+.adm-audit-search input { width:215px; }
+.adm-audit-filter select { cursor:pointer; }
+.adm-audit-layout { display:grid; grid-template-columns:minmax(0,1.45fr) minmax(370px,.85fr); align-items:start; gap:18px; }
+.adm-audit-table-wrap { overflow-x:auto; }
+.adm-audit-table { width:100%; border-collapse:collapse; }
+.adm-audit-table th { color:#818b9b; background:#faf9f7; padding:13px 16px; text-align:left; white-space:nowrap; font-size:11px; font-weight:750; }
+.adm-audit-table td { padding:12px 16px; border-top:1px solid #f0ede9; font-size:12px; }
+.adm-audit-table tr.is-selected td { background:#f5f8f8; }
+.adm-audit-table time { font-variant-numeric:tabular-nums; white-space:nowrap; }
+.adm-audit-table time small { display:block; color:#929aa6; font-size:10px; }
+.adm-audit-action { display:inline-block; padding:4px 7px; border-radius:6px; color:#446787; background:#edf3f8; font-size:11px; font-weight:750; white-space:nowrap; }
+.adm-audit-action--categories { color:#956c30; background:#fbf2e2; }
+.adm-audit-table code { display:block; color:#949caa; font-size:10px; margin-top:3px; }
+.adm-audit-target { color:#617086; }
+.adm-audit-table td:last-child button { display:grid; place-items:center; width:29px; height:29px; border:1px solid #e0e5e9; border-radius:7px; color:#536d82; background:#fff; }
+.adm-audit-table td:last-child button:hover, .adm-audit-table td:last-child button[aria-pressed="true"] { color:#fff; border-color:#273449; background:#273449; }
+.adm-audit-detail { position:sticky; top:18px; padding:22px; max-height:calc(100vh - 36px); overflow:auto; scroll-margin-top:16px; }
+.adm-audit-detail-head { display:flex; align-items:center; gap:10px; color:#9b7890; font-size:10px; font-weight:800; letter-spacing:.12em; margin-bottom:22px; }
+.adm-audit-detail-head > div { display:flex; min-width:0; flex-direction:column; gap:3px; }
+.adm-audit-detail-head small { color:#98a0ab; font-size:9px; font-weight:650; letter-spacing:.03em; }
+.adm-audit-detail-icon { display:grid; place-items:center; width:38px; height:38px; color:var(--ad-violet); background:#f1edf8; border-radius:10px; }
+.adm-audit-success { display:inline-flex; align-items:center; gap:5px; margin-left:auto; padding:6px 8px; border-radius:7px; color:#237961; background:#e9f5ef; font-size:9px; font-weight:850; letter-spacing:.04em; white-space:nowrap; }
+.adm-audit-detail h2 { font-size:21px; letter-spacing:-.04em; margin:0 0 6px; }
+.adm-audit-detail > p { margin:0 0 20px; color:var(--ad-muted); font-size:12px; line-height:1.6; }
+.adm-audit-context { margin-top:14px; padding:14px; border:1px solid #efebe6; border-radius:11px; background:#fcfbf9; }
+.adm-audit-context h3 { display:flex; align-items:center; gap:7px; margin:0 0 7px; color:#546178; font-size:11px; font-weight:800; letter-spacing:.03em; }
+.adm-audit-context h3 svg { color:#8d78ad; }
+.adm-audit-detail dl { margin:0; }
+.adm-audit-detail dl > div { display:flex; align-items:start; justify-content:space-between; gap:12px; padding:9px 0; border-top:1px solid #eeeae5; font-size:11px; }
+.adm-audit-detail dt { color:#8b95a2; font-weight:550; }
+.adm-audit-detail dd { display:flex; justify-content:flex-end; align-items:center; gap:6px; min-width:0; margin:0; text-align:right; font-weight:700; overflow-wrap:anywhere; }
+.adm-audit-detail code { color:#526887; font-size:10px; }
+.adm-http-method { padding:3px 5px; border-radius:5px; color:#27715f; background:#e7f4ef; font-size:9px; font-weight:850; }
+.adm-audit-change { margin-top:14px; padding:13px 14px; border-left:3px solid var(--ad-amber); border-radius:7px; background:#faf4e8; }
+.adm-audit-change span { color:#9b6b26; font-size:9px; font-weight:850; letter-spacing:.1em; }
+.adm-audit-change p { margin:5px 0 0; color:#675f52; font-size:11px; line-height:1.55; }
+.adm-audit-mobile-list { display:none; }
+.adm-audit-no-results { min-height:330px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; text-align:center; padding:28px; }
+.adm-audit-no-results svg { color:#a6b2bd; }
+.adm-audit-no-results strong { font-size:14px; }
+.adm-audit-no-results span { color:var(--ad-muted); font-size:12px; }
+.adm-audit-no-results button { padding:8px 11px; margin-top:7px; border:0; border-radius:8px; color:#fff; background:#273449; font-size:12px; font-weight:700; }
+
+@media (max-width:1150px) { .adm-audit-layout { grid-template-columns:1fr; } .adm-audit-detail { position:static; max-height:none; } }
+@media (max-width:800px) { .adm-audit-toolbar { align-items:start; flex-direction:column; } }
+@media (max-width:640px) { .adm-audit-controls, .adm-audit-search { width:100%; } .adm-audit-search input { width:100%; } .adm-audit-table-wrap { display:none; } .adm-audit-mobile-list { display:grid; } .adm-audit-mobile-list button { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:3px 7px; text-align:left; align-items:center; padding:13px 15px; border:0; border-bottom:1px solid #f0ede9; background:#fff; } .adm-audit-mobile-list button.is-selected { background:#f5f8f8; } .adm-audit-mobile-list .adm-audit-action { justify-self:start; } .adm-audit-mobile-list small { grid-column:1; color:var(--ad-muted); } .adm-audit-mobile-list svg { grid-column:2; grid-row:1 / 3; } .adm-audit-chart .adm-donut-chart { align-items:center; padding-left:24px; } }
+@media (max-width:640px) { .adm-audit-context h3 { font-size:12px; } .adm-audit-detail dl > div, .adm-audit-change p { font-size:12px; } .adm-audit-detail code { font-size:11px; } }

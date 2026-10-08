@@ -1,0 +1,26 @@
+/* CSS riêng: nguoi-dung. Giữ thứ tự breakpoint. */
+
+.adm-rest-signal { display:flex; align-items:center; gap:15px; padding:18px 22px; border:1px solid #d8e6e5; border-radius:16px; background:#eaf5f2; }
+.adm-rest-signal > svg { color:#318c7f; flex:0 0 auto; }
+.adm-rest-signal > div { display:grid; gap:4px; min-width:0; }
+.adm-rest-signal strong { font-size:16px; }
+.adm-rest-signal span { color:#5d736f; font-size:12px; line-height:1.5; }
+.adm-rest-signal-number { margin-left:auto; flex:0 0 auto; color:#277e75!important; font-size:27px!important; font-weight:800; line-height:1; }
+.adm-rest-signal-number small { display:block; margin-top:5px; color:#5d736f; font-size:10px; font-weight:700; }
+.adm-rest-split { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(310px,.8fr); gap:18px; align-items:start; }
+.adm-rest-detail { min-height:420px; }
+.adm-rest-person { display:grid; grid-template-columns:42px minmax(0,1fr) auto 18px; align-items:center; gap:12px; width:100%; padding:14px 18px; border:0; border-bottom:1px solid #f0ede9; background:#fff; text-align:left; color:var(--rest-ink); }
+.adm-rest-person:last-child { border-bottom:0; }
+.adm-rest-person:hover, .adm-rest-person.is-selected { background:#f4f8f8; }
+.adm-rest-person > svg { color:#9aa6b2; }
+.adm-rest-person-main { display:grid; gap:4px; min-width:0; }
+.adm-rest-person-main strong { font-size:13px; }
+.adm-rest-person-main small { overflow:hidden; color:var(--rest-muted); font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
+.adm-rest-person-meta { display:grid; justify-items:end; gap:4px; }
+.adm-rest-person-meta small { color:#91a0aa; font-size:10px; }
+.adm-rest-detail { padding:23px; }
+.adm-rest-detail-top { display:flex; align-items:start; justify-content:space-between; gap:12px; margin-bottom:18px; }
+.adm-rest-detail h2 { margin:0 0 4px; font-size:23px; line-height:1.2; letter-spacing:-.045em; }
+.adm-rest-detail-sub { margin:0 0 17px; color:var(--rest-muted); font-size:12px; overflow-wrap:anywhere; }
+@media (max-width:1080px) { .adm-rest-split { grid-template-columns:1fr; } .adm-rest-detail { min-height:0; } }
+@media (max-width:560px) { .adm-rest-signal { align-items:start; flex-wrap:wrap; padding:15px; } .adm-rest-signal-number { width:100%; margin-left:35px; font-size:19px!important; } .adm-rest-signal-number small { display:inline; margin-left:5px; } .adm-rest-person { grid-template-columns:37px minmax(0,1fr) 16px; padding:13px; gap:9px; } .adm-rest-person-meta { grid-column:2; grid-row:2; justify-items:start; display:flex; align-items:center; } .adm-rest-person > svg { grid-column:3; grid-row:1 / 3; } }

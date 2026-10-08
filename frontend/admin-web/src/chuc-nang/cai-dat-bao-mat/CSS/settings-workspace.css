@@ -1,0 +1,71 @@
+/* Settings-only density and typography; other tabs and first-login stay intact. */
+.cf-admin .adm-live.adm-settings-demo { gap:16px; }
+.cf-admin .adm-settings-demo .adm-intro h1 { font-size:32px; line-height:1.2; }
+.cf-admin .adm-settings-demo .adm-settings-hero { padding:14px 18px; gap:13px; border-radius:12px; }
+.cf-admin .adm-settings-demo .adm-settings-hero-icon { width:40px; height:40px; border-radius:10px; }
+.cf-admin .adm-settings-demo .adm-settings-hero-icon svg { width:22px; height:22px; }
+.cf-admin .adm-settings-demo .adm-settings-hero .adm-eyebrow { margin-bottom:4px; font-size:11px; }
+.cf-admin .adm-settings-demo .adm-settings-hero h2 { margin:0 0 3px; font-size:20px; }
+.cf-admin .adm-settings-demo .adm-settings-hero div > span { font-size:14px; }
+.cf-admin .adm-settings-demo .adm-settings-hero > .adm-rest-pill { font-size:12px; }
+.cf-admin .adm-settings-demo .adm-settings-layout { grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; margin:0; }
+.cf-admin .adm-settings-demo .adm-card { border-radius:12px; }
+.cf-admin .adm-settings-demo .adm-card-head { padding:18px 20px 15px; flex-wrap:nowrap; }
+.cf-admin .adm-settings-demo .adm-card-head > div { flex:1; }
+.cf-admin .adm-settings-demo .adm-card-head h2 { font-size:20px; letter-spacing:-.025em; }
+.cf-admin .adm-settings-demo .adm-card-head p:last-child { font-size:14px; line-height:1.5; }
+.cf-admin .adm-settings-demo .adm-card-head .adm-eyebrow { margin-bottom:6px; font-size:11px; }
+.cf-admin .adm-settings-demo .adm-settings-form { gap:14px; padding:0 20px 20px; }
+.cf-admin .adm-settings-demo .adm-settings-form label { font-size:14px; font-weight:600; color:#415168; }
+.cf-admin .adm-settings-demo .adm-settings-form .cf-field { gap:6px; }
+.cf-admin .adm-settings-demo .adm-settings-form input { min-height:40px; padding:8px 12px; background:#fff; font-size:14px!important; }
+.cf-admin .adm-settings-demo .adm-settings-form .cf-field small { font-size:13px; line-height:1.5; color:#687488; }
+.cf-admin .adm-settings-demo .adm-settings-warning { align-items:flex-start; gap:9px; padding:10px 12px; font-size:13px; line-height:1.5; }
+.cf-admin .adm-settings-demo .adm-settings-warning svg { margin-top:2px; }
+.cf-admin .adm-settings-demo .adm-settings-password .cf-password input { padding-right:42px; }
+.cf-admin .adm-settings-demo .adm-settings-password .cf-password button { width:32px; height:32px; top:4px; right:4px; }
+.cf-admin .adm-settings-demo .adm-settings-form-foot { margin:2px -20px -20px; padding:14px 20px; }
+.cf-admin .adm-settings-demo .adm-settings-form-foot button { min-height:38px; padding:8px 14px; font-size:14px!important; font-weight:650!important; }
+.adm-settings-session-list { margin:0; padding:0; list-style:none; max-height:388px; overflow-y:auto; scrollbar-width:thin; }
+.cf-admin .adm-settings-demo .adm-settings-session { gap:10px; padding:11px 20px; }
+.cf-admin .adm-settings-demo .adm-settings-session-icon { width:32px; height:32px; border-radius:8px; }
+.cf-admin .adm-settings-demo .adm-settings-session > div { flex:1; gap:3px; }
+.cf-admin .adm-settings-demo .adm-settings-session strong { font-size:14px; line-height:1.4; font-weight:650; }
+.adm-settings-session-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:4px 10px; }
+.adm-settings-session-address { font-size:13px; color:#536b81; }
+.cf-admin .adm-settings-demo .adm-settings-session small { font-size:13px; line-height:1.45; color:#687488; }
+.adm-settings-session details { margin-top:1px; font-size:13px; }
+.adm-settings-session summary { width:fit-content; cursor:pointer; color:#557992; }
+.adm-settings-session summary:focus-visible { outline:2px solid #5788c2; outline-offset:3px; border-radius:3px; }
+.adm-settings-session details dl { display:grid; gap:8px; padding:10px 12px; margin:9px 0 0; border-radius:8px; background:#f5f7f8; }
+.adm-settings-session details dt { color:#687488; font-size:12px; margin-bottom:2px; font-weight:500; }
+.adm-settings-session details dd { margin:0; color:#34485e; font-size:13px; overflow-wrap:anywhere; }
+.adm-settings-session-footer { display:flex; justify-content:space-between; align-items:center; gap:12px; border-top:1px solid #ede8e2; padding:10px 20px; color:#687488; font-size:13px; }
+.adm-settings-session-footer nav { display:flex; align-items:center; gap:10px; }
+.adm-settings-session-footer .cf-icon-btn { width:32px; height:32px; border-radius:7px; }
+.cf-admin .adm-settings-demo .adm-settings-utilities { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; align-items:stretch; }
+.cf-admin .adm-settings-demo .adm-settings-link-card { padding:16px 18px; border-radius:12px; gap:11px; }
+.cf-admin .adm-settings-demo .adm-settings-link-card strong { font-size:15px; }
+.cf-admin .adm-settings-demo .adm-settings-link-card p { margin:5px 0 8px; font-size:13px; line-height:1.5; color:#766982; }
+.cf-admin .adm-settings-demo .adm-settings-link-card a { font-size:14px; font-weight:650; }
+.cf-admin .adm-settings-demo .adm-settings-format { margin:0; padding:16px 18px; gap:8px; border-radius:12px; }
+.cf-admin .adm-settings-demo .adm-settings-format > div { width:100%; margin:0 0 4px; }
+.cf-admin .adm-settings-demo .adm-settings-format strong { font-size:15px; }
+.cf-admin .adm-settings-demo .adm-settings-format > span { font-size:12px; padding:5px 8px; }
+.cf-admin .adm-settings-demo .adm-settings-format small { font-size:12px; color:#687488; }
+@container (max-width:700px) {
+  .cf-admin .adm-settings-demo :is(.adm-settings-layout,.adm-settings-utilities) { grid-template-columns:1fr; }
+}
+@container (max-width:400px) {
+  .cf-admin .adm-settings-demo .adm-intro h1 { font-size:28px; }
+  .cf-admin .adm-settings-demo .adm-settings-hero { gap:10px; padding:14px; }
+  .cf-admin .adm-settings-demo .adm-settings-hero > .adm-rest-pill { margin-left:50px; }
+  .cf-admin .adm-settings-demo .adm-card-head { padding:16px; }
+  .cf-admin .adm-settings-demo .adm-settings-form { padding:0 16px 16px; }
+  .cf-admin .adm-settings-demo .adm-settings-form input { min-height:42px; font-size:16px!important; }
+  .cf-admin .adm-settings-demo .adm-settings-form-foot { margin:2px -16px -16px; padding:12px 16px; }
+  .cf-admin .adm-settings-demo .adm-settings-session { padding:12px 16px; }
+  .adm-settings-session-list { max-height:none; }
+  .adm-settings-session-footer { padding:10px 16px; }
+  .adm-settings-session-footer .cf-icon-btn { width:36px; height:36px; }
+}

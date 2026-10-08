@@ -1,47 +1,36 @@
-﻿/**
- * sync-design.mjs — Shared source sync for CapitalFlow frontend.
- * Run after editing any file in frontend/shared/.
- * Committed copies allow each Docker context to build independently.
- *
- * Usage:  node frontend/shared/sync-design.mjs
+/**
+ * Đồng bộ primitive giao diện; mỗi portal vẫn build Docker độc lập.
+ * Không đồng bộ kiểu nghiệp vụ/formatter: hợp đồng API của hai portal khác nhau.
+ * Usage: node frontend/shared/sync-design.mjs [--check]
  */
-import { copyFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-const __dir = dirname(fileURLToPath(import.meta.url));
-const src  = (name) => join(__dir, name);
-const user = (name) => join(__dir, "../user-web", name);
-const adm  = (name) => join(__dir, "../admin-web/src", name);
-
-// ── 1. swiss.css design tokens ────────────────────────────────────────────
-copyFileSync(src("swiss.css"), user("app/swiss.css"));
-copyFileSync(src("swiss.css"), adm("swiss.css"));
-console.log("  Synced: swiss.css -> both projects");
-
-// ── 2. Toast.jsx ──────────────────────────────────────────────────────────
-copyFileSync(src("Toast.jsx"), user("components/ui/Toast.jsx"));
-copyFileSync(src("Toast.jsx"), adm("components/Toast.jsx"));
-console.log("  Synced: Toast.jsx -> user components/ui and admin components");
-
-// ── 3. Motion.jsx ─────────────────────────────────────────────────────────
-copyFileSync(src("Motion.jsx"), user("components/ui/Motion.jsx"));
-copyFileSync(src("Motion.jsx"), adm("components/Motion.jsx"));
-console.log("  Synced: Motion.jsx -> user components/ui and admin components");
-
-// ── 4. CategoryIcon.tsx ───────────────────────────────────────────────────
-// Vite transpiles .tsx automatically via esbuild (no tsconfig needed)
-copyFileSync(src("CategoryIcon.tsx"), user("components/ui/CategoryIcon.tsx"));
-copyFileSync(src("CategoryIcon.tsx"), adm("components/CategoryIcon.tsx"));
-console.log("  Synced: CategoryIcon.tsx -> user components/ui and admin components");
-
-// ── 5. finance.ts / format.ts ─────────────────────────────────────────────
-// user-web uses it as lib/finance.ts
-copyFileSync(src("finance.ts"), user("lib/finance.ts"));
-// admin-web: copy as services/format.ts (Vite/esbuild handles TS natively)
-copyFileSync(src("finance.ts"), adm("services/format.ts"));
-console.log("  Synced: finance.ts -> user-web/lib/finance.ts");
-console.log("  Synced: finance.ts -> admin-web/src/services/format.ts");
-console.log("  NOTE: admin-web/src/services/format.js is a thin re-export shim (do not delete)");
-
-console.log("\nAll shared files synced successfully.");
+const sourceDirectory = dirname(fileURLToPath(import.meta.url));
+const checkOnly = process.argv.includes("--check");
+const assets = {
+  "swiss.css": "styles/swiss.css",
+  "Toast.jsx": "UI-chung/Toast.jsx",
+  "Motion.jsx": "UI-chung/Motion.jsx",
+  "CategoryIcon.tsx": "UI-chung/CategoryIcon.tsx",
+};
+let mismatches = 0;
+for (const [name, destination] of Object.entries(assets)) {
+  const source = join(sourceDirectory, name);
+  for (const portal of ["user-web", "admin-web"]) {
+    const target = join(sourceDirectory, "..", portal, "src/dung-chung", destination);
+    if (checkOnly) {
+      if (!readFileSync(source).equals(readFileSync(target))) {
+        console.error(`Chưa đồng bộ: ${portal}/src/dung-chung/${destination}`);
+        mismatches += 1;
+      }
+    } else {
+      mkdirSync(dirname(target), { recursive: true });
+      copyFileSync(source, target);
+      console.log(`Đã đồng bộ: ${portal}/src/dung-chung/${destination}`);
+    }
+  }
+}
+if (checkOnly && mismatches === 0) console.log("Các primitive giao diện đã đồng bộ.");
+process.exitCode = mismatches ? 1 : 0;

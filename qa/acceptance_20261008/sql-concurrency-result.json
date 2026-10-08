@@ -1,0 +1,62 @@
+{
+  "database": "CapitalFlow_QA_20261008_b5fcca32",
+  "schema": "current SQLAlchemy model DDL; not a restored production database",
+  "sql_server_real": true,
+  "production_writes": false,
+  "cases": {
+    "same_key_10_concurrent": {
+      "passed": true,
+      "balances": [
+        "99900.00",
+        "1100.00"
+      ],
+      "ledger_sums": [
+        "99900.00",
+        "1100.00"
+      ],
+      "transfer_legs": 2,
+      "replay_records": 1
+    },
+    "different_keys_10_concurrent": {
+      "passed": true,
+      "balances": [
+        "98900.00",
+        "2100.00"
+      ],
+      "ledger_sums": [
+        "98900.00",
+        "2100.00"
+      ],
+      "transfer_legs": 22,
+      "replay_records": 11
+    },
+    "rollback_after_money_before_replay": {
+      "passed": true,
+      "balances": [
+        "98900.00",
+        "2100.00"
+      ],
+      "ledger_sums": [
+        "98900.00",
+        "2100.00"
+      ],
+      "transfer_legs": 22,
+      "replay_records": 11
+    },
+    "real_deadlock_1205_then_explicit_retry": {
+      "passed": true,
+      "automatic_retry": false,
+      "balances": [
+        "98800.00",
+        "2200.00"
+      ],
+      "ledger_sums": [
+        "98800.00",
+        "2200.00"
+      ],
+      "transfer_legs": 24,
+      "replay_records": 12
+    }
+  },
+  "status": "PASSED"
+}

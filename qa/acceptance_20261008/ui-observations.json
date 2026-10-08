@@ -1,0 +1,350 @@
+[
+  {
+    "name": "user-overview-mobile",
+    "headings": [
+      "Tiền của bạn, rõ ràng hơn.",
+      "Dòng tiền có nhịp điệu",
+      "Tiền đang ở đâu?",
+      "Vừa ghi nhận",
+      "Ví & tài khoản",
+      "Ngân sách của bạn"
+    ],
+    "height": 844,
+    "path": "/",
+    "scrollHeight": 2944,
+    "scrollWidth": 375,
+    "width": 390
+  },
+  {
+    "name": "user-accounts-mobile",
+    "headings": [
+      "Ví & tài khoản",
+      "Tiết kiệm QA",
+      "Ví tiền mặt QA"
+    ],
+    "height": 844,
+    "path": "/accounts",
+    "scrollHeight": 844,
+    "scrollWidth": 390,
+    "width": 390
+  },
+  {
+    "name": "user-transactions-mobile",
+    "headings": [
+      "Giao dịch"
+    ],
+    "height": 844,
+    "path": "/transactions",
+    "scrollHeight": 1656,
+    "scrollWidth": 375,
+    "width": 390
+  },
+  {
+    "name": "user-transaction-modal-mobile",
+    "headings": [
+      "Giao dịch",
+      "Thêm giao dịch"
+    ],
+    "height": 844,
+    "path": "/transactions",
+    "scrollHeight": 877,
+    "scrollWidth": 390,
+    "width": 390
+  },
+  {
+    "name": "user-budgets-mobile",
+    "headings": [
+      "Ngân sách",
+      "Danh sách ngân sách",
+      "Ăn uống tháng này QA"
+    ],
+    "height": 844,
+    "path": "/budgets",
+    "scrollHeight": 1543,
+    "scrollWidth": 375,
+    "width": 390
+  },
+  {
+    "name": "user-ocr-mobile",
+    "headings": [
+      "Từ hóa đơn đến khoản chi",
+      "Tài liệu",
+      "Kiểm tra thông tin",
+      "Bản gốc"
+    ],
+    "height": 844,
+    "path": "/ocr",
+    "scrollHeight": 3147,
+    "scrollWidth": 375,
+    "width": 390
+  },
+  {
+    "name": "user-analytics-mobile",
+    "headings": [
+      "Tháng 10/2026Đến 08/10/2026",
+      "Thu · Chi · Ròng",
+      "Tiền ra theo nhóm",
+      "Còn lại bao nhiêu?",
+      "Nhóm chi tiêu thay đổi"
+    ],
+    "height": 844,
+    "path": "/analytics",
+    "scrollHeight": 2228,
+    "scrollWidth": 375,
+    "width": 390
+  },
+  {
+    "name": "user-categories-mobile",
+    "headings": [
+      "Danh mục",
+      "Danh sách danh mục",
+      "Ăn uống"
+    ],
+    "height": 844,
+    "path": "/categories",
+    "scrollHeight": 1240,
+    "scrollWidth": 375,
+    "width": 390
+  },
+  {
+    "name": "user-settings-mobile",
+    "headings": [
+      "Cài đặt & bảo mật",
+      "Thông tin tài khoản",
+      "Đổi mật khẩu",
+      "Phiên đăng nhập"
+    ],
+    "height": 844,
+    "path": "/settings",
+    "scrollHeight": 1370,
+    "scrollWidth": 375,
+    "width": 390
+  },
+  {
+    "name": "user-support-mobile",
+    "headings": [
+      "Bạn muốn bắt đầu từ đâu?",
+      "Bắt đầu với một tài khoản",
+      "Ghi lại khoản thu, chi",
+      "Ghi nhận từ hóa đơn",
+      "Câu hỏi thường gặp"
+    ],
+    "height": 844,
+    "path": "/support",
+    "scrollHeight": 1592,
+    "scrollWidth": 375,
+    "width": 390
+  },
+  {
+    "name": "user-support-desktop",
+    "headings": [
+      "Bạn muốn bắt đầu từ đâu?",
+      "Bắt đầu với một tài khoản",
+      "Ghi lại khoản thu, chi",
+      "Ghi nhận từ hóa đơn",
+      "Câu hỏi thường gặp"
+    ],
+    "height": 800,
+    "path": "/support",
+    "scrollHeight": 1062,
+    "scrollWidth": 1265,
+    "width": 1280
+  },
+  {
+    "name": "user-accounts-desktop",
+    "headings": [
+      "Ví & tài khoản",
+      "Tiết kiệm QA",
+      "Ví tiền mặt QA"
+    ],
+    "height": 800,
+    "path": "/accounts",
+    "scrollHeight": 800,
+    "scrollWidth": 1280,
+    "width": 1280
+  },
+  {
+    "name": "admin-dashboard-mobile",
+    "headings": [
+      "Bảng điều khiển.",
+      "Trung tâm xử lý",
+      "Hoạt động gần đây"
+    ],
+    "height": 844,
+    "path": "/dashboard",
+    "scrollHeight": 3004,
+    "scrollWidth": 385,
+    "width": 390
+  },
+  {
+    "name": "admin-users-mobile",
+    "headings": [
+      "Người dùng.",
+      "Hồ sơ & quyền truy cập",
+      "Quản trị kiểm thử"
+    ],
+    "height": 844,
+    "path": "/users",
+    "scrollHeight": 1840,
+    "scrollWidth": 385,
+    "width": 390
+  },
+  {
+    "name": "admin-categories-mobile",
+    "headings": [
+      "Danh mục hệ thống.",
+      "Quản lý theo loại giao dịch",
+      "Ăn uống"
+    ],
+    "height": 844,
+    "path": "/categories",
+    "scrollHeight": 1506,
+    "scrollWidth": 385,
+    "width": 390
+  },
+  {
+    "name": "admin-analytics-mobile",
+    "headings": [
+      "Phân tích hệ thống.",
+      "Chọn kỳ phân tích",
+      "Nhịp giao dịch theo tháng",
+      "Danh mục được sử dụng nhiều",
+      "Giao dịch theo loại"
+    ],
+    "height": 844,
+    "path": "/system-analytics",
+    "scrollHeight": 3172,
+    "scrollWidth": 385,
+    "width": 390
+  },
+  {
+    "name": "admin-analytics-mobile-charts",
+    "headings": [
+      "Phân tích hệ thống.",
+      "Chọn kỳ phân tích",
+      "Nhịp giao dịch theo tháng",
+      "Danh mục được sử dụng nhiều",
+      "Giao dịch theo loại"
+    ],
+    "height": 844,
+    "path": "/system-analytics",
+    "scrollHeight": 3172,
+    "scrollWidth": 385,
+    "width": 390
+  },
+  {
+    "name": "admin-ocr-mobile",
+    "headings": [
+      "Giám sát hóa đơn.",
+      "Không ghi nhận hóa đơn thất bại",
+      "Hóa đơn đang ở đâu?",
+      "Chất lượng xử lý",
+      "Các lần xử lý lỗi gần đây"
+    ],
+    "height": 844,
+    "path": "/ocr-monitor",
+    "scrollHeight": 2289,
+    "scrollWidth": 385,
+    "width": 390
+  },
+  {
+    "name": "admin-audit-mobile",
+    "headings": [
+      "Nhật ký quản trị.",
+      "Dòng hoạt động",
+      "Đăng nhập"
+    ],
+    "height": 844,
+    "path": "/audit-logs",
+    "scrollHeight": 3469,
+    "scrollWidth": 385,
+    "width": 390
+  },
+  {
+    "name": "admin-email-mobile",
+    "headings": [
+      "Email & cấu hình.",
+      "Kiểm tra từng lần gửi",
+      "Chi tiết chuyển phát"
+    ],
+    "height": 844,
+    "path": "/email-logs",
+    "scrollHeight": 1493,
+    "scrollWidth": 385,
+    "width": 390
+  },
+  {
+    "name": "admin-settings-mobile",
+    "headings": [
+      "Cài đặt & bảo mật.",
+      "Quản trị kiểm thử",
+      "Đổi mật khẩu",
+      "Phiên còn hiệu lực"
+    ],
+    "height": 844,
+    "path": "/settings",
+    "scrollHeight": 1604,
+    "scrollWidth": 385,
+    "width": 390
+  },
+  {
+    "name": "admin-analytics-tablet",
+    "headings": [
+      "Phân tích hệ thống.",
+      "Chọn kỳ phân tích",
+      "Nhịp giao dịch theo tháng",
+      "Danh mục được sử dụng nhiều",
+      "Giao dịch theo loại"
+    ],
+    "height": 1024,
+    "path": "/system-analytics",
+    "scrollHeight": 3081,
+    "scrollWidth": 763,
+    "width": 768
+  },
+  {
+    "name": "user-transactions-tablet",
+    "headings": [
+      "Giao dịch"
+    ],
+    "height": 1024,
+    "path": "/transactions",
+    "scrollHeight": 1652,
+    "scrollWidth": 753,
+    "width": 768
+  },
+  {
+    "name": "admin-login-mobile-offscreen",
+    "headings": [
+      "Chào mừng trở lại"
+    ],
+    "height": 844,
+    "path": "/login",
+    "scrollHeight": 844,
+    "scrollWidth": 390,
+    "width": 390
+  },
+  {
+    "name": "admin-login-mobile-reloaded",
+    "headings": [
+      "Chào mừng trở lại"
+    ],
+    "height": 844,
+    "path": "/login",
+    "scrollHeight": 844,
+    "scrollWidth": 390,
+    "width": 390
+  },
+  {
+    "name": "user-login-mobile",
+    "headings": [
+      "Nắm bắt dòng tiền, Kiến tạo tương lai.",
+      "Đăng nhập tài khoản"
+    ],
+    "height": 844,
+    "path": "/login",
+    "scrollHeight": 844,
+    "scrollWidth": 390,
+    "width": 390
+  }
+]

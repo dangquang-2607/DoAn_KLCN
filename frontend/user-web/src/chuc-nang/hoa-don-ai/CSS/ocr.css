@@ -1,0 +1,167 @@
+/* Trình nhập, danh sách và xem trước hóa đơn. */
+
+.cf-item-editor-wrap {
+  border: 1px solid var(--cf-line);
+  border-radius: 12px;
+}
+.cf-item-editor {
+  min-width: 850px;
+}
+.cf-item-editor .cf-item-name-cell {
+  min-width: 280px;
+  white-space: normal;
+}
+.cf-item-editor .cf-input.cf-item-input {
+  min-height: 36px;
+  padding: 7px 9px;
+  font-size: 13px;
+}
+.cf-item-editor .cf-item-unit { width: 88px; }
+.cf-item-editor .cf-item-number { width: 92px; }
+.cf-item-editor .cf-item-money { width: 128px; text-align: right; }
+.cf-item-editor th, .cf-item-editor td {
+  padding: 10px 8px;
+}
+.cf-ocr-grid {
+  display: grid;
+  grid-template-columns: 280px minmax(330px, 1.15fr) minmax(260px, 1fr);
+  align-items: start;
+  gap: 20px;
+}
+
+.cf-invoice-fields {
+  container-type: inline-size;
+}
+
+.cf-invoice-two-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@container (max-width: 340px) {
+  .cf-invoice-two-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.cf-ocr-list .cf-pagination {
+  padding: 14px;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.cf-ocr-documents {
+  max-height: 680px;
+  overflow: auto;
+}
+.cf-ocr-document {
+  display: flex;
+  align-items: flex-start;
+  padding: 16px 12px;
+  gap: 10px;
+  border-top: 1px solid var(--cf-line);
+}
+.cf-ocr-document.selected {
+  background: var(--cf-soft);
+  box-shadow: inset 3px 0 var(--cf-blue);
+}
+.cf-ocr-document > input {
+  margin-top: 5px;
+  accent-color: var(--cf-blue);
+}
+.cf-ocr-document-button {
+  border: 0;
+  text-align: left;
+  min-width: 0;
+  flex: 1;
+  padding: 0;
+  background: transparent;
+  color: var(--cf-ink);
+  font-size: 13px;
+}
+.cf-ocr-document-button strong {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 14px;
+  font-weight: 600;
+}
+.cf-ocr-document-button .cf-number {
+  font-size: 12px;
+}
+.cf-ocr-preview-body {
+  min-height: 440px;
+  background: #e9edf3;
+  overflow: auto;
+}
+.cf-pdf {
+  width: 100%;
+  height: 620px;
+}
+.cf-image-scroll {
+  overflow: auto;
+  max-height: 680px;
+  padding: 16px;
+}
+.cf-image-scroll img {
+  display: block;
+}
+.cf-ocr-preview .cf-panel-head {
+  padding: 16px;
+}
+.cf-ocr-preview .cf-icon-btn {
+  width: 32px;
+  height: 32px;
+}
+@media (max-width: 1350px) {
+  .cf-ocr-grid {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+  .cf-ocr-preview {
+    grid-column: 2;
+  }
+  .cf-ocr-list {
+    grid-row: span 2;
+  }
+}
+@media (max-width: 900px) {
+  .cf-ocr-grid {
+    grid-template-columns: 1fr;
+  }
+  .cf-ocr-preview {
+    grid-column: auto;
+  }
+  .cf-ocr-list {
+    grid-row: auto;
+  }
+  .cf-ocr-documents {
+    max-height: 300px;
+  }
+}
+
+.cf-ocr-drop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  border: 1px dashed #b2c2e8;
+  background: #f8faff;
+  border-radius: 10px;
+  padding: 18px;
+  color: #35518c;
+  font-size: 14px;
+}
+.cf-ocr-drop > .cf-muted {
+  font-size: 12px;
+}
+.cf-app .cf-ocr-document { transition: border-color 180ms, background-color 180ms, box-shadow 180ms; }
+.cf-app .cf-ocr-document.selected { box-shadow: inset 3px 0 0 #2855e8, 0 4px 12px -8px #2855e8; }
+.cf-app .cf-ocr-drop { transition: transform 200ms, background-color 200ms, box-shadow 200ms; }
+.cf-app .cf-ocr-drop.is-dragging { transform: perspective(800px) rotateX(2deg) translateY(-3px); background: #edf2ff; box-shadow: 0 6px 0 #d6e1fc, 0 14px 24px -18px #2855e8; border-style: solid; }
+.cf-app .cf-ocr-preview-body { position: relative; isolation: isolate; }
+.cf-app .cf-ocr-preview-body.is-processing::after { content: ""; pointer-events: none; position: absolute; z-index: 2; top: 0; left: 0; right: 0; height: 3px; background: #2855e8; box-shadow: 0 -12px 32px 10px #2855e828; animation: cf-scan 2400ms ease-in-out infinite alternate; }
+@keyframes cf-scan { from { top: 8%; opacity: .3; } to { top: 90%; opacity: .8; } }
+@media (prefers-reduced-motion: reduce) {
+ .cf-app .cf-ocr-drop.is-dragging { transform: none !important; }
+ .cf-app .cf-ocr-preview-body.is-processing::after { animation: none !important; top: 0; opacity: .5; }
+}

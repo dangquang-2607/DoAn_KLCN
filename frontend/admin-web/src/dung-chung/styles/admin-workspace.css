@@ -1,0 +1,89 @@
+/* CSS dùng chung nhiều tab. Giữ thứ tự breakpoint. */
+
+.cf-admin {
+  --admin-blue:#386eaf; --admin-teal:#21867b; --admin-violet:#8066a8;
+  --admin-amber:#ad741c; --admin-coral:#bd604a; --admin-slate:#627b90;
+  --admin-border:#e7e3dd; --accent:var(--admin-blue); --tint:#eef4fc;
+  background:#f8f7f4;
+}
+.cf-admin .cf-tone-blue, .cf-admin .cf-stat--blue { --accent:var(--admin-blue); --tint:#edf3fc; }
+.cf-admin .cf-tone-teal, .cf-admin .cf-stat--teal { --accent:var(--admin-teal); --tint:#eaf5f1; }
+.cf-admin .cf-tone-violet, .cf-admin .cf-stat--violet { --accent:var(--admin-violet); --tint:#f2edf8; }
+.cf-admin .cf-tone-amber, .cf-admin .cf-stat--amber { --accent:var(--admin-amber); --tint:#fcf4e6; }
+.cf-admin .cf-tone-coral, .cf-admin .cf-stat--coral { --accent:var(--admin-coral); --tint:#fcf0ec; }
+.cf-admin .cf-tone-slate { --accent:var(--admin-slate); --tint:#eff3f6; }
+.cf-admin .cf-nav-link > svg { color:var(--accent); }
+.cf-admin .cf-nav-link.active { color:var(--accent) !important; }
+.cf-admin .cf-nav-sliding-pill { background:var(--tint); border-color:color-mix(in srgb,var(--accent) 25%,white); box-shadow:none; }
+.cf-admin .cf-nav-sliding-pill::before { background:var(--accent); box-shadow:none; }
+.cf-admin .cf-panel { border-color:var(--admin-border); border-radius:16px; box-shadow:0 2px 5px #302f251f; }
+.cf-admin .cf-panel-head { border-color:var(--admin-border); }
+.cf-admin .cf-page-head h1 { letter-spacing:-.04em; }
+.cf-admin .cf-page-head p { max-width:720px; line-height:1.65; }
+.cf-admin .cf-stat { border-top:3px solid var(--accent); background:linear-gradient(145deg,#fff 55%,var(--tint)); }
+.cf-admin .cf-stat-label { color:#506078; font-size:14px; min-height:40px; align-items:flex-start; }
+.cf-admin .cf-stat-label > svg { color:var(--accent); }
+.cf-admin .cf-stat-note { font-size:12px; line-height:1.55; }
+.cf-admin .cf-accent-icon { display:inline-grid; place-items:center; flex:0 0 auto; width:42px; height:42px; border-radius:12px; color:var(--accent); background:var(--tint); }
+.cf-admin .cf-label { display:inline-flex; align-items:center; gap:7px; max-width:100%; padding:5px 8px; border-radius:7px; color:var(--accent); background:var(--tint); font-size:12px; font-weight:650; line-height:1.45; }
+.cf-admin .cf-data-note { margin:0; color:#6b788b; font-size:12px; line-height:1.7; }
+.cf-admin .cf-data-note svg { display:inline; vertical-align:middle; }
+.cf-admin .cf-table th { background:#faf9f6; font-size:12px; }
+.cf-admin .cf-table td { font-size:13px; }
+.cf-admin .cf-table .cf-sub { display:block; margin-top:4px; font-size:11px; }
+.cf-admin .cf-selected-row td { background:#f1f5f4; }
+.cf-admin .cf-icon-btn[aria-pressed="true"] { color:#fff; background:#29374b; border-color:#29374b; }
+.cf-admin .cf-dot { width:8px; height:8px; border-radius:50%; background:var(--accent); }
+.cf-admin .cf-signal { display:flex; align-items:center; gap:16px; padding:19px 24px; background:var(--tint); border:1px solid color-mix(in srgb,var(--accent) 20%,white); border-radius:14px; }
+.cf-admin .cf-signal > div { flex:1; min-width:0; }
+.cf-admin .cf-signal .cf-eyebrow { color:var(--accent); margin:0 0 6px; font-size:10px; }
+.cf-admin .cf-signal h2 { margin:0 0 5px; font-size:19px; }
+.cf-admin .cf-signal p:last-child { margin:0; color:#637488; font-size:13px; }
+.cf-admin .cf-directory-layout { display:grid; grid-template-columns:minmax(0,1fr) 330px; gap:22px; align-items:start; }
+.cf-admin .cf-directory-layout > * { min-width:0; }
+.cf-admin .cf-inspector { position:sticky; top:90px; scroll-margin-top:85px; }
+.cf-admin .cf-inspector-title { margin:22px 0 14px; font-size:20px; overflow-wrap:anywhere; scroll-margin-top:85px; }
+.cf-admin .cf-inspector-profile { text-align:center; margin:20px 0; overflow-wrap:anywhere; }
+.cf-admin .cf-inspector-profile .cf-avatar { margin:0 auto 12px; width:54px; height:54px; background:var(--tint); color:var(--accent); }
+.cf-admin .cf-inspector-profile .cf-category-icon { margin:0 auto; }
+.cf-admin .cf-inspector-profile h3 { margin:12px 0 5px; font-size:19px; }
+.cf-admin .cf-inspector-profile p { font-size:13px; color:#708095; }
+.cf-admin .cf-detail-list { display:grid; margin:20px 0; }
+.cf-admin .cf-detail-list > div { display:grid; grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr); gap:10px; padding:13px 0; border-bottom:1px solid var(--admin-border); font-size:12px; }
+.cf-admin .cf-detail-list dt { color:#778499; font-weight:500; }
+.cf-admin .cf-detail-list dd { margin:0; text-align:right; color:#2a3b51; overflow-wrap:anywhere; font-weight:600; }
+.cf-admin .cf-detail-list code { color:inherit; font-size:11px; }
+.cf-admin .cf-inspector-stats { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px; }
+.cf-admin .cf-inspector-stats > div { background:var(--tint); border-radius:10px; padding:16px; color:var(--accent); }
+.cf-admin .cf-inspector-stats span { display:block; font-size:12px; }
+.cf-admin .cf-inspector-stats strong { font-size:28px; }
+.cf-admin .cf-inspector-subject { margin:16px 0; font-size:18px; overflow-wrap:anywhere; }
+.cf-admin .cf-filter-bar { display:flex; flex-wrap:wrap; align-items:end; gap:12px; padding:16px 18px; border:1px solid var(--admin-border); background:white; border-radius:14px; }
+.cf-admin .cf-filter-bar .cf-search { width:auto; flex:1 1 250px; }
+.cf-admin .cf-filter-bar > select { width:170px; }
+.cf-admin .cf-filter-bar .cf-field { flex:0 1 160px; }
+.cf-admin .cf-filter-bar label { font-size:11px; }
+.cf-admin .cf-json-detail { margin-top:10px; padding:12px; border:1px solid var(--admin-border); border-radius:8px; font-size:12px; }
+.cf-admin .cf-json-detail summary { cursor:pointer; font-weight:650; }
+.cf-admin .cf-json-detail pre { margin:12px 0 0; white-space:pre-wrap; overflow-wrap:anywhere; color:#526177; font-size:11px; }
+.cf-admin .cf-json-detail p { margin:10px 0 0; color:#748399; }
+.cf-admin .cf-text-button { padding:0; border:0; color:inherit; font:inherit; font-weight:inherit; background:none; text-align:left; }
+.cf-admin .cf-toolbar { flex-wrap:wrap; }
+.cf-admin .cf-action-menu { position:fixed; z-index:200; display:grid; width:230px; max-height:calc(100vh - 16px); overflow-y:auto; padding:6px; background:white; border:1px solid var(--admin-border); border-radius:10px; box-shadow:0 10px 32px #26344826; }
+.cf-admin .cf-action-menu button { display:flex; align-items:center; gap:10px; min-height:42px; border:0; background:white; border-radius:6px; padding:10px; color:#31435a; font-size:13px; text-align:left; }
+.cf-admin .cf-action-menu button:hover { background:#f2f5fa; }
+.cf-admin .cf-action-menu button.is-danger { color:#b65045; }
+.cf-admin :is(button,a,input,select,summary):focus-visible { outline:2px solid #8066a8; outline-offset:3px; }
+@media (max-width:1300px) {
+  .cf-admin .cf-directory-layout { grid-template-columns:minmax(0,1fr) 300px; gap:18px; }
+}
+@media (max-width:1100px) {
+  .cf-admin .cf-directory-layout { grid-template-columns:1fr; }
+  .cf-admin .cf-inspector { position:static; }
+}
+@media (max-width:767px) {
+  .cf-admin .cf-panel { border-radius:12px; }
+  .cf-admin .cf-signal { align-items:flex-start; flex-wrap:wrap; padding:17px; gap:12px; }
+  .cf-admin .cf-signal > .cf-label { margin-left:54px; }
+  .cf-admin .cf-filter-bar > select, .cf-admin .cf-filter-bar .cf-field { flex:1 1 130px; width:auto; }
+}

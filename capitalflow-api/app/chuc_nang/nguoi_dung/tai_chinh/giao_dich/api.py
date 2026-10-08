@@ -1,0 +1,231 @@
+"""Cung cấp REST API cho sổ cái giao dịch và chuyển khoản.
+
+Vai trò: xác thực HTTP contract rồi ủy quyền thay đổi tiền cho transaction service.
+Đầu vào: DTO giao dịch, khóa idempotency, current user và DB session.
+Đầu ra: transaction response hoặc HTTP error.
+Ràng buộc: route không tự cập nhật số dư; mutation phải đi qua service có transaction/lock.
+"""
+
+from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.luy_dang import idempotent_money
+import uuid
+from datetime import date
+from decimal import Decimal
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from sqlalchemy import func, or_, select
+from sqlalchemy.orm import Session
+
+from app.dung_chung.http.phu_thuoc import get_current_user, get_db
+from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.luu_tru.giao_dich import Transaction
+from app.chuc_nang.nguoi_dung.dang_nhap.luu_tru.nguoi_dung import User
+from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.schemas import (
+    TransactionCreate,
+    TransactionOut,
+    TransactionPage,
+    TransactionTransfer,
+    TransactionUpdate,
+    TransactionBatchDelete,
+)
+from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.so_cai import (
+    check_budget_alerts_background,
+    create_transaction,
+    delete_transaction,
+    delete_transactions,
+    transfer_money,
+    update_transaction,
+)
+from app.chuc_nang.nguoi_dung.danh_muc.phan_loai import suggest_category
+from app.dung_chung.database.session import SessionLocal
+from app.dung_chung.tac_vu_nen.hang_doi import enqueue
+
+router = APIRouter(prefix="/transactions", tags=["Transactions"])
+
+
+@router.get(
+    "",
+    response_model=TransactionPage,
+    summary="Danh sách giao dịch (List Transactions)",
+    description=(
+        "🇻🇳 **Mô tả**: Lấy danh sách giao dịch tài chính của người dùng có hỗ trợ phân trang "
+        "và lọc đa điều kiện (loại thu/chi, tài khoản, danh mục, thời gian).\n\n"
+        "🇬🇧 **Description**: Retrieve a paginated list of transactions with optional filters "
+        "by type, account, category, and date range."
+    ),
+)
+def list_transactions(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=1000),
+    type: str | None = Query(None),
+    account_id: uuid.UUID | None = Query(None),
+    category_id: uuid.UUID | None = Query(None),
+    invoice_id: uuid.UUID | None = Query(None),
+    search: str | None = Query(None, max_length=100),
+    start_date: date | None = Query(None),
+    end_date: date | None = Query(None),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    q = select(Transaction).where(Transaction.user_id == user.id)
+
+    if type:
+        q = q.where(Transaction.type == type)
+    if account_id:
+        q = q.where(Transaction.account_id == account_id)
+    if category_id:
+        q = q.where(Transaction.category_id == category_id)
+    if invoice_id:
+        q = q.where(Transaction.invoice_id == invoice_id)
+    if search and (term := search.strip()):
+        # Treat LIKE metacharacters as text, not as user-provided wildcards.
+        escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        pattern = f"%{escaped}%"
+        q = q.where(or_(
+            Transaction.description.ilike(pattern, escape="\\"),
+            Transaction.note.ilike(pattern, escape="\\"),
+        ))
+    if start_date:
+        q = q.where(Transaction.transaction_date >= start_date)
+    if end_date:
+        q = q.where(Transaction.transaction_date <= end_date)
+
+    count_q = select(func.count()).select_from(q.subquery())
+    total = db.scalar(count_q) or 0
+    items = db.scalars(
+        q.order_by(Transaction.transaction_date.desc(), Transaction.created_at.desc(), Transaction.id.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    ).all()
+
+    return TransactionPage(items=items, total=total, page=page, page_size=page_size)
+
+
+@router.post(
+    "",
+    response_model=TransactionOut,
+    status_code=201,
+    summary="Tạo giao dịch mới (Create Transaction)",
+    description=(
+        "🇻🇳 **Mô tả**: Tạo mới giao dịch thu hoặc chi và tự động cập nhật số dư tài khoản tương ứng. "
+        "Cảnh báo ngân sách được gửi ngầm (non-blocking) sau khi phản hồi về client.\n\n"
+        "🇬🇧 **Description**: Create a new income or expense transaction with automatic balance update. "
+        "Budget alerts are sent asynchronously in the background."
+    ),
+)
+@idempotent_money
+def create_tx(
+    payload: TransactionCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if payload.source != "MANUAL" or payload.invoice_id is not None:
+        raise HTTPException(status_code=422, detail="Nguồn giao dịch và hóa đơn do hệ thống quản lý")
+    values = payload.model_dump()
+    if values.get("category_id"):
+        values.update(category_confidence=Decimal("1.0000"), category_source="MANUAL", category_was_auto=False)
+    else:
+        suggestion = suggest_category(
+            db, user.id, payload.type, description=payload.description, note=payload.note
+        )
+        if suggestion.auto_apply:
+            values.update(
+                category_id=suggestion.category_id,
+                category_confidence=suggestion.confidence,
+                category_source=suggestion.source,
+                category_was_auto=True,
+            )
+    txn = create_transaction(db, user.id, commit=False, **values)
+
+    enqueue(db, "BUDGET", {"user_id": str(user.id), "transaction_id": str(txn.id)}, "budget-check:"+str(txn.id))
+    db.flush()
+
+    return txn
+
+
+@router.post(
+    "/transfer",
+    status_code=201,
+    summary="Chuyển tiền giữa các ví (Transfer Between Accounts)",
+    description=(
+        "🇻🇳 **Mô tả**: Chuyển tiền nguyên tử (ACID) giữa 2 ví của cùng 1 người dùng. "
+        "Tạo hai vế thu/chi kind=TRANSFER có transfer_id chung. "
+        "Nếu lỗi bất kỳ bước nào, toàn bộ sẽ tự rollback — không mất tiền.\n\n"
+        "🇬🇧 **Description**: Atomically transfer funds between two accounts of the same user. "
+        "Creates a linked pair with kind=TRANSFER. Full rollback on any error."
+    ),
+)
+@idempotent_money
+def transfer_tx(
+    payload: TransactionTransfer,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    txn_out, txn_in = transfer_money(
+        db=db,
+        user_id=user.id,
+        from_account_id=payload.from_account_id,
+        to_account_id=payload.to_account_id,
+        amount=payload.amount,
+        transaction_date=payload.transaction_date,
+        note=payload.note,
+        commit=False,
+    )
+    return {
+        "success": True,
+        "transfer_out_id": str(txn_out.id),
+        "transfer_in_id": str(txn_in.id),
+        "from_account_id": str(payload.from_account_id),
+        "to_account_id": str(payload.to_account_id),
+        "amount": str(payload.amount),
+    }
+
+
+@router.patch(
+    "/{tx_id}",
+    response_model=TransactionOut,
+    summary="Cập nhật giao dịch (Update Transaction)",
+    description=(
+        "🇻🇳 **Mô tả**: Chỉnh sửa thông tin giao dịch tài chính và tự động điều chỉnh hoàn ứng số dư.\n\n"
+        "🇬🇧 **Description**: Update transaction details and automatically adjust affected account balances."
+    ),
+)
+@idempotent_money
+def update_tx(
+    tx_id: uuid.UUID,
+    payload: TransactionUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    txn = update_transaction(db, tx_id, user.id, payload, commit=False)
+    if {"amount", "transaction_date", "category_id", "type"} & payload.model_fields_set:
+        enqueue(db, "BUDGET", {"user_id": str(user.id), "transaction_id": str(txn.id)},
+                "budget-check:update:" + str(txn.id) + ":" + str(uuid.uuid4()))
+    return txn
+
+
+@router.post("/batch-delete", summary="Xóa các giao dịch đã chọn")
+@idempotent_money
+def batch_delete_tx(
+    payload: TransactionBatchDelete,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    deleted_count = delete_transactions(db, payload.transaction_ids, user.id, commit=False)
+    return {"deleted_count": deleted_count}
+
+
+@router.delete(
+    "/{tx_id}",
+    status_code=204,
+    summary="Xóa giao dịch (Delete Transaction)",
+    description=(
+        "🇻🇳 **Mô tả**: Xóa giao dịch; chuyển tiền xóa cả hai vế; giao dịch ngân hàng mô phỏng giữ số dư nguồn.\n\n"
+        "🇬🇧 **Description**: Delete a transaction with paired transfers and protected provider balances."
+    ),
+)
+@idempotent_money
+def delete_tx(
+    tx_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    delete_transaction(db, tx_id, user.id, commit=False)

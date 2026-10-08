@@ -1,0 +1,7 @@
+/* Hiệu ứng và ô nhập riêng của màn đăng nhập; không lan sang các tab khác. */
+@keyframes admin-login-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes admin-login-twinkle { from { opacity: 0.1; } to { opacity: 0.8; } }
+@keyframes admin-login-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(5px); } }
+@keyframes admin-login-shake { 10%, 90% { transform: translate3d(-2px, 0, 0); } 20%, 80% { transform: translate3d(3px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-5px, 0, 0); } 40%, 60% { transform: translate3d(5px, 0, 0); } }
+@keyframes admin-login-fadeInOut { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.6; } }
+.admin-login-screen input::placeholder { color: rgba(255,255,255,0.25); } .admin-login-screen, .admin-login-screen * { -webkit-tap-highlight-color: transparent; }

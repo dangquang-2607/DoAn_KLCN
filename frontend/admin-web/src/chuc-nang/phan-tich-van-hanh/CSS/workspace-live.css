@@ -1,0 +1,26 @@
+/* CSS riêng: phan-tich-van-hanh. Giữ thứ tự breakpoint. */
+
+.adm-live .sa-demo__filter { margin:0; }
+.adm-live .sa-demo__metric { min-width:0; }
+.adm-live .sa-demo__charts { align-items:stretch; }
+.adm-live .sa-demo__scope p { flex:1; }
+.adm-live .sa-demo__period-select { min-width:0; }
+.adm-live .sa-demo__period-select select { min-width:0; width:210px; }
+.adm-live-date-picker { position:relative; flex:0 0 auto; }
+.adm-live-date-picker summary { display:grid; place-items:center; width:38px; height:38px; border:1px solid var(--ad-line); border-radius:8px; background:#fff; cursor:pointer; color:#657b8f; list-style:none; }
+.adm-live-date-picker summary::-webkit-details-marker { display:none; }
+.adm-live-date-picker > label { position:absolute; z-index:5; right:0; top:45px; display:grid; gap:8px; width:250px; padding:16px; border:1px solid var(--ad-line); border-radius:12px; box-shadow:0 8px 25px #24304720; background:#fff; font-size:12px; }
+.adm-live .cf-volume { margin:0; }
+@container (max-width:820px) {
+  .adm-live .sa-demo__charts { grid-template-columns:1fr; }
+  .adm-live .sa-demo__filter { grid-template-columns:1fr; }
+  .adm-live .sa-demo__filter-controls { margin-top:16px; justify-content:space-between; }
+}
+@container (max-width:550px) {
+  .adm-live .sa-demo__metrics { grid-template-columns:1fr; }
+  /* Cho bộ chọn kỳ cả một hàng trước khi chia phần rộng cho select.
+     Nếu cha co theo nội dung, width:0 sẽ làm mất nhãn kỳ ở tablet. */
+  .adm-live .sa-demo__period-select { flex:1 1 100%; width:100%; }
+  .adm-live .sa-demo__period-select select { flex:1 1 auto; width:100%; min-width:0; padding-right:22px; }
+  .adm-live .cf-period-navigation > .cf-icon-btn { flex:0 0 auto; }
+}
