@@ -2,6 +2,12 @@
 
 > Cập nhật sơ đồ backend ngày 07/10/2026. Phần cây frontend bên dưới là ảnh chụp cũ; cấu trúc frontend hiện hành xem `frontend/README.md`.
 
+> Ngày 09/10/2026: phần nghiệm thu/demo được gom vào `nghiem_thu/`.
+> `qa/` → `nghiem_thu/qa/`; `scripts/demo/` → `nghiem_thu/scripts/demo/`;
+> `compose.demo.yml` và `.demo.local.json` → bên trong `nghiem_thu/`;
+> upload demo mới nằm ở `nghiem_thu/demo-uploads/`. Mã nguồn API/database/frontend không đổi.
+> Xem [lệnh chạy hiện tại](nghiem_thu/README.md). Bằng chứng cũ giữ nguyên đường dẫn lịch sử.
+
 ## Cách đọc
 
 - Phần trước dấu `#` là cây thư mục; phần sau là mục đích của thành phần.

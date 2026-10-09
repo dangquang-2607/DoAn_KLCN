@@ -4,7 +4,7 @@
 .env*.local
 .demo.local.json
 demo-uploads/
-qa/release-runs/
+/nghiem_thu/
 !.env.example
 !.env.docker.example
 

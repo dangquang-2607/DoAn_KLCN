@@ -7,6 +7,12 @@ Microsoft SQL Server; OCR chạy qua Gemini trong hàng đợi nền.
 Xem [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) để tra cứu toàn bộ file
 first-party và mục đích của từng file.
 
+Phần nghiệm thu/demo được gom vào [nghiem_thu/](nghiem_thu/README.md):
+báo cáo và DB QA, script demo, Compose demo và cấu hình local riêng.
+Lệnh chạy API/worker/frontend thông thường không đổi. Không dùng API QA giả lập
+ở cổng 8018 làm backend cho dữ liệu thật. Hướng dẫn demo Docker trên laptop:
+[nghiem_thu/scripts/demo/README.md](nghiem_thu/scripts/demo/README.md).
+
 Hai giao diện được tổ chức theo sidebar trong `src/chuc-nang/`, còn phần dùng
 chung nằm tại `src/dung-chung/`. Xem [hướng dẫn frontend](frontend/README.md)
 để tìm từng tab, CSS và quy trình đồng bộ giao diện.
@@ -154,12 +160,6 @@ cd capitalflow-api
 Chỉ triển khai khi lệnh trả `ready: true`. Không xử lý lỗi chứng chỉ bằng cách
 bật `TrustServerCertificate=yes`; hãy cài đúng CA, hostname và certificate.
 
-Runbook chi tiết:
-
-- [Docker và SQL Server](capitalflow-api/docs/docker-sql-server.md)
-- [Toàn vẹn tài chính](capitalflow-api/docs/financial-integrity-release.md)
-- [Khả năng phục hồi](capitalflow-api/docs/resilience-release.md)
-- [Xóa người dùng](capitalflow-api/docs/user-deletion-release.md)
 
 ## Quy tắc repository
 
