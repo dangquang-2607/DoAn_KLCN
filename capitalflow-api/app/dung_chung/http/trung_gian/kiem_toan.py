@@ -3,6 +3,8 @@ Middleware kiểm toán tự động ghi nhật ký mọi thao tác thay đổi 
 Sử dụng phiên độc lập để ghi nhật ký, không ảnh hưởng phiên của request chính.
 """
 import json
+import logging
+import traceback
 import uuid
 from datetime import datetime, timezone
 
@@ -14,6 +16,8 @@ from starlette.concurrency import run_in_threadpool
 
 from app.dung_chung.database.session import SessionLocal
 from app.chuc_nang.quan_tri.nhat_ky_quan_tri.luu_tru.nhat_ky import AuditLog
+
+logger = logging.getLogger(__name__)
 
 
 # Các path prefix bỏ qua (không cần audit)
@@ -104,8 +108,8 @@ def _write_audit_log(
         db.commit()
     except Exception as e:
         db.rollback()
-        # Lỗi ghi log KHÔNG được ảnh hưởng API — chỉ print warning
-        print(f"[AuditMiddleware WARNING] Audit write failed: {type(e).__name__}")
+        # Lỗi ghi log KHÔNG được ảnh hưởng API — in traceback đầy đủ để debug
+        logger.exception("[AuditMiddleware] Audit write failed: %s", type(e).__name__)
     finally:
         db.close()
 

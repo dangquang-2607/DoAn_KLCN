@@ -14,12 +14,6 @@ function subscribeClock(update: () => void) {
 const clockSnapshot = () => Math.floor(Date.now() / 60000) * 60000;
 const serverClock = () => 0;
 
-const bankStatusLabels: Record<string, string> = {
-  NOT_CONNECTED: "Chưa kết nối", CONNECTED: "Đã liên kết · Demo",
-  DISCONNECTED: "Đã ngắt liên kết", EXPIRED: "Cần cấp quyền lại",
-  LOGIN: "Chờ đăng nhập", OTP: "Chờ OTP", SELECT: "Chờ chọn tài khoản",
-};
-
 export default function AccountDetailsModal({ account, onClose, onBank }: {
   account: Account;
   onClose: () => void;
@@ -39,6 +33,9 @@ export default function AccountDetailsModal({ account, onClose, onBank }: {
   const goalStatus = saved >= target ? "Đã đạt mục tiêu"
     : daysUntilTarget === null ? "Đang theo dõi mục tiêu"
       : daysUntilTarget >= 0 ? `Còn ${daysUntilTarget} ngày` : `Quá hạn ${Math.abs(daysUntilTarget)} ngày`;
+
+  // Kiểm tra ví đã đồng bộ lần nào chưa (dựa vào bank_last_sync)
+  const isSynced = Boolean(account.bank_last_sync);
 
   return <Modal title={`Chi tiết ví · ${account.name}`} onClose={onClose}>
     <div className={styles.details}>
@@ -82,11 +79,25 @@ export default function AccountDetailsModal({ account, onClose, onBank }: {
       {isLinked && <section className={styles.bankDetails} aria-label="Chi tiết liên kết ngân hàng">
         <h3>Liên kết ngân hàng mô phỏng</h3>
         <div className={styles.infoGrid}>
-          <div><span className={styles.label}>Trạng thái</span><strong>{bankStatusLabels[account.bank_status || "NOT_CONNECTED"] || account.bank_status}</strong></div>
-          <div><span className={styles.label}>Đồng bộ gần nhất</span><strong>{account.bank_last_sync ? new Date(account.bank_last_sync + "Z").toLocaleString("en-GB") : "Chưa đồng bộ"}</strong></div>
+          <div>
+            <span className={styles.label}>Trạng thái</span>
+            <strong>Đã liên kết ngân hàng</strong>
+          </div>
+          <div>
+            <span className={styles.label}>Đồng bộ gần nhất</span>
+            <strong>
+              {account.bank_last_sync
+                ? `Đã đồng bộ · ${new Date(account.bank_last_sync + "Z").toLocaleString("en-GB")}`
+                : "Chưa đồng bộ"}
+            </strong>
+          </div>
         </div>
-        <button type="button" className="cf-btn" onClick={() => { onClose(); onBank(account); }}>
-          {account.bank_managed ? "Quản lý kết nối demo" : "Kết nối ngân hàng demo"}
+        <button
+          type="button"
+          className="cf-btn cf-btn-primary"
+          onClick={() => { onClose(); onBank(account); }}
+        >
+          {isSynced ? "Đã đồng bộ" : "Đồng bộ"}
         </button>
       </section>}
 

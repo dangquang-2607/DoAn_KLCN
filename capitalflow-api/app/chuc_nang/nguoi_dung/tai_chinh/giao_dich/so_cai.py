@@ -48,10 +48,11 @@ def _verify_account_ownership(db: Session, account_id: uuid.UUID, user_id: uuid.
             status_code=400,
             detail="Tài khoản ví không hợp lệ hoặc không thuộc quyền sở hữu của bạn"
         )
-    if acc.bank_state:
-        import json
-        if json.loads(acc.bank_state).get("external_account"):
-            raise HTTPException(409, "Ví ngân hàng mô phỏng chỉ nhận giao dịch đồng bộ")
+    # ── ĐÃ BỎ CHECK: Cho phép tạo giao dịch thủ công trên ví ngân hàng mô phỏng ──
+    # if acc.bank_state:
+    #     import json
+    #     if json.loads(acc.bank_state).get("external_account"):
+    #         raise HTTPException(409, "Ví ngân hàng mô phỏng chỉ nhận giao dịch đồng bộ")
     return acc
 
 
@@ -85,8 +86,9 @@ def _adjust_balance(
     acc = db.scalar(select(Account).where(Account.id == account_id).with_hint(Account, "WITH (UPDLOCK, ROWLOCK)", dialect_name="mssql").execution_options(populate_existing=True))
     if not acc:
         raise HTTPException(status_code=404, detail="Tài khoản không tồn tại")
-    if acc.bank_managed:
-        raise HTTPException(409, "Ví ngân hàng chỉ cập nhật số dư qua đồng bộ")
+    # ── ĐÃ BỎ CHECK: Cho phép cập nhật số dư ví ngân hàng mô phỏng ──
+    # if acc.bank_managed:
+    #     raise HTTPException(409, "Ví ngân hàng chỉ cập nhật số dư qua đồng bộ")
 
     # Rule CSDL: INCOME >= 0, EXPENSE <= 0
     actual_amount = abs(amount) if tx_type == TransactionType.INCOME else -abs(amount)
@@ -242,23 +244,7 @@ def update_transaction(
     if not txn:
         raise HTTPException(status_code=404, detail="Không tìm thấy giao dịch")
 
-    if txn.bank_reference:
-        changes = payload.model_dump(exclude_unset=True)
-        if set(changes) - {"note", "category_id"}:
-            raise HTTPException(409, "Giao dịch ngân hàng chỉ cho sửa danh mục và ghi chú")
-        if payload.category_id:
-            _verify_category_ownership(db, payload.category_id, user_id, txn.type,
-                                       allow_inactive=payload.category_id == txn.category_id)
-        for key, value in changes.items():
-            setattr(txn, key, value)
-        if "category_id" in changes:
-            txn.category_confidence = Decimal("1.0000") if txn.category_id else None
-            txn.category_source = "MANUAL" if txn.category_id else None
-            txn.category_was_auto = False
-        if commit: db.commit()
-        else: db.flush()
-        db.refresh(txn)
-        return txn
+    # ── ĐÃ BỎ CHECK bank_reference: Cho phép sửa mọi giao dịch ──
     _require_editable(txn)
 
     # IDOR Guard: kiểm tra quyền sở hữu ví mới (nếu thay đổi)
@@ -345,7 +331,8 @@ def delete_transactions(db: Session, tx_ids: list[uuid.UUID], user_id: uuid.UUID
 
     for txn in sorted(transactions.values(), key=lambda row: str(row.id)):
         account = accounts[txn.account_id]
-        if not txn.bank_reference and not account.bank_managed:
+        # ── SỬA: Cho phép hoàn số dư cho giao dịch manual (không phải bank_reference) dù ví bank_managed ──
+        if not txn.bank_reference:
             account.balance -= txn.amount
         elif txn.bank_reference and account.bank_state:
             # Nguồn demo vẫn giữ biến động tiền; ghi dấu ref để lần đồng bộ sau không nhập lại.
@@ -470,8 +457,9 @@ def transfer_money(
 
 
 def _require_editable(txn: Transaction):
-    if txn.bank_reference:
-        raise HTTPException(409, "Không được xóa giao dịch ngân hàng đã đồng bộ")
+    # ── ĐÃ BỎ CHECK bank_reference: Cho phép sửa/xóa mọi giao dịch ──
+    # if txn.bank_reference:
+    #     raise HTTPException(409, "Không được xóa giao dịch ngân hàng đã đồng bộ")
     if txn.kind != "NORMAL" or txn.source == TransactionSource.SYSTEM:
         raise HTTPException(status_code=409, detail="Không được sửa hoặc xóa riêng giao dịch chuyển tiền/điều chỉnh số dư")
 

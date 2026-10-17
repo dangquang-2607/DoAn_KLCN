@@ -40,6 +40,7 @@ const emptyForm: AccountForm = {
   currency: "VND",
   account_number_masked: "", target_amount: "", target_date: "",
   exclude_from_total: false, is_notification_enabled: true,
+  is_otp_sent: false, otp_code: "", // THÊM 2 TRƯỜNG OTP
 };
 
 const formType = (kind: string) => ["BASIC", "LINKED", "SAVINGS"].includes(kind)
@@ -82,6 +83,7 @@ export default function Accounts() {
       target_amount: String(account.target_amount || ""), target_date: formatDateForDisplay(account.target_date),
       exclude_from_total: account.exclude_from_total || false,
       is_notification_enabled: account.is_notification_enabled ?? true,
+      is_otp_sent: false, otp_code: "", // Reset OTP khi mở modal
     } : emptyForm);
     setError("");
     setShow(true);
@@ -102,6 +104,30 @@ export default function Accounts() {
       setError("Hạn hoàn thành không hợp lệ. Vui lòng nhập đúng ngày/tháng/năm (dd/mm/yyyy).");
       return;
     }
+
+    // === XỬ LÝ RIÊNG CHO VÍ LIÊN KẾT KHI TẠO MỚI ===
+    const isCreatingLinked = !editing && form.account_type === "LINKED";
+    
+    if (isCreatingLinked && !form.is_otp_sent) {
+      // Bước 1: Gửi OTP
+      setBusy(true);
+      setError("");
+      try {
+        await api.post("/accounts/send-otp", {
+          institution_name: form.institution_name,
+          account_number: form.account_number_masked,
+        });
+        setForm(f => ({ ...f, is_otp_sent: true }));
+        setNotice("Mã OTP đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư.");
+      } catch (caught) {
+        setError(errorMessage(caught));
+      } finally {
+        setBusy(false);
+      }
+      return; // Dừng lại, không tạo tài khoản
+    }
+
+    // === XỬ LÝ TẠO/CẬP NHẬT TÀI KHOẢN (bao gồm cả bước 2 của LINKED) ===
     setBusy(true);
     setError("");
     try {
@@ -114,9 +140,16 @@ export default function Accounts() {
         target_amount: form.account_type === "SAVINGS" ? form.target_amount : null,
         target_date: targetDate,
         institution_name: form.account_type === "LINKED" ? form.institution_name.trim() || null : null,
+        // Gửi kèm OTP nếu là LINKED và đã gửi
+        otp_code: isCreatingLinked ? form.otp_code : undefined,
       };
-      if (editing) await api.patch("/accounts/" + editing.id, payload);
-      else await api.post("/accounts", payload);
+      
+      if (editing) {
+        await api.patch("/accounts/" + editing.id, payload);
+      } else {
+        await api.post("/accounts", payload);
+      }
+      
       await refresh();
       setShow(false);
       setNotice(editing ? "Đã cập nhật tài khoản." : "Đã tạo tài khoản.");

@@ -2,6 +2,7 @@
 Các route đăng ký, đăng nhập, làm mới token, đăng xuất, hồ sơ và quên mật khẩu.
 """
 import hmac
+import logging
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -38,6 +39,7 @@ from app.chuc_nang.nguoi_dung.dang_nhap.schemas.auth import (
     ChangePasswordRequest,
 )
 
+logger = logging.getLogger("capitalflow")
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
@@ -159,16 +161,18 @@ def forgot_password(request: Request, payload: ForgotPasswordRequest, background
     )
     db.add(reset_record)
     db.flush()
+    db.commit()  # Commit để lưu OTP record trước khi gửi mail
 
-    enqueue_email(db,
-        EmailService.send_password_reset_otp,
-        user.email,
-        user.full_name or "Quý khách",
-        otp_code,
-        user_id=user.id,
-        owner_user_id=user.id,
-    )
-    db.commit()
+    # ── GỬI EMAIL TRỰC TIẾP (không qua queue) ────────────────────────────────
+    try:
+        EmailService.send_password_reset_otp(
+            user.email,
+            user.full_name or "Quý khách",
+            otp_code,
+            user_id=user.id,
+        )
+    except Exception as e:
+        logger.exception("Gửi email OTP quên mật khẩu thất bại: %s", e)
 
     return {"success": True, "message": "Nếu email tồn tại trên hệ thống, mã xác thực OTP sẽ được gửi về hộp thư của bạn."}
 

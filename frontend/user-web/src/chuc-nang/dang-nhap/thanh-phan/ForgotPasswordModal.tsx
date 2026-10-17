@@ -13,7 +13,7 @@
  *   Không ghi log mật khẩu/token; khóa thao tác khi đang gửi và xử lý phiên hết hạn nhất quán.
  * ============================================================================
  */
-﻿'use client';
+'use client';
 import { motion, AnimatePresence } from 'framer-motion';
 import { KeyRound, X, Mail, RotateCw, ArrowRight, CheckCircle2 } from 'lucide-react';
 
@@ -96,7 +96,7 @@ export default function ForgotPasswordModal({
 
             {/* Bước 1: Nhập email nhận OTP. */}
             {step === 1 && (
-              <form onSubmit={onSendOtp} className="mt-5 space-y-4">
+              <form onSubmit={onSendOtp} className="mt-5 space-y-4" autoComplete="off">
                 <p className="text-xs text-slate-600 leading-relaxed">
                   Nhập địa chỉ email liên kết với tài khoản của bạn. Chúng tôi sẽ gửi mã OTP 6 số để xác thực bảo mật.
                 </p>
@@ -108,6 +108,8 @@ export default function ForgotPasswordModal({
                     <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
                       type="email"
+                      name="forgot_email_field"
+                      autoComplete="off"
                       value={email}
                       onChange={(e) => onEmailChange(e.target.value)}
                       placeholder="name@example.com"
@@ -134,7 +136,7 @@ export default function ForgotPasswordModal({
 
             {/* Bước 2: Nhập OTP và mật khẩu mới. */}
             {step === 2 && (
-              <form onSubmit={onResetPassword} className="mt-5 space-y-4">
+              <form onSubmit={onResetPassword} className="mt-5 space-y-4" autoComplete="off">
                 <p className="text-xs text-slate-600">
                   Mã xác thực đã được gửi tới <strong className="text-slate-900">{email}</strong>. Vui lòng kiểm tra hộp thư.
                 </p>
@@ -144,12 +146,23 @@ export default function ForgotPasswordModal({
                   </label>
                   <input
                     type="text"
+                    name="otp_code_field"
+                    autoComplete="one-time-code"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     maxLength={6}
                     value={otp}
-                    onChange={(e) => onOtpChange(e.target.value)}
+                    onChange={(e) => {
+                      // Chỉ cho phép nhập số, tự động loại bỏ ký tự khác
+                      const onlyDigits = e.target.value.replace(/\D/g, '').slice(0, 6);
+                      onOtpChange(onlyDigits);
+                    }}
                     placeholder="123456"
                     className="w-full text-center tracking-[0.4em] font-mono text-lg font-bold py-2.5 bg-slate-50 focus:bg-white text-slate-900 rounded-xl border border-slate-200 focus:border-blue-600 outline-none"
                   />
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Vui lòng chỉ nhập 6 chữ số từ email. Không nhập chữ cái.
+                  </p>
                 </div>
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
@@ -157,6 +170,8 @@ export default function ForgotPasswordModal({
                   </label>
                   <input
                     type="password"
+                    name="new_password_field"
+                    autoComplete="new-password"
                     value={newPassword}
                     onChange={(e) => onNewPasswordChange(e.target.value)}
                     placeholder="Tối thiểu 6 ký tự"
@@ -169,6 +184,8 @@ export default function ForgotPasswordModal({
                   </label>
                   <input
                     type="password"
+                    name="confirm_password_field"
+                    autoComplete="new-password"
                     value={confirmPassword}
                     onChange={(e) => onConfirmPasswordChange(e.target.value)}
                     placeholder="Nhập lại mật khẩu mới"

@@ -10,7 +10,7 @@ from decimal import Decimal
 from typing import Literal, TypedDict
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 from app.dung_chung.http.phu_thuoc import get_current_user, get_db
 from app.chuc_nang.nguoi_dung.dang_nhap.luu_tru.nguoi_dung import User
@@ -199,11 +199,21 @@ def command(account_id: uuid.UUID, payload: Command, db: Session = Depends(get_d
             definition = DEMO_ACCOUNTS[payload.account]
             opening = definition["opening"]
             record_balance_adjustment(db, acc, user.id, opening)
+            
+            # Lấy số lượng giao dịch thủ công hiện tại làm mốc ban đầu
+            initial_manual_count = db.scalar(
+                select(func.count()).select_from(Transaction).where(
+                    Transaction.account_id == acc.id,
+                    Transaction.bank_reference.is_(None),
+                    Transaction.source == "MANUAL",
+                )
+            ) or 0
+
             state.update(opening_balance=str(opening), events=[
                 {"id": ref, "amount": amount, "description": description,
                  "status": status, "date": str(date.today())}
                 for ref, amount, description, status in definition["events"]
-            ], imported=[], source_balance=str(opening), counter=0)
+            ], imported=[], source_balance=str(opening), counter=0, last_manual_count=initial_manual_count)
         state.update(stage="CONNECTED", linked=True, external_account=payload.account, outage=False,
                      consent_expires=(now()+timedelta(days=90)).isoformat())
         acc.account_number_masked = "****"+payload.account
@@ -253,8 +263,27 @@ def command(account_id: uuid.UUID, payload: Command, db: Session = Depends(get_d
                 state["source_balance"] = str(Decimal(state["source_balance"])+amount)
                 added += 1
             state["imported"].append(ref)
-        if acc.balance != Decimal(view(state)["provider_balance"]):
-            raise HTTPException(409, "Đối soát số dư không khớp; giao dịch đồng bộ được hoàn tác")
+        
+        # ── ĐÃ BỎ CHECK ĐỐI SOÁT: Cho phép đồng bộ dù số dư lệch
+        provider_balance = Decimal(view(state)["provider_balance"])
+        if acc.balance != provider_balance:
+            diff = acc.balance - provider_balance
+            state["opening_balance"] = str(Decimal(state.get("opening_balance", "0")) + diff)
+            state["source_balance"] = str(acc.balance)
+
+        # ── ĐẾM GIAO DỊCH THỦ CÔNG MỚI (Dựa trên chênh lệch tổng số giao dịch) ──
+        current_manual_count = db.scalar(
+            select(func.count()).select_from(Transaction).where(
+                Transaction.account_id == acc.id,
+                Transaction.bank_reference.is_(None),
+                Transaction.source == "MANUAL",
+            )
+        ) or 0
+        
+        last_manual_count = state.get("last_manual_count", 0)
+        manual_count = max(0, current_manual_count - last_manual_count)
+        state["last_manual_count"] = current_manual_count
+
         if imported:
             db.flush()
             for imported_txn in imported:
@@ -262,6 +291,7 @@ def command(account_id: uuid.UUID, payload: Command, db: Session = Depends(get_d
                 if imported_txn.type == "EXPENSE":
                     enqueue(db, "BUDGET", {"user_id": str(user.id), "transaction_id": str(imported_txn.id)},
                             "budget-check:" + str(imported_txn.id))
-        state.update(stage="CONNECTED", last_sync=now().isoformat(), last_imported=added)
+        total_new = added + manual_count
+        state.update(stage="CONNECTED", last_sync=now().isoformat(), last_imported=total_new)
         return save()
     raise HTTPException(422, "Hành động không hợp lệ")
