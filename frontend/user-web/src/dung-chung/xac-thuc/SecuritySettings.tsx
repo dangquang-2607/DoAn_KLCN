@@ -15,7 +15,8 @@
  */
 "use client";
 /** Form thông tin tài khoản và đổi mật khẩu, dùng cả cho lần đăng nhập đầu. */
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { KeyRound, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/dung-chung/connect-api/api";
@@ -26,12 +27,16 @@ import {
   Field,
   Password,
   Alert,
+  Loading,
+  ErrorState,
 } from "@/dung-chung/UI-chung/ui";
 import { settingsStyles } from "./settings.styles";
 export default function SecuritySettings({
   firstTime = false,
+  sessions,
 }: {
   firstTime?: boolean;
+  sessions?: ReactNode;
 }) {
   const router = useRouter();
   const [current, setCurrent] = useState(""),
@@ -63,6 +68,7 @@ export default function SecuritySettings({
       setCurrent("");
       setPassword("");
       setConfirm("");
+      for (const key of Object.keys(sessionStorage)) { if (key.startsWith("cf-pending-invoice:")) sessionStorage.removeItem(key); }
       sessionStorage.removeItem("user_access_token");
       sessionStorage.removeItem("user_refresh_token");
       router.replace("/login");
@@ -73,32 +79,30 @@ export default function SecuritySettings({
     }
   };
   return (
-    <div className="cf-stack">
+    <div className={firstTime ? "cf-stack" : "cf-security-workspace"}>
       {!firstTime && (
-        <Panel title="Thông tin tài khoản">
-          <div className="cf-panel-body cf-grid-2">
-            <div>
-              <div className="cf-eyebrow">Họ và tên</div>
-              {profile.data?.full_name || "—"}
-            </div>
-            <div>
-              <div className="cf-eyebrow">Email đăng nhập</div>
-              {profile.data?.email || "—"}
-            </div>
-          </div>
-        </Panel>
+        profile.isPending ? <Loading /> : profile.isError ? <ErrorState retry={() => profile.refetch()} /> :
+          <section className="cf-security-profile" aria-label="Thông tin tài khoản">
+            <span className="cf-security-profile-icon"><ShieldCheck size={24} aria-hidden="true" /></span>
+            <div><p className="cf-eyebrow">TÀI KHOẢN CÁ NHÂN</p><h2>{profile.data?.full_name || "Chưa đặt tên"}</h2><span>{profile.data?.email || "—"}</span></div>
+            <span className="cf-security-profile-badge">Người dùng</span>
+          </section>
       )}
+      <div className={firstTime ? undefined : "cf-security-columns"}>
       <Panel
+        className={firstTime ? "" : "cf-security-card cf-security-password"}
         title={firstTime ? "Thiết lập mật khẩu" : "Đổi mật khẩu"}
-        description="Sử dụng ít nhất 6 ký tự. Nên kết hợp chữ, số và ký tự đặc biệt."
+        description={firstTime ? "Sử dụng ít nhất 6 ký tự. Nên kết hợp chữ, số và ký tự đặc biệt." : "Xác nhận mật khẩu hiện tại trước khi cập nhật."}
+        action={!firstTime && <KeyRound size={21} aria-hidden="true" />}
       >
         <form
           onSubmit={submit}
           className="cf-panel-body cf-form"
-          style={settingsStyles.form}
+          style={firstTime ? settingsStyles.form : undefined}
         >
           {error && <Alert onDismiss={() => setError("")}>{error}</Alert>}
           {success && <Alert kind="success" onDismiss={() => setSuccess("")}>{success}</Alert>}
+          {!firstTime && <div className="cf-security-warning"><ShieldCheck size={17} aria-hidden="true" /><span>Sau khi đổi mật khẩu thành công, bạn cần đăng nhập lại.</span></div>}
           {!firstTime && (
             <Field label="Mật khẩu hiện tại">
               <Password
@@ -109,19 +113,21 @@ export default function SecuritySettings({
               />
             </Field>
           )}
-          <Field label="Mật khẩu mới">
+          <Field label="Mật khẩu mới" hint={firstTime ? undefined : "Ít nhất 6 ký tự. Nên kết hợp chữ, số và ký tự đặc biệt."}>
             <Password value={password} onChange={setPassword} />
           </Field>
           <Field label="Xác nhận mật khẩu mới">
             <Password value={confirm} onChange={setConfirm} />
           </Field>
-          <div>
-            <button className="cf-btn cf-btn-primary" disabled={busy}>
+          <div className={firstTime ? undefined : "cf-security-form-footer"}>
+            <button type="submit" className="cf-btn cf-btn-primary" disabled={busy}>
               {busy ? "Đang lưu…" : "Cập nhật mật khẩu"}
             </button>
           </div>
         </form>
       </Panel>
+      {!firstTime && sessions}
+      </div>
     </div>
   );
 }

@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from app.chuc_nang.nguoi_dung.hoa_don_ai.nghiep_vu.deletion import safe_delete_invoice
+from app.chuc_nang.nguoi_dung.hoa_don_ai.nghiep_vu.deletion import purge_invoice
 from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.invoice import Invoice
 from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan.luu_tru.account import Account
 from app.chuc_nang.nguoi_dung.tai_chinh.thong_bao.luu_tru.thong_bao import Notification
@@ -97,7 +97,7 @@ def delete_wallet(db: Session, account: Account, user_id: uuid.UUID) -> None:
             Transaction.id.in_(batch), Transaction.user_id == user_id,
         ))
     for invoice in invoices:
-        safe_delete_invoice(db, invoice)
+        purge_invoice(db, invoice)
     db.execute(delete(Notification).where(
         Notification.user_id == user_id,
         Notification.source_type == "ACCOUNT",

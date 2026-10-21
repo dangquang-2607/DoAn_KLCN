@@ -40,20 +40,7 @@ from app.dung_chung.tac_vu_nen.hang_doi import enqueue
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
 
 
-@router.get(
-    "",
-    response_model=TransactionPage,
-    summary="Danh sách giao dịch (List Transactions)",
-    description=(
-        "🇻🇳 **Mô tả**: Lấy danh sách giao dịch tài chính của người dùng có hỗ trợ phân trang "
-        "và lọc đa điều kiện (loại thu/chi, tài khoản, danh mục, thời gian).\n\n"
-        "🇬🇧 **Description**: Retrieve a paginated list of transactions with optional filters "
-        "by type, account, category, and date range."
-    ),
-)
-def list_transactions(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=1000),
+def _filtered_transactions(
     type: str | None = Query(None),
     account_id: uuid.UUID | None = Query(None),
     category_id: uuid.UUID | None = Query(None),
@@ -61,9 +48,10 @@ def list_transactions(
     search: str | None = Query(None, max_length=100),
     start_date: date | None = Query(None),
     end_date: date | None = Query(None),
-    db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    if start_date and end_date and start_date > end_date:
+        raise HTTPException(status_code=422, detail="Ngày bắt đầu phải trước hoặc bằng ngày kết thúc")
     q = select(Transaction).where(Transaction.user_id == user.id)
 
     if type:
@@ -86,6 +74,26 @@ def list_transactions(
         q = q.where(Transaction.transaction_date >= start_date)
     if end_date:
         q = q.where(Transaction.transaction_date <= end_date)
+    return q
+
+
+@router.get(
+    "",
+    response_model=TransactionPage,
+    summary="Danh sách giao dịch (List Transactions)",
+    description=(
+        "🇻🇳 **Mô tả**: Lấy danh sách giao dịch tài chính của người dùng có hỗ trợ phân trang "
+        "và lọc đa điều kiện (loại thu/chi, tài khoản, danh mục, thời gian).\n\n"
+        "🇬🇧 **Description**: Retrieve a paginated list of transactions with optional filters "
+        "by type, account, category, and date range."
+    ),
+)
+def list_transactions(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=1000),
+    q=Depends(_filtered_transactions),
+    db: Session = Depends(get_db),
+):
 
     count_q = select(func.count()).select_from(q.subquery())
     total = db.scalar(count_q) or 0
@@ -96,6 +104,17 @@ def list_transactions(
     ).all()
 
     return TransactionPage(items=items, total=total, page=page, page_size=page_size)
+
+
+@router.get("/export-data", response_model=list[TransactionOut], summary="Toàn bộ giao dịch theo bộ lọc để chọn/xuất Excel")
+def export_transactions(
+    q=Depends(_filtered_transactions),
+    db: Session = Depends(get_db),
+):
+    # Một truy vấn dùng cùng bộ lọc và quyền sở hữu với danh sách, không cắt theo trang.
+    return db.scalars(q.order_by(
+        Transaction.transaction_date.desc(), Transaction.created_at.desc(), Transaction.id.desc(),
+    )).all()
 
 
 @router.post(

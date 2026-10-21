@@ -82,13 +82,9 @@ def _csv_safe(value) -> str:
     return "'" + text_value if text_value[:1] in ("=", "+", "-", "@", "\t", "\r") else text_value
 
 
-@router.get("/export.csv")
-def export_analytics_csv(
-    start_date: date | None = Query(None),
-    end_date: date | None = Query(None),
-    scope: str | None = Query(None, pattern="^all$"),
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+def _export_rows(
+    start_date: date | None, end_date: date | None, scope: str | None,
+    db: Session, user: User,
 ):
     if scope == "all":
         first = db.scalar(select(func.min(Transaction.transaction_date)).where(
@@ -98,16 +94,54 @@ def export_analytics_csv(
     if not start_date or not end_date or start_date > end_date or (scope != "all" and (end_date - start_date).days > 366):
         raise HTTPException(status_code=422, detail="Khoảng báo cáo không hợp lệ hoặc vượt quá 367 ngày")
     rows = db.execute(
-        select(Transaction, Account.name, Category.name)
+        select(Transaction, Account.name, Category.name, Account.currency)
         .join(Account, Account.id == Transaction.account_id)
         .outerjoin(Category, Category.id == Transaction.category_id)
         .where(Transaction.user_id == user.id, Transaction.transaction_date.between(start_date, end_date))
-        .order_by(Transaction.transaction_date.desc(), Transaction.created_at.desc())
+        .order_by(Transaction.transaction_date.desc(), Transaction.created_at.desc(), Transaction.id)
     ).all()
+    return start_date, end_date, rows
+
+
+@router.get("/export-data")
+def export_analytics_data(
+    start_date: date | None = Query(None),
+    end_date: date | None = Query(None),
+    scope: str | None = Query(None, pattern="^all$"),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Dữ liệu đầy đủ của kỳ để client tạo Excel, vẫn giới hạn theo current user."""
+    start_date, end_date, rows = _export_rows(start_date, end_date, scope, db, user)
+    return {
+        "period": {"start_date": start_date, "end_date": end_date},
+        "transactions": [
+            {
+                "transaction_date": transaction.transaction_date,
+                "type": transaction.type, "kind": transaction.kind,
+                "account_name": account_name,
+                "category_name": category_name or "Không phân loại",
+                "amount": str(transaction.amount), "currency": currency,
+                "description": transaction.description or "", "source": transaction.source,
+            }
+            for transaction, account_name, category_name, currency in rows
+        ],
+    }
+
+
+@router.get("/export.csv")
+def export_analytics_csv(
+    start_date: date | None = Query(None),
+    end_date: date | None = Query(None),
+    scope: str | None = Query(None, pattern="^all$"),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    start_date, end_date, rows = _export_rows(start_date, end_date, scope, db, user)
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(["Ngày", "Loại", "Tài khoản", "Danh mục", "Số tiền", "Diễn giải", "Nguồn"])
-    for transaction, account_name, category_name in rows:
+    for transaction, account_name, category_name, _currency in rows:
         writer.writerow([
             transaction.transaction_date.isoformat(), transaction.type,
             _csv_safe(account_name), _csv_safe(category_name or "Không phân loại"),

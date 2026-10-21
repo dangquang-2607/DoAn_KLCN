@@ -19,10 +19,7 @@
 .panelSand { background: #f7f3ed; }
 .chartTall { height: 310px; }
 .chartSmall { height: 220px; }
-.reportHeading { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
-.reportHeading h1 { font-size: clamp(28px, 2.6vw, 39px); margin: 5px 0 3px; letter-spacing: -.06em; }
-.reportHeading p { margin: 0; color: var(--muted); font-size: 12px; }
-.partial { display: inline-block; margin-left: 9px; border-radius: 999px; background: #f9e6d6; color: #955d42; padding: 5px 9px; font-size: 10px; font-weight: 750; vertical-align: middle; }
+.partial { display: inline-block; margin-bottom: 9px; border-radius: 999px; background: #f9e6d6; color: #955d42; padding: 5px 9px; font-size: 12px; font-weight: 750; }
 .reportActions { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; justify-content: flex-end; }
 .filter { position: relative; z-index: 5; display: flex; align-items: center; gap: 5px; min-height: 46px; padding: 4px; border: 1px solid #e7e0dc; border-radius: 13px; background: #fffefa; }
 .modeMenu { position: relative; }
@@ -66,7 +63,7 @@
 .compareRow small { color: #9a929a; font-size: 10px; }
 .footnote { margin: -2px 0 0; }
 .reportCanvas .overline { font-size: 11px; }
-.reportCanvas .reportHeading p, .reportCanvas .sectionHead p { font-size: 14px; line-height: 1.5; }
+.reportCanvas .sectionHead p { font-size: 14px; line-height: 1.5; }
 .reportCanvas .sectionHead h2 { font-size: 23px; }
 .reportCanvas .legend, .reportCanvas .miniList > div, .reportCanvas .compareTop { font-size: 13px; }
 .reportCanvas .miniList strong, .reportCanvas .donutCenter small, .reportCanvas .compareRow small { font-size: 12px; }
@@ -75,6 +72,6 @@
 .reportCanvas .modeMenu summary, .reportCanvas .modeOptions button, .reportCanvas .periodPicker > span, .reportCanvas .allLabel { font-size: 13px; }
 .reportCanvas .dates label { font-size: 12px; }
 .reportCanvas .dates :global(.cf-date-input-field) { font-size: 13px; }
-@media (max-width: 1200px) { .reportHeading { flex-wrap: wrap; } .reportActions { justify-content: flex-start; } }
+@media (max-width: 1200px) { .reportActions { justify-content: flex-start; } }
 @media (max-width: 800px) { .secondary { grid-template-columns: 1fr; } .kpis strong { font-size: 22px; } }
 @media (max-width: 540px) { .reportActions { width: 100%; } .filter { width: 100%; flex-wrap: wrap; } .periodPicker { flex: 1; } .periodPicker > span { flex: 1; min-width: 0; padding: 0 3px; font-size: 11px; } .dates { flex-wrap: wrap; } .kpis { grid-template-columns: 1fr 1fr; } .kpis > div { padding: 15px; } .kpis > div:nth-child(2) { border-right: 0; } .kpis > div:last-child { grid-column: 1 / -1; border-top: 1px solid var(--line); } .kpis strong { font-size: clamp(14px, 4vw, 19px); white-space: normal; overflow-wrap: anywhere; } }

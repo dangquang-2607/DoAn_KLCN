@@ -4,8 +4,8 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Download } from "lucide-react";
 import api from "@/dung-chung/connect-api/api";
-import { ErrorState, Loading } from "@/dung-chung/UI-chung/ui";
-import { dateLabel, localDate, money } from "@/dung-chung/tien-ich/finance";
+import { Alert, ErrorState, Loading, PageHead } from "@/dung-chung/UI-chung/ui";
+import { dateLabel, localDate, money, errorMessage, exportFinanceExcel, type ExcelTransaction } from "@/dung-chung/tien-ich/finance";
 import { resolveReportPeriod, type ReportMode } from "@/dung-chung/nghiep-vu/report-period";
 import ReportPeriodFilter from "./thanh-phan/ReportPeriodFilter";
 import ReportCharts from "./thanh-phan/ReportCharts";
@@ -23,6 +23,8 @@ type AnalyticsData = {
 };
 
 export default function Analytics() {
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
   const [mode, setMode] = useState<ReportMode>("month");
   const [anchor, setAnchor] = useState(() => localDate());
   const [customStart, setCustomStart] = useState(() => `${localDate().slice(0, 7)}-01`);
@@ -37,22 +39,31 @@ export default function Analytics() {
   const data = query.data;
   const changeMode = (next: ReportMode) => { setMode(next); setAnchor(localDate()); };
   const exportReport = async () => {
-    if (!data) return;
+    if (!data || exporting || !period.valid) return;
+    setExporting(true);
+    setExportError("");
     const params = mode === "all" ? { scope: "all" } : { start_date: data.period.start_date, end_date: data.period.end_date };
-    const response = await api.get("/analytics/export.csv", { params, responseType: "blob" });
-    const url = URL.createObjectURL(response.data);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `bao-cao-${data.period.start_date}-${data.period.end_date}.csv`;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    try {
+      const response = await api.get<{ period: AnalyticsData["period"]; transactions: ExcelTransaction[] }>("/analytics/export-data", { params });
+      const report = response.data;
+      await exportFinanceExcel(`bao-cao-${report.period.start_date}-${report.period.end_date}.xlsx`, {
+        title: "CapitalFlow — Báo cáo tài chính",
+        scope: `Từ ${dateLabel(report.period.start_date)} đến ${dateLabel(report.period.end_date)}. Toàn bộ ${report.transactions.length} giao dịch trong kỳ.`,
+        transactions: report.transactions,
+      });
+    } catch (error) {
+      setExportError(errorMessage(error));
+    } finally {
+      setExporting(false);
+    }
   };
 
   return <div className={`${styles.canvas} ${styles.reportCanvas}`}>
-    <div className={styles.reportHeading}>
-      <div><span className={styles.overline}>BỨC TRANH TÀI CHÍNH</span><h1>{period.valid ? period.label : "Chọn khoảng ngày"}{period.partial && <span className={styles.partial}>Đến {dateLabel(period.end)}</span>}</h1><p>{data ? `Số liệu thực từ ${dateLabel(data.period.start_date)} đến ${dateLabel(data.period.end_date)}.` : "Chọn mốc thời gian để xem dòng tiền của bạn."}</p></div>
-      <div className={styles.reportActions}><ReportPeriodFilter mode={mode} anchor={anchor} customStart={customStart} customEnd={customEnd} onMode={changeMode} onAnchor={setAnchor} onCustomStart={setCustomStart} onCustomEnd={setCustomEnd} /><button type="button" className="cf-btn" disabled={!data || query.isFetching} onClick={exportReport}><Download size={16} />Xuất CSV</button></div>
-    </div>
+    <PageHead eyebrow="BỨC TRANH TÀI CHÍNH" title={period.valid ? period.label : "Chọn khoảng ngày"}
+      titleAside={period.partial && <span className={styles.partial}>Đến {dateLabel(period.end)}</span>}
+      description={data ? `Số liệu thực từ ${dateLabel(data.period.start_date)} đến ${dateLabel(data.period.end_date)}.` : "Chọn mốc thời gian để xem dòng tiền của bạn."}
+      actions={<div className={styles.reportActions}><ReportPeriodFilter mode={mode} anchor={anchor} customStart={customStart} customEnd={customEnd} onMode={changeMode} onAnchor={setAnchor} onCustomStart={setCustomStart} onCustomEnd={setCustomEnd} /><button type="button" className="cf-btn" disabled={!data || !period.valid || query.isFetching || exporting} onClick={exportReport}><Download size={16} />{exporting ? "Đang xuất…" : "Xuất Excel"}</button></div>} />
+    {exportError && <Alert onDismiss={() => setExportError("")}>{exportError}</Alert>}
     {!period.valid ? <div className={styles.panel}>Khoảng tùy chỉnh phải hợp lệ, không vượt ngày hôm nay và tối đa 367 ngày.</div>
       : query.isPending ? <Loading /> : query.isError ? <ErrorState retry={() => query.refetch()} /> : data && <>
       <div className={styles.kpis}>

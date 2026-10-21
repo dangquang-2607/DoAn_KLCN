@@ -10,6 +10,7 @@ import base64
 import json
 import re
 import logging
+from time import perf_counter
 import httpx
 
 from app.dung_chung.config import settings
@@ -27,6 +28,7 @@ Nếu không đọc được trường nào, hãy để chuỗi rỗng "" hoặc
   "so_hoa_don": "số hóa đơn (VD: 0012489)",
   "mau_so_ky_hieu": "mẫu số / ký hiệu hóa đơn (VD: 1C24TKK)",
   "ngay_lap": "dd/MM/yyyy (VD: 24/10/2023)",
+  "gio_lap": "HH:mm:ss nếu in trên hóa đơn; không có thì null",
   "ma_so_thue": "mã số thuế người bán (chỉ gồm số và dấu gạch nếu có)",
   "ten_nguoi_ban": "tên công ty / cửa hàng người bán",
   "dia_chi_nguoi_ban": "địa chỉ người bán",
@@ -85,12 +87,28 @@ async def _call_gemini_model(model_name: str, file_bytes: bytes, mime_type: str)
         },
     }
 
-    async with httpx.AsyncClient(timeout=60) as client:
-        resp = await client.post(
-            url, headers={"x-goog-api-key": settings.google_ai_api_key}, json=payload
+    started = perf_counter()
+    status = None
+    outcome = "cancelled"
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(
+                url, headers={"x-goog-api-key": settings.google_ai_api_key}, json=payload
+            )
+            status = resp.status_code
+            resp.raise_for_status()
+            data = resp.json()
+        outcome = "received"
+    except Exception as exc:
+        outcome = type(exc).__name__
+        raise
+    finally:
+        # No URL, key, exception message or receipt content in diagnostic logs.
+        logger.log(
+            logging.INFO if outcome == "received" else logging.WARNING,
+            "ocr_provider_http status=%s outcome=%s elapsed_ms=%d bytes=%d",
+            status, outcome, int((perf_counter() - started) * 1000), len(file_bytes),
         )
-        resp.raise_for_status()
-        data = resp.json()
 
     raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
     raw_text = re.sub(r"```(?:json)?", "", raw_text).strip().rstrip("```").strip()

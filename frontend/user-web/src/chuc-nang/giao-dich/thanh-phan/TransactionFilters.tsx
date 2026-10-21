@@ -4,7 +4,7 @@
  * MÀN HÌNH / PHÂN HỆ: Giao dịch
  * NHÓM VỆ TINH: thanh-phan (Chức năng con)
  * MỤC ĐÍCH CỤ THỂ:
- *   Cung cấp tìm kiếm, bộ lọc và xuất CSV cho sổ giao dịch.
+ *   Cung cấp tìm kiếm, bộ lọc và xuất Excel cho sổ giao dịch.
  * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
  *   Props từ component cha, kiểu nghiệp vụ và các primitive UI liên quan.
  * ĐẦU RA & CUNG CẤP (Outputs / Exports):
@@ -17,34 +17,33 @@
 import { Search, Download } from "lucide-react";
 import { Field } from "@/dung-chung/UI-chung/ui";
 import DateInput from "@/dung-chung/UI-chung/DateInput";
-import { dateLabel, exportCsv } from "@/dung-chung/tien-ich/finance";
-import { type Account, type Category, type Transaction } from "@/dung-chung/nghiep-vu/finance";
+import { type Account, type Category } from "@/dung-chung/nghiep-vu/finance";
 
 interface TransactionFiltersProps {
   filters: { type: string; account_id: string; category_id: string; start_date: string; end_date: string };
   search: string;
-  page: number;
-  list: Transaction[];
+  selectedCount: number;
+  exporting: boolean;
+  exportDisabled: boolean;
+  onExport: () => void;
   accounts: Account[];
   categories: Category[];
   onFilter: (key: string, value: string) => void;
   onSearch: (v: string) => void;
-  getAccount: (id: string) => Account | undefined;
-  getCategory: (id: string | null) => Category | undefined;
 }
 
-// Khi xuất CSV, chỉ xuất danh sách đang hiển thị và dùng helper chống CSV injection.
+// Chỉ xuất các giao dịch đã tick, không có phạm vi xuất ngầm theo trang/bộ lọc.
 export default function TransactionFilters({
   filters,
   search,
-  page,
-  list,
+  selectedCount,
+  exporting,
+  exportDisabled,
+  onExport,
   accounts,
   categories,
   onFilter,
   onSearch,
-  getAccount,
-  getCategory,
 }: TransactionFiltersProps) {
   return (
     <div className="cf-toolbar">
@@ -105,29 +104,20 @@ export default function TransactionFilters({
             style={{ paddingLeft: 32 }}
             placeholder="Tìm mọi giao dịch"
             value={search}
+            maxLength={100}
             onChange={(e) => onSearch(e.target.value)}
           />
         </div>
       </Field>
       <button
         className="cf-btn"
-        disabled={!list.length}
-        onClick={() =>
-          exportCsv("giao-dich-trang-" + page + ".csv", [
-            ["Ngày", "Mô tả", "Tài khoản", "Danh mục", "Số tiền", "Tiền tệ"],
-            ...list.map((t) => [
-              dateLabel(t.transaction_date),
-              t.description,
-              getAccount(t.account_id)?.name,
-              getCategory(t.category_id)?.name,
-              t.amount,
-              getAccount(t.account_id)?.currency || "VND",
-            ]),
-          ])
-        }
+        type="button"
+        disabled={exportDisabled || exporting}
+        title={selectedCount ? `Xuất ${selectedCount} giao dịch đã tick` : "Tick ít nhất một giao dịch để xuất Excel"}
+        onClick={onExport}
       >
         <Download size={14} />
-        Xuất trang này
+        {exporting ? "Đang xuất…" : "Xuất Excel"}
       </button>
     </div>
   );

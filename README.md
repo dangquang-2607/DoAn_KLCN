@@ -7,11 +7,11 @@ Microsoft SQL Server; OCR chạy qua Gemini trong hàng đợi nền.
 Xem [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) để tra cứu toàn bộ file
 first-party và mục đích của từng file.
 
-Phần nghiệm thu/demo được gom vào [nghiem_thu/](nghiem_thu/README.md):
-báo cáo và DB QA, script demo, Compose demo và cấu hình local riêng.
-Lệnh chạy API/worker/frontend thông thường không đổi. Không dùng API QA giả lập
-ở cổng 8018 làm backend cho dữ liệu thật. Hướng dẫn demo Docker trên laptop:
-[nghiem_thu/scripts/demo/README.md](nghiem_thu/scripts/demo/README.md).
+Database chính trên máy phát triển là `personal_finance`. Bộ kiểm thử tự động,
+công cụ đánh giá riêng và môi trường QA/demo cũ đã được dọn ngày 19/10/2026.
+Chủ dự án tự khởi chạy API/worker/frontend và kiểm tra luồng trên giao diện.
+Không tự tạo thêm file test, dữ liệu giả, báo cáo nghiệm thu hoặc database QA
+khi chưa được chủ dự án yêu cầu. Hướng dẫn chạy các thành phần nằm bên dưới.
 
 Hai giao diện được tổ chức theo sidebar trong `src/chuc-nang/`, còn phần dùng
 chung nằm tại `src/dung-chung/`. Xem [hướng dẫn frontend](frontend/README.md)

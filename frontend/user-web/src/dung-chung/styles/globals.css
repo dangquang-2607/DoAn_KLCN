@@ -50,6 +50,145 @@ body {
   letter-spacing: -0.01em;
 }
 
+/* Personal security workspace follows the admin settings layout. */
+.cf-user-settings { container-type: inline-size; }
+.cf-security-workspace { display: grid; gap: 16px; min-width: 0; }
+.cf-security-profile {
+  display: flex; align-items: center; gap: 13px; padding: 18px 20px;
+  border-radius: 12px; color: #fff; background: linear-gradient(120deg, #263849, #315d62);
+}
+.cf-security-profile-icon {
+  display: grid; place-items: center; width: 44px; height: 44px; flex: 0 0 auto;
+  border-radius: 10px; background: #ffffff1c; color: #b9ebd9;
+}
+.cf-security-profile > div { min-width: 0; overflow-wrap: anywhere; }
+.cf-security-profile .cf-eyebrow { color: #a3ddcd; font-size: 11px; margin: 0 0 4px; }
+.cf-security-profile h2 { margin: 0 0 3px; font-size: 20px; font-weight: 750; letter-spacing: -.025em; }
+.cf-security-profile div > span { color: #c2d2d1; font-size: 14px; }
+.cf-security-profile-badge { margin-left: auto; flex-shrink: 0; padding: 5px 10px; border-radius: 999px; color: #c8ecdb; background: #ffffff1c; font-size: 12px; }
+.cf-security-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.cf-security-card { border-color: #e9e4de; border-radius: 12px; box-shadow: none; }
+.cf-security-card .cf-panel-head { padding: 20px; align-items: flex-start; flex-wrap: nowrap; border-bottom: 0; color: #415168; }
+.cf-security-card .cf-panel-head > div { min-width: 0; }
+.cf-security-card .cf-panel-head > svg { flex-shrink: 0; margin-top: 3px; }
+.cf-security-card .cf-panel-head h2 { font-size: 20px; font-weight: 750; color: #243047; }
+.cf-security-card .cf-panel-head p { font-size: 14px; line-height: 1.5; color: #687488; }
+.cf-security-password .cf-form { gap: 14px; padding: 0 20px 20px; }
+.cf-security-password .cf-field { gap: 6px; }
+.cf-security-password .cf-field label { font-size: 14px; font-weight: 600; color: #415168; }
+.cf-security-password .cf-field small { color: #687488; font-size: 13px; line-height: 1.5; }
+.cf-security-warning { display: flex; align-items: flex-start; gap: 9px; padding: 10px 12px; border-radius: 8px; background: #fbf2e3; color: #916b3f; font-size: 13px; line-height: 1.5; }
+.cf-security-warning svg { flex-shrink: 0; margin-top: 2px; }
+.cf-security-form-footer { margin: 2px -20px -20px; padding: 14px 20px; border-top: 1px solid #ede8e2; }
+.cf-security-form-footer .cf-btn-primary { background: #273449; border-color: #273449; }
+.cf-security-form-footer .cf-btn-primary:hover:not(:disabled) { background: #385068; }
+.cf-security-session-list { margin: 0; padding: 0; list-style: none; max-height: 420px; overflow-y: auto; scrollbar-width: thin; }
+.cf-security-session { display: flex; align-items: flex-start; gap: 10px; padding: 14px 20px; border-top: 1px solid #ede8e2; }
+.cf-security-device-icon { display: grid; place-items: center; flex: 0 0 auto; width: 32px; height: 32px; border-radius: 8px; color: #497c92; background: #eef5f7; }
+.cf-security-session > div { display: grid; gap: 4px; min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.cf-security-session strong { font-size: 14px; line-height: 1.4; font-weight: 650; color: #34485e; }
+.cf-security-session-address { font-size: 13px; color: #536b81; }
+.cf-security-session small { font-size: 13px; line-height: 1.5; color: #687488; }
+.cf-security-session details { font-size: 13px; color: #557992; }
+.cf-security-session summary { cursor: pointer; width: fit-content; }
+.cf-security-session dl { margin: 9px 0 0; padding: 10px 12px; border-radius: 8px; background: #f5f7f8; }
+.cf-security-session dt { color: #687488; font-size: 12px; }
+.cf-security-session dd { margin: 2px 0 8px; color: #34485e; }
+.cf-security-session dd:last-child { margin-bottom: 0; }
+.cf-security-session-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 12px 20px; border-top: 1px solid #ede8e2; color: #687488; font-size: 13px; }
+.cf-security-session-footer nav { display: flex; align-items: center; gap: 10px; }
+.cf-security-session-footer .cf-icon-btn { width: 34px; height: 34px; }
+@container (max-width: 700px) {
+  .cf-security-columns { grid-template-columns: 1fr; }
+  .cf-security-session-list { max-height: none; }
+}
+@container (max-width: 400px) {
+  .cf-security-profile { padding: 16px; flex-wrap: wrap; align-items: flex-start; }
+  .cf-security-profile > div { flex: 1; }
+  .cf-security-profile-badge { margin-left: 57px; }
+  .cf-security-card .cf-panel-head { padding: 16px; }
+  .cf-security-password .cf-form { padding: 0 16px 16px; }
+  .cf-security-form-footer { margin: 2px -16px -16px; padding: 14px 16px; }
+  .cf-security-form-footer button { width: 100%; }
+  .cf-security-session, .cf-security-session-footer { padding: 12px 16px; }
+}
+
+/* Giao dịch: giữ nguyên vị trí thao tác và chiều cao thanh chọn ở mọi trạng thái. */
+.cf-transaction-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 38px);
+  align-items: center;
+  gap: 8px;
+  width: 84px;
+  margin-left: auto;
+}
+.cf-transaction-actions .cf-icon-btn {
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  min-height: 38px;
+  padding: 0;
+}
+.cf-transaction-actions .cf-icon-btn:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+.cf-transaction-selection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 72px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--cf-line, #e5e7eb);
+  background: var(--cf-surface, #fff);
+}
+.cf-transaction-selection-status {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.cf-transaction-selection-status strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+}
+.cf-transaction-selection-status span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--cf-muted, #64748b);
+}
+.cf-transaction-selection-actions {
+  display: grid;
+  grid-template-columns: 82px 72px;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.cf-transaction-selection-actions .cf-btn {
+  min-height: 34px;
+  height: 34px;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+@media (max-width: 600px) {
+  .cf-transaction-selection {
+    height: 104px;
+    padding: 10px 16px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .cf-transaction-selection-actions { align-self: flex-end; }
+}
+
 /* Custom sleek scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;

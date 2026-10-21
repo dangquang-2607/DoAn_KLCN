@@ -69,6 +69,9 @@ def create_app() -> FastAPI:
         allow_origins=[
             settings.frontend_url,
             settings.admin_url,
+            "https://capitalflow.online",
+            "https://app.capitalflow.online",
+            "https://admin.capitalflow.online",
             "http://localhost:3000",
             "http://localhost:3010",
             "http://localhost:4000",

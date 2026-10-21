@@ -60,21 +60,119 @@ export function errorMessage(error: unknown) {
   return "Không thể hoàn tất thao tác. Vui lòng thử lại.";
 }
 
-// Escape ô CSV và chặn ký tự mở đầu có thể bị ứng dụng bảng tính thực thi như công thức.
-export function exportCsv(name: string, rows: unknown[][]) {
-  const escape = (value: unknown) => {
-    let s = String(value ?? "");
-    if (/^[=+@\-\t\r]/.test(s)) s = "'" + s;
-    return '"' + s.replaceAll('"', '""') + '"';
-  };
-  const blob = new Blob(
-    ["\uFEFF" + rows.map((row) => row.map(escape).join(",")).join("\r\n")],
-    { type: "text/csv;charset=utf-8;" },
-  );
+export type ExcelTransaction = {
+  transaction_date: string;
+  type: string;
+  kind?: string;
+  account_name: string;
+  category_name: string;
+  amount: Money;
+  currency: string;
+  description: string;
+  source: string;
+};
+
+type FinanceExport = { title: string; scope: string; transactions: ExcelTransaction[] };
+
+// Only load the workbook library when exporting. Text cells never become formulas.
+export async function createFinanceWorkbook({ title, scope, transactions }: FinanceExport) {
+  const { default: ExcelJS } = await import("exceljs");
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "CapitalFlow";
+  workbook.created = new Date();
+  workbook.calcProperties.fullCalcOnLoad = true;
+  const sheet = workbook.addWorksheet("Báo cáo", { properties: { defaultRowHeight: 24, tabColor: { argb: "FF243047" } } });
+  const widths = [16, 18, 28, 25, 23, 13, 54, 20, 22];
+  widths.forEach((width, index) => { sheet.getColumn(index + 1).width = width; });
+  const colors = { ink: "FF243047", muted: "FF687488", green: "FF087F5B", red: "FFC0394D", white: "FFFFFFFF" };
+  const amounts = transactions.map((transaction) => {
+    const amount = Number(transaction.amount);
+    if (transaction.amount === "" || !Number.isFinite(amount)) throw new Error("Số tiền xuất không hợp lệ.");
+    return amount;
+  });
+  const currencies = [...new Set(transactions.map((transaction) => transaction.currency))].sort();
+  const headerRow = Math.max(9, 7 + currencies.length);
+  const firstRow = headerRow + 1;
+  const lastRow = headerRow + transactions.length;
+  if (lastRow > 1_048_576) throw new Error("Dữ liệu vượt giới hạn Excel. Hãy chọn khoảng ngày ngắn hơn.");
+  const numberFormat = (currency: string) => currency === "VND" ? '#,##0;[Red](#,##0);"—"' : '#,##0.00;[Red](#,##0.00);"—"';
+  sheet.getCell("A2").value = title;
+  sheet.getCell("A3").value = scope;
+  sheet.getCell("A4").value = "Tổng thu/chi theo từng loại tiền, không gồm chuyển khoản và điều chỉnh số dư.";
+  sheet.getRow(5).values = ["Tiền tệ", "Tổng thu", "Tổng chi", "Thu trừ chi"];
+  currencies.forEach((currency, index) => {
+    const row = 6 + index;
+    const income = transactions.reduce((sum, transaction, i) => sum + (transaction.currency === currency && (!transaction.kind || transaction.kind === "NORMAL") && transaction.type === "INCOME" ? amounts[i] : 0), 0);
+    const expense = transactions.reduce((sum, transaction, i) => sum - (transaction.currency === currency && (!transaction.kind || transaction.kind === "NORMAL") && transaction.type === "EXPENSE" ? amounts[i] : 0), 0);
+    sheet.getCell(row, 1).value = currency;
+    const criteria = `$F$${firstRow}:$F$${lastRow},A${row},$I$${firstRow}:$I$${lastRow},"Thu/chi"`;
+    sheet.getCell(row, 2).value = { formula: `SUMIFS($E$${firstRow}:$E$${lastRow},$B$${firstRow}:$B$${lastRow},"Thu nhập",${criteria})`, result: income };
+    sheet.getCell(row, 3).value = { formula: `-SUMIFS($E$${firstRow}:$E$${lastRow},$B$${firstRow}:$B$${lastRow},"Chi tiêu",${criteria})`, result: expense };
+    sheet.getCell(row, 4).value = { formula: `B${row}-C${row}`, result: income - expense };
+    for (let col = 2; col <= 4; col++) sheet.getCell(row, col).numFmt = numberFormat(currency);
+  });
+  if (!currencies.length) sheet.getCell("A6").value = "Không có giao dịch trong phạm vi đã chọn.";
+  sheet.getRow(headerRow).values = ["Ngày", "Loại", "Tài khoản", "Danh mục", "Số tiền", "Tiền tệ", "Diễn giải", "Nguồn", "Nghiệp vụ"];
+  transactions.forEach((transaction, index) => {
+    const date = new Date(`${transaction.transaction_date.slice(0, 10)}T00:00:00Z`);
+    if (Number.isNaN(date.getTime())) throw new Error("Ngày giao dịch không hợp lệ.");
+    const row = sheet.getRow(firstRow + index);
+    row.values = [date, ({ INCOME: "Thu nhập", EXPENSE: "Chi tiêu" } as Record<string, string>)[transaction.type] || transaction.type,
+      transaction.account_name, transaction.category_name, amounts[index], transaction.currency, transaction.description,
+      ({ MANUAL: "Nhập thủ công", OCR: "Hóa đơn AI", BANK: "Ngân hàng", IMPORT: "Nhập dữ liệu", SYSTEM: "Hệ thống" } as Record<string, string>)[transaction.source] || transaction.source,
+      ({ NORMAL: "Thu/chi", TRANSFER: "Chuyển khoản", ADJUSTMENT: "Điều chỉnh số dư" } as Record<string, string>)[transaction.kind || "NORMAL"] || transaction.kind];
+    row.getCell(1).numFmt = "dd/mm/yyyy";
+    row.getCell(5).numFmt = numberFormat(transaction.currency);
+    const lines = Math.max(1, ...[transaction.account_name, transaction.category_name, transaction.description].map((text, i) =>
+      String(text || "").split(/\r?\n/).reduce((sum, line) => sum + Math.max(1, Math.ceil(line.length / ([25, 22, 50][i]))), 0)));
+    row.height = Math.min(409, Math.max(28, lines * 15 + 10));
+  });
+  sheet.eachRow((row, rowNumber) => {
+    row.eachCell((cell) => {
+      cell.font = { name: "Arial", size: 11, color: { argb: colors.ink } };
+      cell.alignment = { vertical: "middle", horizontal: typeof cell.value === "number" || cell.type === ExcelJS.ValueType.Formula ? "right" : "left", wrapText: rowNumber > headerRow };
+      if (rowNumber > headerRow && (rowNumber - firstRow) % 2 === 0) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3F5F8" } };
+    });
+  });
+  [5, headerRow].forEach((rowNumber) => {
+    sheet.getRow(rowNumber).height = 28;
+    sheet.getRow(rowNumber).eachCell((cell) => {
+      cell.font = { name: "Arial", size: 11, bold: true, color: { argb: colors.white } };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: colors.ink } };
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+    });
+  });
+  sheet.getCell("A2").font = { name: "Arial", size: 17, bold: true, color: { argb: colors.ink } };
+  sheet.getRow(2).height = 32;
+  for (const address of ["A3", "A4"]) sheet.getCell(address).font = { name: "Arial", size: 11, italic: true, color: { argb: colors.muted } };
+  // Phạm vi có thể chứa nhiều bộ lọc; cho phép xuống dòng trong vùng trình bày.
+  sheet.mergeCells("A3:I3");
+  sheet.getCell("A3").alignment = { vertical: "middle", wrapText: true };
+  sheet.getRow(3).height = Math.max(24, Math.ceil(scope.length / 190) * 16 + 8);
+  if (transactions.length) {
+    sheet.autoFilter = `A${headerRow}:I${lastRow}`;
+    sheet.addConditionalFormatting({ ref: `B${firstRow}:B${lastRow}`, rules: [
+      { type: "containsText", operator: "containsText", text: "Thu nhập", priority: 1, style: { font: { color: { argb: colors.green }, bold: true } } },
+      { type: "containsText", operator: "containsText", text: "Chi tiêu", priority: 2, style: { font: { color: { argb: colors.red }, bold: true } } },
+    ] });
+    sheet.addConditionalFormatting({ ref: `E${firstRow}:E${lastRow}`, rules: [
+      { type: "cellIs", operator: "greaterThan", formulae: [0], priority: 3, style: { font: { color: { argb: colors.green } } } },
+      { type: "cellIs", operator: "lessThan", formulae: [0], priority: 4, style: { font: { color: { argb: colors.red } } } },
+    ] });
+  }
+  sheet.views = [{ state: "frozen", ySplit: headerRow, activeCell: `A${firstRow}`, showGridLines: false }];
+  sheet.pageSetup = { orientation: "landscape", paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: `${headerRow}:${headerRow}`, printArea: `A1:I${Math.max(lastRow, headerRow)}` };
+  return workbook;
+}
+
+export async function exportFinanceExcel(name: string, report: FinanceExport) {
+  const workbook = await createFinanceWorkbook(report);
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([new Uint8Array(buffer)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = name;
+  a.download = name.endsWith(".xlsx") ? name : `${name}.xlsx`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

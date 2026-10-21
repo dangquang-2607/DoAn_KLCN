@@ -356,8 +356,8 @@ def delete_transactions(db: Session, tx_ids: list[uuid.UUID], user_id: uuid.UUID
                 account.bank_state = json.dumps(state, ensure_ascii=True)
         if txn.invoice_id:
             invoice = invoices[txn.invoice_id]
-            invoice.status = "REVIEW_REQUIRED"
-            invoice.confirmed_at = None
+            from app.chuc_nang.nguoi_dung.hoa_don_ai.nghiep_vu.vong_doi import transaction_removed
+            transaction_removed(db, invoice, txn.id)
         db.delete(txn)
     db.flush()
     if commit: db.commit()

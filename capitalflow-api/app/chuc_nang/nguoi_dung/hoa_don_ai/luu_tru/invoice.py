@@ -9,7 +9,7 @@ Ràng buộc: chuyển trạng thái phải nhất quán với job và file lưu
 import uuid
 from decimal import Decimal
 from datetime import datetime, date
-from sqlalchemy import Unicode, UnicodeText, String, Numeric, DateTime, Date, BigInteger, ForeignKey, func, Uuid, Index, text
+from sqlalchemy import Unicode, UnicodeText, String, Numeric, DateTime, Date, BigInteger, Integer, ForeignKey, func, Uuid, Index, text
 from sqlalchemy.orm import Mapped, mapped_column
 from app.dung_chung.database.nen_tang import Base
 
@@ -44,6 +44,15 @@ class Invoice(Base):
     storage_key: Mapped[str | None] = mapped_column(Unicode(1000), nullable=True)
     mime_type: Mapped[str | None] = mapped_column(Unicode(100), nullable=True)
     file_size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    file_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    strong_identity_key: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    merchant_normalized: Mapped[str | None] = mapped_column(Unicode(255), nullable=True)
+    invoice_time: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    identity_rule_version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    revision: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    confirmation_generation: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    duplicate_of_invoice_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("invoices.id"), nullable=True)
     
     ocr_confidence: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
     extracted_json: Mapped[str | None] = mapped_column(UnicodeText, nullable=True)
@@ -55,6 +64,15 @@ class Invoice(Base):
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     __table_args__ = (
+        Index("IX_invoices_user_hash", "user_id", "file_sha256"),
+        Index("IX_invoices_user_identity", "user_id", "strong_identity_key"),
+        Index("IX_invoices_candidates", "user_id", "invoice_date", "total_amount", "currency"),
+        Index("UX_invoices_confirmed_hash", "user_id", "file_sha256", unique=True,
+              mssql_where=text("status = 'CONFIRMED' AND file_sha256 IS NOT NULL"),
+              sqlite_where=text("status = 'CONFIRMED' AND file_sha256 IS NOT NULL")),
+        Index("UX_invoices_confirmed_identity", "user_id", "strong_identity_key", unique=True,
+              mssql_where=text("status = 'CONFIRMED' AND strong_identity_key IS NOT NULL"),
+              sqlite_where=text("status = 'CONFIRMED' AND strong_identity_key IS NOT NULL")),
         Index(
             "IX_invoices_user", "user_id", "created_at",
             mssql_include=["status", "merchant_name", "invoice_date", "total_amount", "currency"],

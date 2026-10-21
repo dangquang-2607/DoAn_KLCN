@@ -26,7 +26,7 @@ export default function TransactionDeleteModal({ transactions, getAccount, error
   const hasInvoice = transactions.some((transaction) => transaction.invoice_id || transaction.source === "OCR");
   return <Modal title={single ? "Xóa giao dịch" : "Xóa các giao dịch đã chọn"} onClose={onClose} busy={busy}><div className="cf-form">
     {error && <Alert onDismiss={onClearError}>{error}</Alert>}
-    <p>{single ? <>Xóa “{single.description || "Giao dịch"}” với số tiền {money(single.amount, getAccount(single.account_id)?.currency)}?</> : <>Xóa {transactions.length} giao dịch đã chọn trên trang này?</>}</p>
+    <p>{single ? <>Xóa “{single.description || "Giao dịch"}” với số tiền {money(single.amount, getAccount(single.account_id)?.currency)}?</> : <>Xóa {transactions.length} giao dịch đã chọn, bao gồm lựa chọn ở các trang khác?</>}</p>
     {hasTransfer && <p>Giao dịch chuyển tiền sẽ được xóa cả hai vế; số dư hai ví được điều chỉnh cùng lúc.</p>}
     {hasBank && <p>Giao dịch ngân hàng mô phỏng được gỡ khỏi sổ theo dõi. Số dư từ ngân hàng và dữ liệu nguồn vẫn giữ nguyên.</p>}
     {hasInvoice && <p>Hóa đơn gốc được giữ lại và chuyển về trạng thái chờ kiểm duyệt để bạn có thể ghi nhận lại khi cần.</p>}

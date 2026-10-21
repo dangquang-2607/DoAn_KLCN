@@ -1,6 +1,7 @@
 """Worker bền vững với giới hạn công việc, khóa thuê, thử lại và trạng thái lỗi cuối."""
 import asyncio
 import json
+import logging
 import time
 from uuid import UUID
 from pathlib import Path
@@ -9,6 +10,9 @@ from decimal import Decimal
 from sqlalchemy import select, delete, func
 from app.dung_chung.config import settings
 from app.dung_chung.database.session import SessionLocal
+# A standalone worker has no FastAPI startup to register the complete schema.
+# Load every FK target before its first OCR flush, regardless of prior job kinds.
+import app.dung_chung.database.dang_ky_mo_hinh  # noqa: F401
 from app.dung_chung.tac_vu_nen.luu_tru.tac_vu_nen import BackgroundJob
 from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.invoice import Invoice
 from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.invoice_item import InvoiceItem
@@ -17,6 +21,8 @@ from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.luu_tru.giao_dich import Trans
 from app.chuc_nang.nguoi_dung.dang_nhap.luu_tru.nguoi_dung import User
 from app.chuc_nang.quan_tri.nguoi_dung.luu_tru.xoa_nguoi_dung import UserDeletionFile, UserDeletionRequest
 from app.dung_chung.tac_vu_nen.hang_doi import claim, now
+
+logger = logging.getLogger("capitalflow.worker")
 
 
 def storage_path(key):
@@ -37,10 +43,10 @@ def process_ocr(job_id, lease, payload, sessions):
     from app.chuc_nang.nguoi_dung.hoa_don_ai.api.routes import _parse_date, _parse_amount
     iid=UUID(payload["invoice_id"]);uid=UUID(payload["user_id"]);oid=UUID(payload["ocr_job_id"])
     with sessions() as db:
-        user=db.get(User,uid)
+        user=db.scalar(select(User).where(User.id==uid).with_hint(User,"WITH (UPDLOCK, ROWLOCK)",dialect_name="mssql"))
         invoice=db.scalar(select(Invoice).where(Invoice.id==iid,Invoice.user_id==uid))
         ocr=db.get(OcrJob,oid)
-        if not user or user.is_deleted or not invoice or not ocr or invoice.status != "PROCESSING":return
+        if not user or user.is_deleted or not invoice or not ocr or invoice.status != "PROCESSING" or invoice.deleted_at or (payload.get("invoice_revision") is not None and invoice.revision != payload["invoice_revision"]):return
         key,mime=invoice.storage_key,invoice.mime_type
         ocr.status="PROCESSING";ocr.started_at=now();ocr.completed_at=None
         ocr.processing_ms=None;ocr.progress_percent=10;ocr.attempt_count+=1
@@ -54,12 +60,12 @@ def process_ocr(job_id, lease, payload, sessions):
     if not isinstance(result,dict) or not isinstance(result.get("items",[]),list) or len(result.get("items",[]))>200:
         raise ValueError("Invalid OCR result")
     with sessions() as db:
-        if not owns(db,job_id,lease):return
         user=db.scalar(select(User).where(User.id==uid).with_hint(User,"WITH (UPDLOCK, ROWLOCK)",dialect_name="mssql").execution_options(populate_existing=True))
         if not user or user.is_deleted:return
+        if not owns(db,job_id,lease):return
         invoice=db.scalar(select(Invoice).where(Invoice.id==iid,Invoice.user_id==uid).with_hint(Invoice,"WITH (UPDLOCK, ROWLOCK)",dialect_name="mssql"))
         ocr=db.get(OcrJob,oid)
-        if not invoice or not ocr or invoice.status!="PROCESSING":return
+        if not invoice or not ocr or invoice.status!="PROCESSING" or invoice.deleted_at or (payload.get("invoice_revision") is not None and invoice.revision != payload["invoice_revision"]):return
         invoice.invoice_date=_parse_date(result.get("ngay_lap")) or invoice.invoice_date
         for field,key in (("subtotal_amount","doanh_so_chua_thue"),("tax_amount","tien_thue_gtgt"),("total_amount","tong_thanh_toan")):
             amount=_parse_amount(result.get(key))
@@ -74,6 +80,10 @@ def process_ocr(job_id, lease, payload, sessions):
         invoice.payment_method=str(result.get("hinh_thuc_thanh_toan") or "")[:50]
         invoice.ocr_confidence=validated_confidence(result.get("do_tin_cay"))
         invoice.extracted_json=json.dumps(result,ensure_ascii=False)
+        from app.chuc_nang.nguoi_dung.hoa_don_ai.nghiep_vu.chuan_hoa_hoa_don import refresh_identity, parse_invoice_time
+        invoice.invoice_time = parse_invoice_time(result.get("gio_lap"))
+        refresh_identity(invoice)
+        invoice.revision += 1
         invoice.status="REVIEW_REQUIRED"
         db.execute(delete(InvoiceItem).where(InvoiceItem.invoice_id==iid))
         for index,item in enumerate(result.get("items",[]),1):
@@ -223,6 +233,7 @@ def run_once(sessions=SessionLocal, kinds=None):
         work=claim(db, kinds=kinds)
     if not work:return False
     jid,lease,kind,payload=work
+    started = time.perf_counter()
     error=None
     result=None
     try:
@@ -235,6 +246,9 @@ def run_once(sessions=SessionLocal, kinds=None):
         result=dispatch(jid,lease,kind,payload,sessions)
     except Exception as exc:error=type(exc).__name__
     with sessions() as db:
+        if kind == "OCR" and not payload.get("_invalid_payload"):
+            db.scalar(select(User).where(User.id == UUID(str(payload["user_id"])))
+                .with_hint(User, "WITH (UPDLOCK, ROWLOCK)", dialect_name="mssql"))
         job=owns(db,jid,lease)
         if not job:return True
         if not error and result=="RESCHEDULE":
@@ -246,10 +260,13 @@ def run_once(sessions=SessionLocal, kinds=None):
             job.status="DEAD" if job.attempts>=3 else "PENDING"
             job.available_at=now()+timedelta(seconds=min(300,10*2**job.attempts))
             if job.status=="DEAD" and kind=="OCR" and not payload.get("_invalid_payload"):
-                invoice=db.get(Invoice,UUID(str(payload["invoice_id"])));ocr=db.get(OcrJob,UUID(str(payload["ocr_job_id"])))
-                if invoice and ocr and invoice.status=="PROCESSING":
+                invoice=db.scalar(select(Invoice).where(Invoice.id == UUID(str(payload["invoice_id"])))
+                    .with_hint(Invoice, "WITH (UPDLOCK, ROWLOCK)", dialect_name="mssql"))
+                ocr=db.get(OcrJob,UUID(str(payload["ocr_job_id"])))
+                if invoice and ocr and invoice.status=="PROCESSING" and not invoice.deleted_at and (payload.get("invoice_revision") is None or invoice.revision == payload["invoice_revision"]):
                     completed_at=now()
                     invoice.status="FAILED";ocr.status="FAILED";ocr.error_code=error;ocr.completed_at=completed_at
+                    invoice.revision += 1
                     if ocr.started_at:
                         ocr.processing_ms=max(0,int((completed_at-ocr.started_at).total_seconds()*1000))
             if job.status=="DEAD" and kind in {"USER_PURGE","USER_FILE_PURGE"} and not payload.get("_invalid_payload"):
@@ -263,6 +280,13 @@ def run_once(sessions=SessionLocal, kinds=None):
             job.status="DONE";job.payload="";job.error_code=None
         job.lease_until=None;job.lease_token=None
         db.commit()
+        if kind == "OCR":
+            logger.log(
+                logging.WARNING if error else logging.INFO,
+                "ocr_worker_attempt status=%s attempt=%d error=%s elapsed_ms=%d",
+                job.status, job.attempts, error or "none",
+                int((time.perf_counter() - started) * 1000),
+            )
     return True
 
 
@@ -278,6 +302,8 @@ def main(argv=None):
         help="Comma-separated job kinds handled by this worker lane",
     )
     args = parser.parse_args(argv)
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s %(levelname)s %(name)s %(message)s")
     allowed_kinds = {"OCR", "EMAIL", "FILE_DELETE", "BUDGET", "USER_PURGE", "USER_FILE_PURGE"}
     kinds = {value.strip().upper() for value in (args.kinds or "").split(",") if value.strip()}
     unknown = kinds - allowed_kinds

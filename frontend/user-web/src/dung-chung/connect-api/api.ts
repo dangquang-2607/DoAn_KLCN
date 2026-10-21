@@ -20,7 +20,8 @@
  */
 import axios from "axios";
 
-const BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000")
+// Trong dev, dùng proxy cùng origin để localhost luôn được phân giải ở máy chạy Next.js.
+const BASE_URL = (process.env.NODE_ENV === "development" ? "" : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"))
   .replace(/\/+$/, "")
   .replace(/\/api(?:\/v1)?$/, "");
 
@@ -143,7 +144,8 @@ function _doLogout() {
         .post(`${BASE_URL}/api/v1/auth/logout`, { refresh_token: refreshToken })
         .catch(() => {});
     }
-    sessionStorage.removeItem("user_access_token");
+    for (const key of Object.keys(sessionStorage)) { if (key.startsWith("cf-pending-invoice:")) sessionStorage.removeItem(key); }
+      sessionStorage.removeItem("user_access_token");
     sessionStorage.removeItem("user_refresh_token");
     // Module Axios dùng chung chạy ngoài React nên không có router instance để điều hướng.
     // eslint-disable-next-line @next/next/no-location-assign-relative-destination

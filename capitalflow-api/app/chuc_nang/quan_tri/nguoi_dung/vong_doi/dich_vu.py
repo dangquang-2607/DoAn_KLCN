@@ -208,6 +208,9 @@ def purge_user_database(
     db.execute(delete(Transaction).where(Transaction.user_id == user_id))
     db.execute(delete(OcrJob).where(OcrJob.user_id == user_id))
     db.execute(delete(InvoiceItem).where(InvoiceItem.invoice_id.in_(invoice_ids)))
+    from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.lich_su import InvoiceEvent
+    db.execute(delete(InvoiceEvent).where(InvoiceEvent.user_id == user_id))
+    db.execute(update(Invoice).where(Invoice.duplicate_of_invoice_id.in_(invoice_ids)).values(duplicate_of_invoice_id=None))
     db.execute(delete(Invoice).where(Invoice.user_id == user_id))
     db.execute(delete(Budget).where(Budget.user_id == user_id))
     db.execute(delete(Notification).where(Notification.user_id == user_id))

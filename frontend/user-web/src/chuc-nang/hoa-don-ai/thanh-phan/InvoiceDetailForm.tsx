@@ -23,17 +23,21 @@ import DateInput from "@/dung-chung/UI-chung/DateInput";
 import { Field, Alert, Empty } from "@/dung-chung/UI-chung/ui";
 import CategoryRestoreModal from "@/dung-chung/nghiep-vu/danh-muc/CategoryRestoreModal";
 import { archivedCategoryFromError, categoryErrorMessage, type ArchivedCategory } from "@/dung-chung/nghiep-vu/danh-muc/categories";
-import { money, localDate, errorMessage } from "@/dung-chung/tien-ich/finance";
+import { money, errorMessage } from "@/dung-chung/tien-ich/finance";
 import { type Account, type Category } from "@/dung-chung/nghiep-vu/finance";
-import type { Invoice } from "../xu-ly/InvoiceTypes";
+import type { Invoice, DuplicateCheck } from "../xu-ly/InvoiceTypes";
+import { invoiceError, invoiceMutation } from "../xu-ly/invoiceApi";
+import InvoiceDuplicateReview from "./InvoiceDuplicateReview";
 export default function InvoiceDetailForm({
   invoice,
   busy,
   onConfirm,
+  onOpen,
 }: {
   invoice: Invoice;
   busy: boolean;
   onConfirm: (payload: Record<string, unknown>) => Promise<void>;
+  onOpen: (id: string) => void;
 }) {
   const cache = useQueryClient();
   const accounts = useQuery<Account[]>({
@@ -47,7 +51,11 @@ export default function InvoiceDetailForm({
   const [form, setForm] = useState({
     merchant_name: invoice.merchant_name || "",
     merchant_address: invoice.merchant_address || "",
-    invoice_date: invoice.invoice_date || localDate(),
+    invoice_date: invoice.invoice_date || "",
+    invoice_time: invoice.invoice_time || "",
+    invoice_number: invoice.invoice_number || "",
+    invoice_symbol: invoice.invoice_symbol || "",
+    merchant_tax_code: invoice.merchant_tax_code || "",
     payment_method: invoice.payment_method || "",
     subtotal_amount: String(invoice.subtotal_amount ?? ""),
     total_amount: String(invoice.total_amount ?? ""),
@@ -79,10 +87,46 @@ export default function InvoiceDetailForm({
     [categorySuggestion, setCategorySuggestion] = useState<{ category_id: string; category_name: string; confidence: number; reason: string } | null>(null),
     [categoryTouched, setCategoryTouched] = useState(false),
     [error, setError] = useState("");
-  const locked =
-    invoice.status === "CONFIRMED" || invoice.status === "PROCESSING" || busy;
-  const field = (key: string, value: string) =>
+  const [review, setReview] = useState<DuplicateCheck | null>(invoice.duplicate_check || null);
+  const [checking, setChecking] = useState(false);
+  const [revision, setRevision] = useState(invoice.revision);
+  const [versionConflict, setVersionConflict] = useState(false);
+  const locked = !!invoice.deleted_at || invoice.status === "CONFIRMED" || invoice.status === "PROCESSING" || busy || checking;
+  const field = (key: string, value: string) => {
+    setReview(null); setDuplicateAccepted(false);
     setForm((f) => ({ ...f, [key]: value }));
+  };
+  const identityFields = () => ({
+    merchant_name: form.merchant_name, merchant_address: form.merchant_address,
+    merchant_tax_code: form.merchant_tax_code || null, invoice_number: form.invoice_number || null,
+    invoice_symbol: form.invoice_symbol || null, invoice_date: form.invoice_date || null,
+    invoice_time: form.invoice_time || null, total_amount: form.total_amount || null,
+  });
+  const inspect = async () => {
+    const { data } = await api.post<DuplicateCheck>(`/invoices/${invoice.id}/duplicate-check`, identityFields());
+    return data;
+  };
+  const reviewNow = async () => {
+    setChecking(true); setError(""); setDuplicateAccepted(false);
+    try { setReview(await inspect()); } catch (e) { setError(invoiceError(e).message); }
+    finally { setChecking(false); }
+  };
+  const sameInvoice = async (id: string) => {
+    setChecking(true); setError("");
+    try {
+      await invoiceMutation(invoice.id, "duplicate-resolution", { expected_revision: revision, action: "SAME_INVOICE", matched_invoice_id: id });
+      await cache.invalidateQueries({ queryKey: ["invoices"] });
+      onOpen(id);
+    } catch (e) { setError(invoiceError(e).message); } finally { setChecking(false); }
+  };
+  const reloadRevision = async () => {
+    setChecking(true);
+    try {
+      const { data } = await api.get<Invoice>(`/invoices/${invoice.id}`);
+      cache.setQueryData(["invoice", invoice.id], data);
+      setRevision(data.revision); setReview(null); setDuplicateAccepted(false); setVersionConflict(false); setError("");
+    } catch (e) { setError(invoiceError(e).message); } finally { setChecking(false); }
+  };
   useEffect(() => {
     if (locked || categoryTouched || form.category_id || !form.merchant_name.trim()) {
       return;
@@ -111,10 +155,6 @@ export default function InvoiceDetailForm({
       setError("Tổng thanh toán phải lớn hơn 0.");
       return;
     }
-    if (invoice.is_duplicate && !duplicateAccepted) {
-      setError("Xác nhận đã kiểm tra cảnh báo trùng lặp trước khi lưu.");
-      return;
-    }
     const account = accounts.data?.find((a) => a.id === form.account_id);
     if (account && account.currency !== (invoice.currency || "VND")) {
       setError("Chọn tài khoản cùng loại tiền với hóa đơn.");
@@ -125,8 +165,20 @@ export default function InvoiceDetailForm({
       return;
     }
     const numeric = (value: string) => (value === "" ? null : Number(value));
+    if (locked || versionConflict) return;
+    setChecking(true);
+    try {
+    const current = await inspect();
+    setReview(current);
+    if (current.level === "EXACT" || (current.level === "SUSPECTED" && (!duplicateAccepted || review?.review_token !== current.review_token))) {
+      setDuplicateAccepted(false); setError("Hãy đối chiếu thông tin dưới đây trước khi ghi nhận."); return;
+    }
     await onConfirm({
       ...form,
+      ...identityFields(),
+      expected_revision: revision,
+      accept_distinct: current.level === "SUSPECTED" && duplicateAccepted,
+      duplicate_review_token: current.level === "SUSPECTED" ? current.review_token : null,
       total_amount: Number(form.total_amount),
       tax_amount: Number(form.tax_amount),
       subtotal_amount: form.subtotal_amount ? Number(form.subtotal_amount) : null,
@@ -142,6 +194,12 @@ export default function InvoiceDetailForm({
         line_total: numeric(item.line_total),
       })),
     });
+    } catch (e) {
+      const problem = invoiceError(e); setError(problem.message);
+      if (problem.duplicate_check) setReview(problem.duplicate_check);
+      if (problem.code === "INVOICE_VERSION_CONFLICT") setVersionConflict(true);
+      if (problem.code !== "INVOICE_RETRY_REQUIRED") setDuplicateAccepted(false);
+    } finally { setChecking(false); }
   };
   const updateItem = (index: number, key: string, value: string) =>
     setItemDrafts((rows) =>
@@ -172,6 +230,8 @@ export default function InvoiceDetailForm({
         })),
       });
       await cache.invalidateQueries({ queryKey: ["invoice", invoice.id] });
+      const { data: latest } = await api.get<Invoice>(`/invoices/${invoice.id}`);
+      setRevision(latest.revision); setReview(null); setDuplicateAccepted(false);
       setItemsNotice("Đã lưu các mặt hàng đã hiệu chỉnh.");
     } catch (e) {
       setError(errorMessage(e));
@@ -339,22 +399,19 @@ export default function InvoiceDetailForm({
       ) : (
         <form className="cf-form" onSubmit={submit}>
           {error && <Alert onDismiss={() => setError("")}>{error}</Alert>}
-          {invoice.is_duplicate && invoice.status !== "CONFIRMED" && (
-            <Alert kind="info">
-              <strong>Hóa đơn có thể bị trùng.</strong>
-              <br />
-              {invoice.duplicate_reason}
-              <label className="cf-row" style={{ marginTop: 10 }}>
-                <input
-                  type="checkbox"
-                  checked={duplicateAccepted}
-                  onChange={(e) => setDuplicateAccepted(e.target.checked)}
-                  required
-                />
-                Tôi đã kiểm tra và vẫn muốn ghi nhận.
-              </label>
-            </Alert>
-          )}
+          {versionConflict && <button type="button" className="cf-btn" disabled={checking} onClick={reloadRevision}>Tải phiên bản mới, giữ nội dung đang sửa</button>}
+          {!invoice.deleted_at && invoice.status !== "CONFIRMED" && <>
+            {invoice.duplicate_of_invoice_id && <div className="cf-row">
+              <button type="button" className="cf-btn" onClick={() => onOpen(invoice.duplicate_of_invoice_id!)}>Mở bản gốc đã liên kết</button>
+              <button type="button" className="cf-btn" disabled={locked} onClick={async () => {
+                setChecking(true);
+                try { const result = await invoiceMutation<{ revision: number }>(invoice.id, "duplicate-resolution", { expected_revision: revision, action: "CLEAR" }); setRevision(result.revision); await cache.invalidateQueries({ queryKey: ["invoice", invoice.id] }); setReview(null); setDuplicateAccepted(false); }
+                catch (e) { setError(invoiceError(e).message); } finally { setChecking(false); }
+              }}>Bỏ liên kết trùng để kiểm tra lại</button>
+            </div>}
+            <button type="button" className="cf-btn" disabled={locked} onClick={reviewNow}>{checking ? "Đang kiểm tra…" : "Kiểm tra trùng với thông tin đang sửa"}</button>
+            {review && <InvoiceDuplicateReview check={review} busy={locked} accepted={duplicateAccepted} onAccept={setDuplicateAccepted} onOpen={onOpen} onSame={sameInvoice} />}
+          </>}
           <fieldset
             disabled={locked}
             style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}
@@ -372,6 +429,12 @@ export default function InvoiceDetailForm({
               <Field label="Địa chỉ đơn vị bán hàng">
                 <input className="cf-input" maxLength={500} value={form.merchant_address} onChange={(e) => field("merchant_address", e.target.value)} />
               </Field>
+              <div className="cf-invoice-two-columns">
+                <Field label="Số hóa đơn"><input className="cf-input" maxLength={100} value={form.invoice_number} onChange={e => field("invoice_number", e.target.value)} /></Field>
+                <Field label="Ký hiệu hóa đơn"><input className="cf-input" maxLength={100} value={form.invoice_symbol} onChange={e => field("invoice_symbol", e.target.value)} /></Field>
+                <Field label="Mã số thuế người bán"><input className="cf-input" maxLength={100} value={form.merchant_tax_code} onChange={e => field("merchant_tax_code", e.target.value)} /></Field>
+                <Field label="Giờ lập (nếu có)"><input className="cf-input" type="time" step="1" value={form.invoice_time} onChange={e => field("invoice_time", e.target.value)} /></Field>
+              </div>
               <div className="cf-invoice-two-columns">
                 <Field label="Ngày lập hóa đơn">
                   <DateInput required value={form.invoice_date} onChange={(value) => field("invoice_date", value)} />
@@ -512,14 +575,14 @@ export default function InvoiceDetailForm({
               </Field>
             </div>
           </fieldset>
-          {invoice.status !== "CONFIRMED" && (
+          {!invoice.deleted_at && invoice.status !== "CONFIRMED" && (
             <button
               className="cf-btn cf-btn-primary"
               disabled={
                 locked ||
                 accounts.isError ||
                 !accounts.data?.length ||
-                categoryBusy
+                categoryBusy || versionConflict
               }
             >
               <Check />

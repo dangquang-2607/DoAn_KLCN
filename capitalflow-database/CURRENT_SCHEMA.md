@@ -1,5 +1,29 @@
 # Schema hiện tại của CapitalFlow
 
+## Dọn môi trường QA ngày 19/10/2026
+
+- Đã xóa hai database `capitalflow_*_verify_*`, `CapitalFlow_QA_20261008_b5fcca32`
+  và ba database `cf_invoice_dedup_qa_*` được nhắc trong lịch sử bên dưới.
+- Trước khi xóa đã backup `COPY_ONLY`, `CHECKSUM` và chạy `RESTORE VERIFYONLY`.
+  Sáu file có tiền tố `QA_cleanup_20261019_` nằm trong thư mục Backup mặc định
+  của instance `localhost\SQLEXPRESS`; có thể restore nếu cần lấy lại dữ liệu QA.
+- `personal_finance` giữ nguyên revision `cfdb_invoice_dedup`; số bản ghi của
+  22 bảng trước/sau thao tác không đổi. Không xóa bảng nghiệp vụ.
+- Đã gỡ công cụ kiểm chứng/đánh giá riêng. Các mục phía dưới là lịch sử nâng schema,
+  không phải danh sách database QA đang tồn tại hoặc lệnh kiểm thử hiện hành.
+
+## Backend chống trùng hóa đơn — đã nâng database chính (2026-10-12)
+
+- Revision mới trong source: `cfdb_invoice_dedup`, sau `cfdb_recurring_budgets`; thêm định danh/hash, revision, soft delete, liên kết bản trùng, bảng `invoice_events` và unique index cho hóa đơn CONFIRMED.
+- Database ứng dụng `personal_finance` đã ở `cfdb_invoice_dedup`; backfill 13/13 hóa đơn có hash, không thiếu tệp. Đối chiếu toàn bộ bản ghi accounts/transactions và số lượng bản ghi trước/sau: giữ nguyên.
+- Backup COPY_ONLY/CHECKSUM đã qua RESTORE VERIFYONLY: `C:\Program Files\Microsoft SQL Server\MSSQL16.SQLEXPRESS\MSSQL\Backup\CapitalFlow_pre_invoice_dedup_20261012_080354_9c8c9bee.bak`.
+- Migration và `alembic check` đã qua trên SQL Server QA riêng `cf_invoice_dedup_qa_23f0160b6859`. Đã kiểm chứng upload/confirm đồng thời, cùng định danh ở hai bản upload và hai user độc lập.
+- DB QA của lần kiểm tra ban đầu `cf_invoice_dedup_qa_8371b6fc4e52` cũng được giữ lại; không dùng làm database ứng dụng.
+- Công cụ `tools/apply_invoice_dedup.py` thực hiện preflight, backup, khóa ghi, migration/backfill trong cùng transaction, đối soát tài chính và kiểm tra schema trước commit. Đã diễn tập lỗi và rollback về schema cũ trên QA `cf_invoice_dedup_qa_33091e2dbc6a` trước khi áp dụng database chính.
+- Kiểm tra chỉ đọc sau commit: phát hiện trùng xử lý đủ 13 hóa đơn (12 NONE, 1 EXACT); API đang chạy công bố endpoint mới. Giữ nguyên 1 giao dịch OCR lịch sử không còn liên kết hóa đơn, không tự phỏng đoán liên kết hoặc sửa tiền.
+- `tools/backfill_invoice_dedup.py` vẫn hỗ trợ dry-run và `--apply` độc lập khi writer đã dừng; từ chối nhóm đã ghi trùng hoặc liên kết bất nhất.
+- Hợp đồng API, thay đổi tương thích và quy trình phát hành: `docs/api-hoa-don-chong-trung.md` tại gốc repository.
+
 ## Cập nhật ngân sách định kỳ ngày 2026-10-02
 
 - Database chính `personal_finance` đã nâng lên `cfdb_recurring_budgets`. Năm ngân sách cũ vẫn là ngân sách có ngày cố định; không tự đổi thành định kỳ.

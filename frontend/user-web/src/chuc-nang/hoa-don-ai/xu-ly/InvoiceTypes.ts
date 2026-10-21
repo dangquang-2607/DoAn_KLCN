@@ -30,6 +30,13 @@ export interface InvoiceItem {
 
 export interface Invoice {
   id: string;
+  revision: number;
+  deleted_at?: string | null;
+  invoice_time?: string | null;
+  transaction_id?: string | null;
+  duplicate_of_invoice_id?: string | null;
+  duplicate_level?: "NONE" | "SUSPECTED" | "EXACT";
+  duplicate_check?: DuplicateCheck;
   merchant_name: string | null;
   merchant_address: string | null;
   merchant_tax_code: string | null;
@@ -51,6 +58,31 @@ export interface Invoice {
   is_duplicate?: boolean;
   duplicate_reason?: string;
   items?: InvoiceItem[];
+}
+
+export interface DuplicateCandidate {
+  invoice_id: string;
+  transaction_id: string | null;
+  merchant_name: string | null;
+  invoice_date: string | null;
+  total_amount: Money | null;
+  currency: string;
+  status: string;
+  reason: string;
+  deleted_at: string | null;
+}
+export interface DuplicateCheck {
+  level: "NONE" | "SUSPECTED" | "EXACT";
+  review_token: string;
+  candidate_count: number;
+  candidates: DuplicateCandidate[];
+  can_override: boolean;
+}
+export interface UploadResult {
+  id: string;
+  outcome: "CREATED" | "REUSED_DRAFT" | "ALREADY_CONFIRMED" | "RESTORE_REQUIRED";
+  revision: number;
+  transaction_id?: string | null;
 }
 
 // Ánh xạ mã backend sang nhãn tiếng Việt; không dùng nhãn hiển thị để gửi ngược API.

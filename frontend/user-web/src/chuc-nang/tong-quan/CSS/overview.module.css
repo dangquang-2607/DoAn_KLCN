@@ -14,11 +14,6 @@
 .miniList { composes: miniList from "../../../dung-chung/styles/finance-visuals.module.css"; }
 .empty { composes: empty from "../../../dung-chung/styles/finance-visuals.module.css"; }
 
-.intro { display: flex; justify-content: space-between; align-items: end; gap: 20px; }
-.intro h1 { font-size: clamp(32px, 3vw, 47px); line-height: 1.12; letter-spacing: -.065em; margin: 9px 0 7px; }
-.intro h1 em { color: var(--purple); font-style: normal; }
-.intro p { color: var(--muted); margin: 0; font-size: 13px; }
-.introActions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 .topCards { display: grid; grid-template-columns: minmax(0, 1.13fr) minmax(0, .87fr); gap: 18px; }
 .balance, .monthCard { border-radius: 17px; }
 .balance { background: #30283d; color: white; padding: 27px 30px; min-height: 240px; display: flex; flex-direction: column; }
@@ -87,7 +82,6 @@
 .overviewEmpty { padding: 12px 24px 24px; color: var(--muted); font-size: 13px; }
 .overviewEmpty a { color: #704b95; font-weight: 700; }
 .overviewFootnote { color: #8d858e; font-size: 12px; margin: -5px 0 0; }
-@media (max-width: 1200px) { .intro { flex-wrap: wrap; } .introActions { justify-content: flex-start; } }
 @media (max-width: 800px) { .topCards, .overviewLower { grid-template-columns: 1fr; } }
-@media (max-width: 540px) { .intro h1 { font-size: 34px; } .balance, .monthCard { padding: 20px; } }
+@media (max-width: 540px) { .balance, .monthCard { padding: 20px; } }
 @media (max-width: 540px) { .overviewCard { padding: 0; } .overviewCardHead { padding: 19px 18px 15px; } .activityList { padding: 0 18px 10px; } .walletList { padding: 0 12px 14px; } .budgetGrid { padding: 0 18px 18px; } .activityRow { grid-template-columns: 34px minmax(0, 1fr); } .activityAmount { grid-column: 2; margin-top: -8px; } .walletCopy { grid-template-columns: minmax(0, 1fr); } .walletCopy b { grid-column: 1; grid-row: auto; } }

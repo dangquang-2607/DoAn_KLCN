@@ -97,6 +97,15 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """Chạy migration bằng kết nối riêng, không dùng pool của API runtime."""
 
+    # Deployment tools can keep DDL, backfill and invariant checks inside one
+    # externally owned SQL Server transaction. Normal CLI behavior is unchanged.
+    supplied_connection = config.attributes.get("connection")
+    if supplied_connection is not None:
+        configure_context(connection=supplied_connection)
+        with context.begin_transaction():
+            context.run_migrations()
+        return
+
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",

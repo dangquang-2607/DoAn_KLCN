@@ -19,6 +19,7 @@ import "../dung-chung/styles/globals.css";
 import Providers from "./providers";
 
 const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin", "vietnamese"],
   display: "swap",
 });
@@ -31,7 +32,7 @@ export const metadata: Metadata = {
 // Root layout giữ ngôn ngữ tiếng Việt và cấp provider cho toàn bộ route user-web.
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="vi" className={inter.className}>
+    <html lang="vi" className={`${inter.className} ${inter.variable}`}>
       <body className="bg-slate-50 text-slate-900 antialiased" suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>

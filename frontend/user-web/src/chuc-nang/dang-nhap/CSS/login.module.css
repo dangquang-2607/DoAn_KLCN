@@ -1,0 +1,56 @@
+.page {
+  min-height: 100vh;
+  min-height: 100svh;
+}
+
+.card {
+  min-width: 0;
+}
+
+.showcase,
+.formPanel {
+  min-width: 0;
+  flex-shrink: 0;
+  transform: translateX(0);
+}
+
+/* Chỉ hoán đổi vị trí hai cột khi cả hai cột cùng hiển thị. */
+@media (min-width: 1024px) {
+  .showcase,
+  .formPanel {
+    transition: transform 450ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .register .showcase {
+    transform: translateX(140%);
+  }
+
+  .register .formPanel {
+    transform: translateX(-71.428571%);
+  }
+}
+
+@media (max-width: 1023px) {
+  .page {
+    align-items: flex-start;
+    padding-top: max(24px, env(safe-area-inset-top));
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+  }
+
+  /* Không nghiêng khung khi trình duyệt cảm ứng phát sinh sự kiện chuột. */
+  .card {
+    transform: none !important;
+  }
+
+  .formPanel input:not([type="checkbox"]) {
+    min-width: 0;
+    font-size: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .showcase,
+  .formPanel {
+    transition: none;
+  }
+}

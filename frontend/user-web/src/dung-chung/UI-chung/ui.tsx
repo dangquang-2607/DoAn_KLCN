@@ -43,21 +43,24 @@ export function PageHead({
   description,
   actions,
   eyebrow,
+  titleAside,
 }: {
   title: string;
   description?: string;
   actions?: ReactNode;
   eyebrow?: string;
+  titleAside?: ReactNode;
 }) {
   return (
-    <div className="cf-page-head">
+    <header className="cf-page-head cf-workspace-head">
       <div>
         {eyebrow && <div className="cf-eyebrow">{eyebrow}</div>}
-        <h1>{title}</h1>
-        {description && <p>{description}</p>}
+        <h1>{title}<span className="cf-heading-dot" aria-hidden="true">.</span></h1>
+        {titleAside}
+        {description && <p className="cf-heading-description">{description}</p>}
       </div>
-      {actions && <div className="cf-row">{actions}</div>}
-    </div>
+      {actions && <div className="cf-row cf-heading-actions">{actions}</div>}
+    </header>
   );
 }
 export function Panel({

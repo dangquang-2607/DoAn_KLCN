@@ -20,7 +20,7 @@
  * Component con chỉ trình bày; query key và hành vi làm mới được giữ tập trung tại đây.
  */
 import { useQuery } from "@tanstack/react-query";
-import { ErrorState, Loading } from "@/dung-chung/UI-chung/ui";
+import { ErrorState, Loading, PageHead } from "@/dung-chung/UI-chung/ui";
 import api from "@/dung-chung/connect-api/api";
 import { localDate } from "@/dung-chung/tien-ich/finance";
 import { type Account, type Budget } from "@/dung-chung/nghiep-vu/finance";
@@ -63,7 +63,7 @@ export default function Overview() {
 
   return (
     <div className={styles.canvas}>
-      <div className={styles.intro}><div><span className={styles.overline}>KHÔNG GIAN CÁ NHÂN</span><h1>Tiền của bạn, <em>rõ ràng hơn.</em></h1><p>Một cái nhìn nhanh về số dư, nhịp thu chi và điều cần chú ý hôm nay.</p></div><div className={styles.introActions}><QuickActions refreshing={dashboardQuery.isFetching} onRefresh={refresh} /></div></div>
+      <PageHead eyebrow="KHÔNG GIAN CÁ NHÂN" title="Tiền của bạn, rõ ràng hơn" description="Một cái nhìn nhanh về số dư, nhịp thu chi và điều cần chú ý hôm nay." actions={<QuickActions refreshing={dashboardQuery.isFetching} onRefresh={refresh} />} />
       {dashboardQuery.isPending ? (
         <Loading />
       ) : dashboardQuery.isError ? (

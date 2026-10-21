@@ -16,13 +16,13 @@
 "use client";
 
 /** Điều phối query, cache và nghiệp vụ sổ giao dịch; UI form/bảng nằm trong `thanh-phan`. */
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeftRight, Plus, Trash2 } from "lucide-react";
 import api from "@/dung-chung/connect-api/api";
 import { Alert, PageHead, Panel } from "@/dung-chung/UI-chung/ui";
 import { TransferFlow } from "@/dung-chung/UI-chung/Motion";
-import { errorMessage, localDate, money } from "@/dung-chung/tien-ich/finance";
+import { errorMessage, exportFinanceExcel, localDate, money } from "@/dung-chung/tien-ich/finance";
 import { type Account, type Category, type Transaction } from "@/dung-chung/nghiep-vu/finance";
 import TransactionDeleteModal from "./thanh-phan/TransactionDeleteModal";
 import TransactionFilters from "./thanh-phan/TransactionFilters";
@@ -44,7 +44,11 @@ export default function Transactions() {
   const [mode, setMode] = useState<"" | "create" | "edit" | "transfer">("");
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [deleting, setDeleting] = useState<Transaction[] | null>(null);
-  const [selected, setSelected] = useState<string[]>([]);
+  const [selection, setSelection] = useState<Record<string, Transaction>>({});
+  const selectionVersion = useRef(0);
+  const [selecting, setSelecting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
   const [form, setForm] = useState<TransactionForm>(fresh);
   const [suggestion, setSuggestion] = useState<CategorySuggestion | null>(null);
   const [categoryTouched, setCategoryTouched] = useState(false);
@@ -81,17 +85,78 @@ export default function Transactions() {
 
   const accounts = useQuery<Account[]>({ queryKey: ["accounts"], queryFn: async () => (await api.get("/accounts")).data });
   const categories = useQuery<Category[]>({ queryKey: ["categories", "all"], queryFn: async () => (await api.get("/categories", { params: { status: "all" } })).data });
+  const filterParams = { ...Object.fromEntries(Object.entries(filters).filter(([, value]) => value)), search: debouncedSearch || undefined, invoice_id: linkedInvoiceId || undefined };
   const query = useQuery<{ items: Transaction[]; total: number }>({
     queryKey: ["transactions", page, filters, debouncedSearch, linkedInvoiceId],
-    queryFn: async () => (await api.get("/transactions", { params: { page, page_size: 15, ...Object.fromEntries(Object.entries(filters).filter(([, value]) => value)), search: debouncedSearch || undefined, invoice_id: linkedInvoiceId || undefined } })).data,
+    queryFn: async () => (await api.get("/transactions", { params: { page, page_size: 15, ...filterParams } })).data,
     enabled: urlReady,
   });
   const list = query.data?.items || [];
-  const selectedRows = list.filter((transaction) => selected.includes(transaction.id));
+  const selectedRows = Object.values(selection);
+  const selected = Object.keys(selection);
+  const waitingForSearch = search.trim() !== debouncedSearch;
+  const selectionDisabled = selecting || waitingForSearch || query.isFetching;
   const account = (id: string) => accounts.data?.find((item) => item.id === id);
   const category = (id: string | null) => categories.data?.find((item) => item.id === id);
   // Một thay đổi giao dịch tác động số dư, dashboard, ngân sách và báo cáo nên phải làm mới toàn bộ cache liên quan.
-  const invalidate = () => Promise.all(["transactions", "accounts", "dashboard", "budgets", "analytics", "invoices", "invoice", "notifications"].map((key) => cache.invalidateQueries({ queryKey: [key] })));
+  const clearSelection = () => {
+    selectionVersion.current += 1;
+    setSelection({});
+    setSelecting(false);
+    setExportError("");
+  };
+  const invalidate = () => {
+    clearSelection();
+    return Promise.all(["transactions", "accounts", "dashboard", "budgets", "analytics", "invoices", "invoice", "notifications"].map((key) => cache.invalidateQueries({ queryKey: [key] })));
+  };
+  const selectRows = (rows: Transaction[], checked: boolean) => {
+    if (selectionDisabled) return;
+    setSelection((current) => {
+      const next = { ...current };
+      rows.forEach((row) => { if (checked) next[row.id] = row; else delete next[row.id]; });
+      return next;
+    });
+  };
+  const fetchFiltered = async () => (await api.get<Transaction[]>("/transactions/export-data", { params: filterParams })).data;
+  const selectAllResults = async () => {
+    if (selectionDisabled || query.isError || !query.data?.total) return;
+    const version = ++selectionVersion.current;
+    setSelecting(true); setExportError("");
+    try {
+      const rows = await fetchFiltered();
+      if (version !== selectionVersion.current) return;
+      setSelection(Object.fromEntries(rows.map((row) => [row.id, row])));
+    } catch (caught) {
+      if (version === selectionVersion.current) setExportError(errorMessage(caught));
+    } finally {
+      if (version === selectionVersion.current) setSelecting(false);
+    }
+  };
+  const exportTransactions = async () => {
+    if (!selectedRows.length || exporting || selectionDisabled || accounts.isPending || categories.isPending || accounts.isError || categories.isError) return;
+    setExporting(true); setExportError("");
+    // Chỉ xuất bản chụp các dòng đã tick tại thời điểm nhấn nút, kể cả lựa chọn ở trang khác.
+    const filterLabel = [
+      filters.type && (filters.type === "INCOME" ? "Thu nhập" : "Chi tiêu"),
+      filters.account_id && `Tài khoản: ${account(filters.account_id)?.name || filters.account_id}`,
+      filters.category_id && `Danh mục: ${category(filters.category_id)?.name || filters.category_id}`,
+      filters.start_date && `Từ ${filters.start_date}`, filters.end_date && `Đến ${filters.end_date}`,
+      debouncedSearch && `Tìm: ${debouncedSearch}`, linkedInvoiceId && `Hóa đơn: ${linkedInvoiceId}`,
+    ].filter(Boolean).join("; ") || "Không áp dụng bộ lọc";
+    try {
+      await exportFinanceExcel("giao-dich-da-chon.xlsx", {
+        title: "CapitalFlow — Sổ giao dịch",
+        scope: `Các giao dịch đã chọn: ${selectedRows.length} giao dịch. ${filterLabel}.`,
+        transactions: selectedRows.map((transaction) => ({
+          ...transaction,
+          account_name: account(transaction.account_id)?.name || "Tài khoản không xác định",
+          category_name: category(transaction.category_id)?.name || "Không phân loại",
+          currency: account(transaction.account_id)?.currency || "Chưa xác định",
+        })),
+      });
+    } catch (caught) { setExportError(errorMessage(caught)); }
+    finally { setExporting(false); }
+  };
 
   // Chuẩn bị form riêng cho tạo mới, chỉnh sửa hoặc chuyển tiền trước khi mở modal.
   const open = (kind: "create" | "edit" | "transfer", transaction?: Transaction) => {
@@ -121,7 +186,7 @@ export default function Transactions() {
 
   // Backend xóa nguyên tử các dòng đã chọn và cả hai vế của mọi chuyển tiền liên quan.
   const remove = async () => {
-    if (!deleting?.length) return;
+    if (!deleting?.length || deleting.length > 100) return;
     setBusy(true); setError("");
     try {
       let count: number;
@@ -135,16 +200,17 @@ export default function Transactions() {
         count = response.data.deleted_count;
       }
       await invalidate();
-      setDeleting(null); setSelected([]); setPage(1);
+      setDeleting(null); setPage(1);
       setNotice(`Đã xóa ${count} giao dịch${deleting.some((transaction) => transaction.kind === "TRANSFER") ? " (bao gồm cả hai vế chuyển tiền)" : ""}.`);
     }
     catch (caught) { setError(errorMessage(caught)); } finally { setBusy(false); }
   };
-  // Đổi bộ lọc luôn đưa người dùng về trang đầu và xóa tìm kiếm cục bộ để tránh kết quả mâu thuẫn.
-  const filter = (key: string, value: string) => { setFilters((current) => ({ ...current, [key]: value })); setPage(1); setSelected([]); };
+  // Lựa chọn chỉ tồn tại trong cùng bộ lọc; đổi trang không làm mất lựa chọn.
+  const filter = (key: string, value: string) => { setFilters((current) => ({ ...current, [key]: value })); setPage(1); clearSelection(); };
   const clearInvoiceFilter = () => {
     setLinkedInvoiceId("");
     setPage(1);
+    clearSelection();
     const url = new URL(window.location.href);
     url.searchParams.delete("invoice_id");
     window.history.replaceState(null, "", url.pathname + url.search + url.hash);
@@ -157,13 +223,19 @@ export default function Transactions() {
     {notice && <Alert kind="success" onDismiss={() => setNotice("")}>{notice}</Alert>}
     {linkedInvoiceId && <Alert kind="info">Đang xem giao dịch của hóa đơn đã chọn. <button type="button" className="cf-btn cf-btn-sm" onClick={clearInvoiceFilter}>Hiện tất cả giao dịch</button></Alert>}
     <Panel>
-      <TransactionFilters filters={filters} search={search} page={page} list={list} accounts={accounts.data || []} categories={categories.data || []} onFilter={filter} onSearch={(value) => { setSearch(value); setPage(1); setSelected([]); }} getAccount={account} getCategory={category} />
-      {selectedRows.length > 0 && <div className="cf-toolbar" role="toolbar" aria-label="Thao tác với giao dịch đã chọn">
-        <strong>Đã chọn {selectedRows.length} giao dịch trên trang này</strong>
-        <button type="button" className="cf-btn cf-btn-danger cf-btn-sm" onClick={() => { setDeleting(selectedRows); setError(""); }}><Trash2 size={16} />Xóa</button>
-        <button type="button" className="cf-btn cf-btn-ghost cf-btn-sm" onClick={() => setSelected([])}>Bỏ chọn</button>
-      </div>}
-      <TransactionTable query={query} list={list} page={page} total={query.data?.total || 0} selected={selected} getAccount={account} getCategory={category} onSelectAll={(checked) => setSelected(checked ? list.map((transaction) => transaction.id) : [])} onSelectOne={(id, checked) => setSelected((ids) => checked ? ids.includes(id) ? ids : [...ids, id] : ids.filter((value) => value !== id))} onEdit={(transaction) => open("edit", transaction)} onDelete={(transaction) => { setDeleting([transaction]); setError(""); }} onPageChange={(nextPage) => { setPage(nextPage); setSelected([]); }} />
+      <TransactionFilters filters={filters} search={search} selectedCount={selected.length} exporting={exporting} exportDisabled={!selected.length || selectionDisabled || query.isError || accounts.isPending || categories.isPending || dependencyError} onExport={exportTransactions} accounts={accounts.data || []} categories={categories.data || []} onFilter={filter} onSearch={(value) => { setSearch(value); setPage(1); clearSelection(); }} />
+      {exportError && <Alert onDismiss={() => setExportError("")}>{exportError}</Alert>}
+      <div className="cf-transaction-selection" role="group" aria-label="Thao tác với giao dịch đã chọn" aria-busy={selecting}>
+        <div className="cf-transaction-selection-status" role="status" aria-live="polite">
+          <strong>{selecting ? "Đang chọn…" : selected.length ? `Đã chọn ${selected.length} giao dịch` : "Chưa chọn giao dịch"}</strong>
+          <span id="transaction-selection-hint">{selected.length > 100 ? "Chọn tối đa 100 giao dịch để xóa" : "Lựa chọn được giữ khi đổi trang"}</span>
+        </div>
+        <div className="cf-transaction-selection-actions">
+          <button type="button" className="cf-btn cf-btn-ghost cf-btn-sm" disabled={!selecting && !selected.length} onClick={clearSelection}>{selecting ? "Hủy chọn" : "Bỏ chọn"}</button>
+          <button type="button" className="cf-btn cf-btn-danger cf-btn-sm" disabled={!selected.length || selecting || selected.length > 100} aria-describedby="transaction-selection-hint" title={selected.length > 100 ? "API hiện cho phép xóa tối đa 100 giao dịch mỗi lần" : "Xóa các giao dịch đã chọn"} onClick={() => { setDeleting(selectedRows); setError(""); }}><Trash2 size={16} />Xóa</button>
+        </div>
+      </div>
+      <TransactionTable query={query} list={list} page={page} total={query.data?.total || 0} selected={selected} selectionDisabled={selectionDisabled} getAccount={account} getCategory={category} onSelectAll={(checked) => { if (checked) void selectAllResults(); else clearSelection(); }} onSelectOne={(id, checked) => selectRows(list.filter((row) => row.id === id), checked)} onEdit={(transaction) => open("edit", transaction)} onDelete={(transaction) => { setDeleting([transaction]); setError(""); }} onPageChange={setPage} />
     </Panel>
     {(mode === "create" || mode === "edit") && <TransactionModal editing={editing} accounts={accounts.data || []} categories={categories.data || []} form={form} setForm={setForm} suggestion={suggestion} setSuggestion={setSuggestion} setCategoryTouched={setCategoryTouched} error={error} busy={busy} dependencyError={dependencyError} onSubmit={submit} onClose={() => setMode("")} onClearError={() => setError("")} />}
     {mode === "transfer" && <TransferModal accounts={accounts.data || []} form={form} setForm={setForm} error={error} busy={busy} dependencyError={dependencyError} onSubmit={submit} onClose={() => setMode("")} onClearError={() => setError("")} />}

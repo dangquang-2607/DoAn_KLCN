@@ -21,14 +21,13 @@ import SessionManager from "./thanh-phan/SessionManager";
 // Trang chỉ ghép hai khối bảo mật; nghiệp vụ đổi mật khẩu và tải phiên nằm ở component riêng.
 export default function Settings() {
   return (
-    <div className="cf-stack">
+    <div className="cf-stack cf-user-settings">
       <PageHead
         eyebrow="TÀI KHOẢN"
         title="Cài đặt & bảo mật"
         description="Thông tin đăng nhập, mật khẩu và các phiên đang hoạt động."
       />
-      <SecuritySettings />
-      <SessionManager />
+      <SecuritySettings sessions={<SessionManager />} />
     </div>
   );
 }

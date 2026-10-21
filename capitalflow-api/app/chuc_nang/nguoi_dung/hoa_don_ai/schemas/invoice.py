@@ -9,6 +9,7 @@ Ràng buộc: giới hạn số lượng/batch và kiểu tiền phải ngăn pa
 from decimal import Decimal
 from datetime import date, datetime
 from uuid import UUID
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -86,6 +87,12 @@ class InvoiceOut(BaseModel):
     # Trường phát hiện trùng lặp — backend điền sau khi quét OCR
     is_duplicate: bool = False
     duplicate_reason: str | None = None
+    duplicate_check: dict = Field(default_factory=dict)
+    revision: int = 1
+    deleted_at: datetime | None = None
+    invoice_time: str | None = None
+    duplicate_of_invoice_id: UUID | None = None
+    transaction_id: UUID | None = None
     # Danh sách sản phẩm chi tiết — trả về khi load đầy đủ hóa đơn
     items: list[InvoiceItemOut] = []
 
@@ -95,6 +102,7 @@ class InvoiceOut(BaseModel):
 class InvoiceListOut(BaseModel):
     """Dùng cho danh sách hóa đơn — không cần load items để giảm tải."""
     id: UUID
+    deleted_at: datetime | None = None
     user_id: UUID
     source: str
     status: str
@@ -107,6 +115,10 @@ class InvoiceListOut(BaseModel):
     ocr_confidence: Decimal | None
     created_at: datetime
     confirmed_at: datetime | None
+    revision: int = 1
+    duplicate_of_invoice_id: UUID | None = None
+    duplicate_level: Literal["NONE", "SUSPECTED", "EXACT"] = "NONE"
+    duplicate_candidate_count: int = 0
 
     model_config = {"from_attributes": True}
 
@@ -118,6 +130,10 @@ class InvoiceConfirm(BaseModel):
     để lưu lại đúng dữ liệu cuối cùng vào Invoice và tạo giao dịch chính xác.
     """
     account_id: UUID
+    expected_revision: int | None = Field(default=None, ge=1)
+    accept_distinct: bool = False
+    duplicate_review_token: str | None = Field(default=None, min_length=64, max_length=64)
+    invoice_time: str | None = Field(default=None, pattern=r"^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$")
     category_id: UUID | None = None
     note: str | None = Field(default=None, max_length=1000)
     # Các trường chỉnh sửa tùy chọn (người dùng sửa trên form OCR)
@@ -150,3 +166,24 @@ class InvoicePage(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class InvoiceDuplicateCheck(BaseModel):
+    merchant_name: str | None = Field(default=None, max_length=255)
+    merchant_address: str | None = Field(default=None, max_length=500)
+    merchant_tax_code: str | None = Field(default=None, max_length=100)
+    invoice_number: str | None = Field(default=None, max_length=100)
+    invoice_symbol: str | None = Field(default=None, max_length=100)
+    invoice_date: date | None = None
+    invoice_time: str | None = Field(default=None, pattern=r"^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$")
+    total_amount: Decimal | None = Field(default=None, gt=0, max_digits=19, decimal_places=2)
+
+
+class InvoiceResolution(BaseModel):
+    expected_revision: int = Field(ge=1)
+    action: Literal["SAME_INVOICE", "CLEAR"]
+    matched_invoice_id: UUID | None = None
+
+
+class InvoiceRestore(BaseModel):
+    expected_revision: int = Field(ge=1)

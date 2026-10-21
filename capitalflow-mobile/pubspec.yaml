@@ -1,0 +1,38 @@
+name: capitalflow_mobile
+description: "CapitalFlow Mobile - Ứng dụng quản lý tài chính cá nhân tích hợp nhận dạng hóa đơn bằng OCR."
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # Gọi REST API dùng chung với web (FastAPI).
+  http: ^1.2.0
+  crypto: ^3.0.7
+  # Quản lý trạng thái ứng dụng.
+  provider: ^6.1.2
+  # Lưu cấu hình (địa chỉ máy chủ, tùy chọn thông báo).
+  shared_preferences: ^2.3.0
+  # Lưu access/refresh token trong vùng lưu trữ bảo mật của thiết bị.
+  flutter_secure_storage: ">=9.2.2 <12.0.0"
+  # Chụp hóa đơn bằng camera hoặc chọn ảnh từ thư viện.
+  image_picker: ^1.1.2
+  # Chọn file hóa đơn PDF/XML/ảnh từ bộ nhớ máy.
+  file_selector: ^1.0.3
+  # Hiển thị thông báo hệ thống và nhắc nhở ghi chép hằng ngày.
+  flutter_local_notifications: ^19.5.0
+  timezone: ^0.10.0
+  sqflite: ^2.4.4+1
+  workmanager: ^0.10.10
+
+dev_dependencies:
+  flutter_lints: ">=4.0.0 <8.0.0"
+
+flutter:
+  uses-material-design: true

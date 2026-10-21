@@ -8,14 +8,12 @@ Tính năng:
   - Xác nhận hóa đơn: lưu lại dữ liệu người dùng đã chỉnh sửa, tạo giao dịch chi tiêu đúng số tiền.
   - Phục vụ tệp xem trước an toàn (GET /invoices/{id}/file).
 """
-import json
 import uuid
-from datetime import datetime, timezone
-from decimal import Decimal
 from pathlib import Path
-from time import time
+from typing import Annotated, Literal
+from types import SimpleNamespace
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, Form, Response
 from fastapi.responses import FileResponse
 from sqlalchemy import select, func, delete
 from sqlalchemy.orm import Session
@@ -26,7 +24,7 @@ from app.dung_chung.http.gioi_han_tan_suat import limiter
 from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.invoice import Invoice
 from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.invoice_item import InvoiceItem
 from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.tac_vu_ocr import OcrJob
-from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.luu_tru.giao_dich import Transaction, TransactionSource, TransactionType
+from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.luu_tru.giao_dich import Transaction
 from app.chuc_nang.nguoi_dung.dang_nhap.luu_tru.nguoi_dung import User
 from app.chuc_nang.nguoi_dung.hoa_don_ai.schemas.invoice import (
     InvoiceConfirm,
@@ -37,18 +35,22 @@ from app.chuc_nang.nguoi_dung.hoa_don_ai.schemas.invoice import (
     InvoiceItemsUpdate,
     InvoiceBatchDelete,
     InvoiceBatchOcr,
+    InvoiceDuplicateCheck, InvoiceResolution, InvoiceRestore,
 )
 from app.dung_chung.tac_vu_nen.hang_doi import enqueue
-from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.so_cai import create_transaction
-from app.chuc_nang.nguoi_dung.danh_muc.phan_loai import suggest_category
 from app.chuc_nang.nguoi_dung.hoa_don_ai.nghiep_vu.deletion import safe_delete_invoice as _safe_delete_invoice
-from app.chuc_nang.nguoi_dung.hoa_don_ai.nghiep_vu.phat_hien_trung_lap import check_duplicate as _check_duplicate
+from app.chuc_nang.nguoi_dung.hoa_don_ai.nghiep_vu.phat_hien_trung_lap import check_duplicate as _check_duplicate, inspect_duplicates, inspect_duplicate_batch
+from app.chuc_nang.nguoi_dung.hoa_don_ai.nghiep_vu.chuan_hoa_hoa_don import parse_invoice_time
+from app.chuc_nang.nguoi_dung.hoa_don_ai.nghiep_vu.vong_doi import lock_invoice, require_visible, check_revision, record_event, conflict
+from app.chuc_nang.nguoi_dung.hoa_don_ai.nghiep_vu.luy_dang import begin_operation, finish_operation
+from app.chuc_nang.nguoi_dung.dang_nhap.nghiep_vu.session_management import locked_user
 from app.chuc_nang.nguoi_dung.hoa_don_ai.nghiep_vu.phan_tich_du_lieu import parse_amount as _parse_amount
 from app.chuc_nang.nguoi_dung.hoa_don_ai.nghiep_vu.phan_tich_du_lieu import parse_date as _parse_date
-from app.chuc_nang.nguoi_dung.hoa_don_ai.ha_tang.gemini import run_gemini_ocr
 from app.chuc_nang.nguoi_dung.hoa_don_ai.ha_tang.invoice_xml import parse_invoice_xml
 
-router = APIRouter(prefix="/invoices", tags=["Invoices"])
+from .telemetry import InvoiceMetricsRoute
+
+router = APIRouter(prefix="/invoices", tags=["Invoices"], route_class=InvoiceMetricsRoute)
 
 ALLOWED_MIME = {"image/jpeg", "image/png", "image/webp", "application/pdf", "application/xml"}
 ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".webp", ".pdf", ".xml"}
@@ -68,6 +70,8 @@ def upload_invoice(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    source: Annotated[Literal["UPLOAD", "CAMERA"], Form()] = "UPLOAD",
+    response: Response = None,
 ):
     ext = Path(file.filename or "").suffix.lower()
     if ext not in ALLOWED_EXT:
@@ -87,53 +91,17 @@ def upload_invoice(
     expected = {".pdf":"application/pdf", ".png":"image/png", ".jpg":"image/jpeg", ".jpeg":"image/jpeg", ".webp":"image/webp", ".xml":"application/xml"}
     if actual_mime != expected[ext]:
         raise HTTPException(status_code=415, detail="Nội dung file không khớp định dạng")
-    stored_name = f"{uuid.uuid4()}{ext}"
-    upload_path = Path(settings.upload_dir) / stored_name
-    upload_path.parent.mkdir(parents=True, exist_ok=True)
-    upload_path.write_bytes(contents)
-
     xml_data = None
     if actual_mime == "application/xml":
         try:
             xml_data = parse_invoice_xml(contents)
         except ValueError as exc:
-            upload_path.unlink(missing_ok=True)
             raise HTTPException(status_code=422, detail=str(exc)) from exc
-
-    invoice = Invoice(
-        user_id=user.id,
-        original_filename=Path(file.filename or stored_name).name[:255],
-        storage_key=stored_name,
-        mime_type=actual_mime,
-        file_size_bytes=len(contents),
-        # Nguồn nhập dữ liệu phải thuộc CK_invoices_source; định dạng nằm ở mime_type.
-        source="IMPORT" if xml_data else "UPLOAD",
-        status="REVIEW_REQUIRED" if xml_data else "UPLOADED",
-        **({key: value for key, value in xml_data.items() if key != "items"} if xml_data else {}),
-    )
-    try:
-        db.add(invoice)
-        db.flush()
-        if xml_data:
-            db.add_all([
-                InvoiceItem(invoice_id=invoice.id, line_no=index, **item)
-                for index, item in enumerate(xml_data["items"], start=1)
-            ])
-    except Exception:
-        db.rollback()
-        upload_path.unlink(missing_ok=True)
-        raise
-    # Không nhận được xác nhận commit vẫn có thể nghĩa là SQL Server đã commit.
-    # Giữ file khi kết quả commit/refresh không chắc chắn để tránh bản ghi bị treo.
-    db.commit()
-    db.refresh(invoice)
-    return {
-        "id": str(invoice.id),
-        "filename": invoice.original_filename,
-        "status": invoice.status,
-        "mime_type": invoice.mime_type,
-        "created_at": invoice.created_at.isoformat(),
-    }
+    from app.chuc_nang.nguoi_dung.hoa_don_ai.nghiep_vu.tai_len import upload
+    result, created = upload(db, user, contents, file.filename, ext, actual_mime, source, xml_data)
+    if response is not None:
+        response.status_code = 201 if created else 200
+    return result
 
 
 @router.get(
@@ -146,10 +114,12 @@ def list_invoices(
     page: int = Query(1, ge=1, description="Số trang"),
     page_size: int = Query(50, ge=1, le=100, description="Số bản ghi mỗi trang"),
     status: str | None = Query(None, description="Trạng thái lọc"),
+    visibility: Literal["active", "hidden"] = "active",
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    q = select(Invoice).where(Invoice.user_id == user.id)
+    q = select(Invoice).where(Invoice.user_id == user.id,
+        Invoice.deleted_at.is_not(None) if visibility == "hidden" else Invoice.deleted_at.is_(None))
     if status:
         q = q.where(Invoice.status == status.upper())
     q = q.order_by(Invoice.created_at.desc())
@@ -158,7 +128,14 @@ def list_invoices(
     total = db.scalar(count_q) or 0
     items = db.scalars(q.offset((page - 1) * page_size).limit(page_size)).all()
 
-    return InvoicePage(items=items, total=total, page=page, page_size=page_size)
+    checks = inspect_duplicate_batch(db, user.id, items)
+    summaries = []
+    for item in items:
+        summary = InvoiceListOut.model_validate(item)
+        summary.duplicate_level = checks[item.id]["level"]
+        summary.duplicate_candidate_count = checks[item.id]["candidate_count"]
+        summaries.append(summary)
+    return InvoicePage(items=summaries, total=total, page=page, page_size=page_size)
 
 
 @router.get(
@@ -190,6 +167,8 @@ def get_invoice(
     result.items = [InvoiceItemOut.model_validate(it) for it in items]
     result.is_duplicate = is_dup
     result.duplicate_reason = dup_reason
+    result.duplicate_check = inspect_duplicates(db, user.id, invoice)
+    result.transaction_id = db.scalar(select(Transaction.id).where(Transaction.invoice_id == invoice.id, Transaction.user_id == user.id))
     return result
 
 
@@ -257,14 +236,8 @@ def update_invoice_items(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    invoice = db.scalar(
-        select(Invoice)
-        .where(Invoice.id == invoice_id, Invoice.user_id == user.id)
-        .with_hint(Invoice, "WITH (UPDLOCK, ROWLOCK)", dialect_name="mssql")
-        .execution_options(populate_existing=True)
-    )
-    if not invoice:
-        raise HTTPException(status_code=404, detail="Không tìm thấy hóa đơn")
+    invoice = lock_invoice(db, user, invoice_id)
+    require_visible(invoice)
     if invoice.status in {"CONFIRMED", "PROCESSING"}:
         raise HTTPException(status_code=409, detail="Không thể sửa mặt hàng khi hóa đơn đang xử lý hoặc đã ghi sổ")
 
@@ -285,6 +258,7 @@ def update_invoice_items(
         for line_no, item in enumerate(payload.items, start=1)
     ]
     db.add_all(edited_items)
+    invoice.revision += 1
     db.commit()
     for item in edited_items:
         db.refresh(item)
@@ -294,10 +268,14 @@ def update_invoice_items(
 # ─── OCR bằng Gemini AI ──────────────────────────────────────────────────────
 
 def _enqueue_ocr(db, invoice_id, user_id):
+    locked_user(db, user_id)
     invoice = db.scalar(select(Invoice).where(Invoice.id==invoice_id, Invoice.user_id==user_id).with_hint(
         Invoice, "WITH (UPDLOCK, ROWLOCK)", dialect_name="mssql").execution_options(populate_existing=True))
     if not invoice:
         raise HTTPException(status_code=404, detail="Không tìm thấy hóa đơn")
+    require_visible(invoice)
+    if not invoice.storage_key:
+        conflict("INVOICE_FILE_MISSING", "Hãy tải lại ảnh trước khi quét.")
     if invoice.status == "CONFIRMED":
         raise HTTPException(status_code=409, detail="Hóa đơn đã xác nhận")
     if invoice.mime_type == "application/xml":
@@ -305,8 +283,8 @@ def _enqueue_ocr(db, invoice_id, user_id):
     if invoice.status == "PROCESSING":
         return {"id":str(invoice.id), "success":True, "queued":True}
     job=OcrJob(id=uuid.uuid4(),user_id=user_id,invoice_id=invoice.id,status="QUEUED",provider="google_gemini",model_name=settings.google_ai_model)
-    db.add(job);invoice.status="PROCESSING";db.flush()
-    enqueue(db,"OCR",{"invoice_id":str(invoice.id),"user_id":str(user_id),"ocr_job_id":str(job.id)},"ocr:"+str(job.id))
+    db.add(job);invoice.status="PROCESSING";invoice.revision += 1;db.flush()
+    enqueue(db,"OCR",{"invoice_id":str(invoice.id),"user_id":str(user_id),"ocr_job_id":str(job.id),"invoice_revision":invoice.revision},"ocr:"+str(job.id))
     return {"id":str(invoice.id),"success":True,"queued":True,"job_id":str(job.id)}
 
 
@@ -344,142 +322,84 @@ def confirm_invoice(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    invoice = db.scalar(
-        select(Invoice).where(Invoice.id == invoice_id, Invoice.user_id == user.id).with_hint(Invoice, "WITH (UPDLOCK, ROWLOCK)", dialect_name="mssql").execution_options(populate_existing=True)
-    )
+    from app.chuc_nang.nguoi_dung.hoa_don_ai.nghiep_vu.xac_nhan_hoa_don import confirm
+    return confirm(db, user, invoice_id, payload)
+
+
+@router.post("/{invoice_id}/duplicate-check")
+def preview_duplicates(invoice_id: uuid.UUID, payload: InvoiceDuplicateCheck,
+                       db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    invoice = db.scalar(select(Invoice).where(Invoice.id == invoice_id, Invoice.user_id == user.id))
     if not invoice:
-        raise HTTPException(status_code=404, detail="Không tìm thấy hóa đơn")
-    existing = db.scalar(select(Transaction).where(Transaction.invoice_id == invoice.id, Transaction.user_id == user.id))
-    if existing:
-        if invoice.status != "CONFIRMED":
-            invoice.status = "CONFIRMED"
-            invoice.confirmed_at = invoice.confirmed_at or datetime.now(timezone.utc)
-            invoice.account_id = existing.account_id
-            invoice.category_id = existing.category_id
-            db.commit()
-        return {"success": True, "transaction_id": str(existing.id)}
-    if invoice.status not in ("REVIEW_REQUIRED", "UPLOADED", "FAILED"):
-        raise HTTPException(status_code=400, detail=f"Hóa đơn ở trạng thái '{invoice.status}' không thể xác nhận")
+        raise HTTPException(404, "Không tìm thấy hóa đơn")
+    require_visible(invoice)
+    # Evaluate edited values without mutating a tracked ORM instance.
+    preview = SimpleNamespace(**{column.name: getattr(invoice, column.name) for column in Invoice.__table__.columns})
+    for name, value in payload.model_dump(exclude_unset=True).items():
+        setattr(preview, name, parse_invoice_time(value) if name == "invoice_time" else value)
+    return inspect_duplicates(db, user.id, preview)
 
-    # Lưu lại dữ liệu người dùng đã chỉnh sửa trên form OCR
-    if payload.merchant_name is not None:
-        invoice.merchant_name = payload.merchant_name
-    if payload.invoice_date is not None:
-        invoice.invoice_date = payload.invoice_date
-    if payload.invoice_number is not None:
-        invoice.invoice_number = payload.invoice_number
-    if payload.invoice_symbol is not None:
-        invoice.invoice_symbol = payload.invoice_symbol
-    if payload.merchant_tax_code is not None:
-        invoice.merchant_tax_code = payload.merchant_tax_code
-    if payload.merchant_address is not None:
-        invoice.merchant_address = payload.merchant_address
-    for field in ("vat_rate", "payment_method"):
-        value = getattr(payload, field)
-        if value is not None:
-            setattr(invoice, field, value)
-    if payload.subtotal_amount is not None:
-        invoice.subtotal_amount = payload.subtotal_amount
-    if payload.tax_amount is not None:
-        invoice.tax_amount = payload.tax_amount
-    if payload.total_amount is not None:
-        invoice.total_amount = payload.total_amount
-    invoice.note = payload.note.strip() if payload.note and payload.note.strip() else None
-    if payload.items is not None:
-        db.execute(delete(InvoiceItem).where(InvoiceItem.invoice_id == invoice.id))
-        db.add_all([
-            InvoiceItem(
-                invoice_id=invoice.id,
-                line_no=line_no,
-                name=item.name.strip(),
-                sku=item.sku.strip() if item.sku else None,
-                unit=item.unit.strip() if item.unit else None,
-                quantity=item.quantity,
-                unit_price=item.unit_price,
-                discount_amount=item.discount_amount,
-                tax_amount=item.tax_amount,
-                line_total=item.line_total,
-            )
-            for line_no, item in enumerate(payload.items, start=1)
-        ])
 
-    # Dùng số tiền đã được người dùng xác nhận (có thể đã sửa)
-    final_amount = invoice.total_amount or Decimal("0")
-    desc = (invoice.merchant_name or f"Hóa đơn {invoice.invoice_number or ''}").strip() or "Hóa đơn OCR"
-
-    category_id = payload.category_id
-    category_metadata = {}
-    if category_id:
-        category_metadata = {
-            "category_confidence": Decimal("1.0000"),
-            "category_source": "MANUAL",
-            "category_was_auto": False,
-        }
+@router.post("/{invoice_id}/duplicate-resolution")
+def resolve_duplicate(invoice_id: uuid.UUID, payload: InvoiceResolution,
+                      db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    pending, replay = begin_operation(db, user, "invoice-resolution", {"id": str(invoice_id), **payload.model_dump(mode="json")})
+    if replay is not None:
+        db.rollback()
+        return replay
+    invoice = lock_invoice(db, user, invoice_id)
+    require_visible(invoice)
+    check_revision(invoice, payload.expected_revision)
+    if invoice.status in {"CONFIRMED", "PROCESSING"}:
+        conflict("INVOICE_NOT_EDITABLE", "Không thể thay đổi hóa đơn đang xử lý hoặc đã ghi sổ.")
+    if payload.action == "CLEAR":
+        invoice.duplicate_of_invoice_id = None
     else:
-        item_names = (
-            [item.name for item in payload.items]
-            if payload.items is not None
-            else list(db.scalars(select(InvoiceItem.name).where(InvoiceItem.invoice_id == invoice.id)))
-        )
-        suggestion = suggest_category(
-            db,
-            user.id,
-            TransactionType.EXPENSE,
-            description=desc,
-            note=payload.note,
-            item_names=item_names,
-        )
-        if suggestion.auto_apply:
-            category_id = suggestion.category_id
-            category_metadata = {
-                "category_confidence": suggestion.confidence,
-                "category_source": suggestion.source,
-                "category_was_auto": True,
-            }
+        target = db.scalar(select(Invoice).where(Invoice.id == payload.matched_invoice_id,
+                           Invoice.user_id == user.id, Invoice.duplicate_of_invoice_id.is_(None)))
+        if not target or target.id == invoice.id:
+            raise HTTPException(404, "Không tìm thấy bản gốc hợp lệ")
+        check = inspect_duplicates(db, user.id, invoice)
+        if str(target.id) not in {c["invoice_id"] for c in check["candidates"]}:
+            conflict("INVOICE_CANDIDATE_CHANGED", "Hãy kiểm tra lại danh sách hóa đơn đối chiếu.")
+        invoice.duplicate_of_invoice_id = target.id
+    invoice.revision += 1
+    record_event(db, invoice, "MARK_DUPLICATE" if payload.action == "SAME_INVOICE" else "CLEAR_DUPLICATE",
+                 matched_invoice_id=payload.matched_invoice_id)
+    return finish_operation(db, pending, {"success": True, "revision": invoice.revision,
+        "duplicate_of_invoice_id": str(invoice.duplicate_of_invoice_id) if invoice.duplicate_of_invoice_id else None})
 
-    txn = create_transaction(
-        db=db,
-        user_id=user.id,
-        source=TransactionSource.OCR,
-        commit=False,
-        account_id=payload.account_id,
-        category_id=category_id,
-        description=desc,
-        amount=final_amount,
-        type=TransactionType.EXPENSE,
-        transaction_date=invoice.invoice_date or datetime.now().date(),
-        note=payload.note,
-        invoice_id=invoice.id,
-        **category_metadata,
-    )
 
-    invoice.status = "CONFIRMED"
-    invoice.confirmed_at = datetime.now(timezone.utc)
-    invoice.account_id = payload.account_id
-    invoice.category_id = category_id
-    enqueue(db, "BUDGET", {"user_id": str(user.id), "transaction_id": str(txn.id)}, "budget-check:" + str(txn.id))
-    db.commit()
-
-    return {"success": True, "transaction_id": str(txn.id)}
+@router.post("/{invoice_id}/restore")
+def restore_invoice(invoice_id: uuid.UUID, payload: InvoiceRestore,
+                    db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    pending, replay = begin_operation(db, user, "invoice-restore", {"id": str(invoice_id), **payload.model_dump(mode="json")})
+    if replay is not None:
+        db.rollback()
+        return replay
+    invoice = lock_invoice(db, user, invoice_id)
+    check_revision(invoice, payload.expected_revision)
+    if invoice.deleted_at:
+        invoice.deleted_at = None
+        invoice.revision += 1
+        invoice.confirmation_generation += 1
+        record_event(db, invoice, "RESTORE")
+    return finish_operation(db, pending, {"success": True, "revision": invoice.revision, "status": invoice.status,
+            "requires_file": not bool(invoice.storage_key)})
 
 
 @router.delete(
     "/{invoice_id}",
     status_code=204,
     summary="Xóa hóa đơn đơn lẻ (Delete Invoice)",
-    description="Xóa vĩnh viễn hóa đơn, tệp vật lý, và tự động gỡ liên kết giao dịch — an toàn tuyệt đối với SQL Server FK.",
+    description="Ẩn hóa đơn và xóa ảnh sau commit; giữ thông tin chống trùng và khoản chi đã ghi sổ.",
 )
 def delete_invoice(
     invoice_id: uuid.UUID,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    invoice = db.scalar(
-        select(Invoice).where(Invoice.id == invoice_id, Invoice.user_id == user.id)
-    )
-    if not invoice:
-        raise HTTPException(status_code=404, detail="Không tìm thấy hóa đơn")
-
+    invoice = lock_invoice(db, user, invoice_id)
     _safe_delete_invoice(db, invoice)
     db.commit()
 
@@ -500,7 +420,8 @@ def batch_delete_invoices(
 
     deleted = 0
     not_found = []
-    for inv_id in payload.invoice_ids:
+    locked_user(db, user.id, user.token_version)
+    for inv_id in sorted(set(payload.invoice_ids), key=str):
         invoice = db.scalar(
             select(Invoice).where(Invoice.id == inv_id, Invoice.user_id == user.id)
         )

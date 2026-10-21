@@ -12,8 +12,8 @@ bản schema sau khi giai đoạn chuyển đổi hoàn tất.
   ràng của chủ dự án.
 - Trước thao tác phá hủy phải có: phạm vi ảnh hưởng, số bản ghi, dependency,
   bản sao lưu, câu lệnh dự kiến, phương án rollback và kết quả preflight.
-- Migration phải được kiểm tra trên CSDL tạm trước khi áp dụng vào
-  `personal_finance`.
+- Rà soát migration, backup và đối soát dữ liệu trước/sau khi áp dụng vào
+  `personal_finance`. Chỉ tạo database kiểm chứng khi chủ dự án yêu cầu.
 - Không đưa dữ liệu người dùng, credential hoặc secret vào Git.
 
 ## Vai trò của các thành phần

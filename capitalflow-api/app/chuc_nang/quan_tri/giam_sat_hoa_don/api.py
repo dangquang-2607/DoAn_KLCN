@@ -97,6 +97,12 @@ def retry_failed_ocr_job(
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
+    # Follow the same user -> invoice/job order as user mutations.
+    owner_id = db.scalar(select(OcrJob.user_id).where(OcrJob.id == job_id))
+    if not owner_id:
+        raise HTTPException(status_code=404, detail="Không tìm thấy lượt OCR lỗi")
+    from app.chuc_nang.nguoi_dung.dang_nhap.nghiep_vu.session_management import locked_user
+    locked_user(db, owner_id)
     job = db.scalar(
         select(OcrJob).where(OcrJob.id == job_id).with_hint(
             OcrJob, "WITH (UPDLOCK, ROWLOCK)", dialect_name="mssql"

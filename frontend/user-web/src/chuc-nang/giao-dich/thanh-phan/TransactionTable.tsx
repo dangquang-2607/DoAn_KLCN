@@ -28,6 +28,7 @@ interface TransactionTableProps {
   page: number;
   total: number;
   selected: string[];
+  selectionDisabled: boolean;
   getAccount: (id: string) => Account | undefined;
   getCategory: (id: string | null) => Category | undefined;
   onSelectAll: (checked: boolean) => void;
@@ -44,6 +45,7 @@ export default function TransactionTable({
   page,
   total,
   selected,
+  selectionDisabled,
   getAccount,
   getCategory,
   onSelectAll,
@@ -52,6 +54,10 @@ export default function TransactionTable({
   onDelete,
   onPageChange,
 }: TransactionTableProps) {
+  const selectedIds = new Set(selected);
+  // Checkbox đầu bảng phản ánh toàn bộ kết quả, không chỉ các dòng của trang hiện tại.
+  const allSelected = total > 0 && selectedIds.size === total && list.every((transaction) => selectedIds.has(transaction.id));
+  const partiallySelected = selectedIds.size > 0 && !allSelected;
   return (
     <>
       {query.isPending ? (
@@ -68,13 +74,13 @@ export default function TransactionTable({
           <table className="cf-table">
             <thead>
               <tr>
-                <th style={{ width: 46, paddingRight: 0 }}><input type="checkbox" aria-label="Chọn tất cả giao dịch đang hiển thị trên trang" checked={list.length > 0 && list.every((transaction) => selected.includes(transaction.id))} onChange={(event) => onSelectAll(event.target.checked)} /></th>
+                <th style={{ width: 46, paddingRight: 0 }}><input type="checkbox" aria-label="Chọn tất cả giao dịch theo bộ lọc trên mọi trang" title={allSelected ? "Bỏ chọn tất cả giao dịch trên mọi trang" : `Chọn tất cả ${total} giao dịch theo bộ lọc trên mọi trang`} disabled={selectionDisabled} checked={allSelected} ref={(element) => { if (element) element.indeterminate = partiallySelected; }} onChange={(event) => onSelectAll(event.target.checked)} /></th>
                 <th>Ngày</th>
                 <th>Giao dịch</th>
                 <th>Danh mục</th>
                 <th>Tài khoản</th>
                 <th className="right">Số tiền</th>
-                <th aria-label="Thao tác" />
+                <th aria-label="Thao tác" style={{ width: 120 }} />
               </tr>
             </thead>
             <tbody>
@@ -84,7 +90,7 @@ export default function TransactionTable({
                 const locked = t.source === "SYSTEM" || (t.kind != null && t.kind !== "NORMAL");
                 return (
                   <tr key={t.id}>
-                    <td style={{ paddingRight: 0 }}><input type="checkbox" aria-label={`Chọn giao dịch ${t.description || t.id}`} checked={selected.includes(t.id)} onChange={(event) => onSelectOne(t.id, event.target.checked)} /></td>
+                    <td style={{ paddingRight: 0 }}><input type="checkbox" aria-label={`Chọn giao dịch ${t.description || t.id}`} disabled={selectionDisabled} checked={selectedIds.has(t.id)} onChange={(event) => onSelectOne(t.id, event.target.checked)} /></td>
                     <td className="cf-muted">{dateLabel(t.transaction_date)}</td>
                     <td>
                       <strong>{t.description || "Giao dịch"}</strong>
@@ -122,8 +128,8 @@ export default function TransactionTable({
                       {money(t.amount, acc?.currency || "VND")}
                     </td>
                     <td>
-                      <div className="cf-row">
-                        {locked ? <span className="cf-muted" title="Giao dịch hệ thống không thể sửa trực tiếp"><LockKeyhole size={16} aria-label="Không thể sửa" /></span> : (
+                      <div className="cf-transaction-actions">
+                        {locked ? <button type="button" className="cf-icon-btn" disabled title="Giao dịch hệ thống không thể sửa trực tiếp" aria-label="Không thể sửa giao dịch hệ thống"><LockKeyhole size={16} /></button> : (
                           <button
                             className="cf-icon-btn"
                             aria-label={t.bank_reference ? "Sửa danh mục và ghi chú giao dịch ngân hàng" : "Sửa giao dịch"}

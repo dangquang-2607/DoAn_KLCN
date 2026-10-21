@@ -139,6 +139,48 @@
   margin: 0;
   max-width: 640px;
 }
+/* One page-heading treatment for both portals, based on the admin dashboard. */
+.cf-app .cf-workspace-head {
+  font-family: var(--font-inter, var(--cf-font));
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px 24px;
+  min-width: 0;
+}
+.cf-workspace-head > div { min-width: 0; max-width: 100%; }
+.cf-app .cf-workspace-head .cf-eyebrow {
+  margin: 0 0 9px;
+  color: #ad7058;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .13em;
+}
+.cf-app .cf-workspace-head h1 {
+  margin: 0 0 9px;
+  color: #243047;
+  font-family: var(--font-inter, var(--cf-font));
+  font-size: clamp(32px, 3vw, 46px);
+  font-weight: 780;
+  line-height: 1.1;
+  letter-spacing: -.055em;
+  overflow-wrap: anywhere;
+}
+.cf-workspace-head .cf-heading-dot { color: #dc775a; }
+.cf-app .cf-workspace-head .cf-heading-description {
+  max-width: 640px;
+  margin: 0;
+  color: #687488;
+  font-size: 14px;
+  line-height: 1.65;
+}
+.cf-workspace-head .cf-heading-actions { gap: 10px; }
+@media (max-width: 640px) {
+  .cf-app .cf-workspace-head { align-items: flex-start; flex-direction: column; }
+  .cf-app .cf-workspace-head h1 { font-size: 32px; }
+  .cf-workspace-head .cf-heading-actions { width: 100%; }
+}
 .cf-panel {
   min-width: 0;
   background: var(--cf-surface);

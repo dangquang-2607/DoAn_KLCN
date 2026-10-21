@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import ForgotPasswordModal from './thanh-phan/ForgotPasswordModal';
 import FirstTimePasswordModal from './thanh-phan/FirstTimePasswordModal';
-import { loginStyles } from './CSS/login.styles';
+import styles from './CSS/login.module.css';
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_SECONDS = 30;
@@ -224,6 +224,7 @@ export default function LoginPage() {
 
   // Ánh xạ vị trí chuột thành chuyển động thị sai; không liên quan dữ liệu xác thực.
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!window.matchMedia('(min-width: 1024px) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)').matches) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - (rect.left + rect.width / 2);
     const y = e.clientY - (rect.top + rect.height / 2);
@@ -514,8 +515,7 @@ export default function LoginPage() {
     <div
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      style={loginStyles.fullHeight}
-      className="min-h-screen bg-[#F8FAFC] text-slate-800 flex items-center justify-center p-4 sm:p-6 lg:p-10 relative overflow-hidden font-sans selection:bg-blue-600 selection:text-white"
+      className={`${styles.page} bg-[#F8FAFC] text-slate-800 flex items-center justify-center p-4 sm:p-6 lg:p-10 relative overflow-hidden font-sans selection:bg-blue-600 selection:text-white`}
     >
       {/* ── Nền chuyển sắc động theo phong cách Cobalt sáng. ── */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -555,27 +555,17 @@ export default function LoginPage() {
           transformStyle: 'preserve-3d',
           perspective: 1400,
         }}
-        className={`w-full max-w-5xl bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-[32px] shadow-[0_24px_60px_-15px_rgba(30,58,138,0.14),0_10px_30px_-10px_rgba(0,0,0,0.04)] overflow-hidden relative z-10 transition-shadow duration-500 ${
+        className={`${styles.card} ${isLogin ? '' : styles.register} w-full max-w-5xl bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-[32px] shadow-[0_24px_60px_-15px_rgba(30,58,138,0.14),0_10px_30px_-10px_rgba(0,0,0,0.04)] overflow-hidden relative z-10 transition-shadow duration-500 ${
           isShake ? 'animate-shake' : ''
         }`}
       >
-        <div className="flex flex-col lg:flex-row relative min-h-[660px]">
+        <div className="flex flex-col lg:flex-row relative lg:min-h-[660px]">
           
           {/* ══════════════════════════════════════════════════════════════════════
               KHỐI 1: Giới thiệu sản phẩm (trượt trái/phải từ 0% đến 140%)
               ══════════════════════════════════════════════════════════════════════ */}
-          <motion.div
-            initial={false}
-            animate={{
-              x: isLogin ? '0%' : '140%',
-            }}
-            transition={{
-              type: 'spring',
-              stiffness: 200,
-              damping: 25,
-              mass: 0.8,
-            }}
-            className="hidden lg:flex lg:w-5/12 bg-gradient-to-br from-blue-600 via-indigo-600 to-slate-900 p-10 flex-col justify-between relative overflow-hidden text-white z-20 shadow-2xl"
+          <div
+            className={`${styles.showcase} hidden lg:flex lg:w-5/12 bg-gradient-to-br from-blue-600 via-indigo-600 to-slate-900 p-10 flex-col justify-between relative overflow-hidden text-white z-20 shadow-2xl`}
           >
             {/* Quầng sáng nền và điểm nhấn hiệu ứng kính. */}
             <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
@@ -722,27 +712,17 @@ export default function LoginPage() {
                 <Landmark className="w-3.5 h-3.5 text-sky-300" /> Liên kết ngân hàng demo
               </span>
             </div>
-          </motion.div>
+          </div>
 
           {/* ══════════════════════════════════════════════════════════════════════
               KHỐI 2: Biểu mẫu xác thực (trượt phải/trái từ 0% đến -71,428%)
               ══════════════════════════════════════════════════════════════════════ */}
-          <motion.div
-            initial={false}
-            animate={{
-              x: isLogin ? '0%' : '-71.4285%',
-            }}
-            transition={{
-              type: 'spring',
-              stiffness: 200,
-              damping: 25,
-              mass: 0.8,
-            }}
-            className="w-full lg:w-7/12 p-6 sm:p-10 lg:p-12 flex flex-col justify-center bg-white relative z-10"
+          <div
+            className={`${styles.formPanel} w-full lg:w-7/12 p-5 sm:p-10 lg:p-12 flex flex-col justify-center bg-white relative z-10`}
           >
             
             {/* ── Bộ chuyển tab phân đoạn nổi phía trên. ── */}
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center justify-between gap-3 mb-6 sm:mb-8">
               {/* Điều khiển phân đoạn với nền chỉ báo chuyển động. */}
               <div className="relative p-1 bg-slate-100/90 border border-slate-200/80 rounded-2xl flex items-center shadow-inner max-w-xs w-full">
                 <button
@@ -1207,7 +1187,7 @@ export default function LoginPage() {
                 )}
               </AnimatePresence>
             </div>
-          </motion.div>
+          </div>
         </div>
       </motion.div>
 

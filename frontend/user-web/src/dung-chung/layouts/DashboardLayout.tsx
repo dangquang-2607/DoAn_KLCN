@@ -167,7 +167,7 @@ export default function DashboardLayout({
 
   const profile = useQuery<Profile>({
     queryKey: ["user-me"],
-    queryFn: async () => (await api.get("/auth/me")).data,
+    queryFn: async () => (await api.get("/auth/me", { timeout: 15000 })).data,
     retry: false,
   });
 
@@ -181,6 +181,7 @@ export default function DashboardLayout({
       if (token) await api.post("/auth/logout", { refresh_token: token });
     } catch {
     } finally {
+      for (const key of Object.keys(sessionStorage)) { if (key.startsWith("cf-pending-invoice:")) sessionStorage.removeItem(key); }
       sessionStorage.removeItem("user_access_token");
       sessionStorage.removeItem("user_refresh_token");
       cache.clear();

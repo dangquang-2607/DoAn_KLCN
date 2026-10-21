@@ -8,7 +8,7 @@
  * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
  *   React Query, admin API client và các component audit-logs.
  * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Xuất route AuditLogs với bộ lọc, xuất CSV trang hiện tại và bảng chi tiết.
+ *   Xuất route AuditLogs với bộ lọc, xuất Excel trang hiện tại và bảng chi tiết.
  * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
  *   API phân trang và lọc phía máy chủ; dữ liệu nhạy cảm được che ở backend.
  * ============================================================================
@@ -45,7 +45,7 @@ export default function AuditLogs() {
       <details className="adm-live-advanced"><summary>Lọc thêm theo ngày & kết quả HTTP{result || start || end ? " · Đang áp dụng" : ""}</summary><div className="cf-filter-bar"><Field label="Kết quả HTTP"><select className="cf-input" value={result} onChange={(e) => filter(setResult, e.target.value)}><option value="">Mọi kết quả</option><option value="success">HTTP 2xx / 3xx</option><option value="error">HTTP lỗi ≥ 400</option><option value="unknown">Chưa ghi mã HTTP</option></select></Field><Field label="Từ ngày"><input className="cf-input" type="date" value={start} max={end || undefined} onChange={(e) => filter(setStart, e.target.value)} /></Field><Field label="Đến ngày"><input className="cf-input" type="date" value={end} min={start || undefined} onChange={(e) => filter(setEnd, e.target.value)} /></Field></div></details>
       {(search || group || result || start || end) && <button className="cf-btn" onClick={() => { setSearch(""); setGroup(""); setResult(""); setStart(""); setEnd(""); setPage(1); setSelected(undefined); }}>Bỏ lọc</button>}
       <div className="adm-audit-layout"><AuditLogTable query={query} page={page} onPageChange={(value) => { setPage(value); setSelected(undefined); }} selectedId={selectedId} onSelect={(log) => setSelected(log.id)} /><AuditInspector selectedId={selectedId} query={detail} onClose={() => setSelected(null)} /></div>
-      <p className="cf-data-note">Bộ lọc tìm trên toàn bộ nhật ký; CSV chỉ xuất trang đang hiển thị. Thời gian hiển thị theo múi giờ Việt Nam.</p>
+      <p className="cf-data-note">Bộ lọc tìm trên toàn bộ nhật ký; Excel chỉ xuất trang đang hiển thị. Thời gian trên web theo múi giờ Việt Nam, trong file là UTC.</p>
     </div>
   );
 }
