@@ -8,6 +8,7 @@ Ràng buộc: không trả stack trace hoặc thông tin kết nối CSDL cho cl
 
 import logging
 import time
+import traceback
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -56,12 +57,23 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(SQLAlchemyError)
     async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
+        # In TRACEBACK ĐẦY ĐỦ để debug
         logger.error(
             "Database request failed: %s %s (%s)",
             request.method,
             request.url.path,
             type(exc).__name__,
         )
+        # In traceback ra Terminal
+        traceback.print_exc()
+        # In chi tiết lỗi gốc của SQL Server
+        print(f"\n=== SQLAlchemy Error Detail ===")
+        print(f"Exception type: {type(exc).__name__}")
+        print(f"Exception message: {str(exc)}")
+        if hasattr(exc, "orig"):
+            print(f"Original DB error: {exc.orig}")
+        print("=" * 40 + "\n")
+
         return JSONResponse(
             status_code=500,
             content={"detail": "Lỗi cơ sở dữ liệu. Vui lòng thử lại sau."},
@@ -75,6 +87,12 @@ def register_exception_handlers(app: FastAPI) -> None:
             request.url.path,
             type(exc).__name__,
         )
+        traceback.print_exc()
+        print(f"\n=== General Error Detail ===")
+        print(f"Exception type: {type(exc).__name__}")
+        print(f"Exception message: {str(exc)}")
+        print("=" * 40 + "\n")
+
         return JSONResponse(
             status_code=500,
             content={"detail": "Hệ thống gặp sự cố không mong muốn. Vui lòng thử lại sau."},

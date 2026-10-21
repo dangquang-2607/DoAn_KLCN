@@ -17,7 +17,10 @@ from app.dung_chung.text.unicode import normalize_unicode_text
 
 
 class WalletFields(BaseModel):
-    account_number_masked: str | None = Field(default=None, pattern=r"^\*{4}[0-9]{4}$")
+    # KHÔNG dùng pattern ở đây vì AccountOut kế thừa từ class này.
+    # Dữ liệu cũ trong DB có thể có định dạng khác (ví dụ: '****5678').
+    # Pattern chỉ được áp dụng ở AccountCreate và AccountUpdate.
+    account_number_masked: str | None = None
     target_amount: Decimal | None = Field(default=None, gt=Decimal("0"), max_digits=19, decimal_places=2)
     target_date: date | None = None
     exclude_from_total: bool = False
@@ -31,6 +34,10 @@ class AccountCreate(WalletFields):
     balance: Decimal = Field(default=Decimal("0"), max_digits=19, decimal_places=2)
     currency: str = "VND"
     color: str | None = None
+    # Override với pattern chặt cho request (bắt buộc 10 chữ số)
+    account_number_masked: str | None = Field(default=None, pattern=r"^[0-9]{10}$")
+    # Trường OTP: Chỉ bắt buộc khi tạo ví liên kết
+    otp_code: str | None = Field(default=None, min_length=6, max_length=6)
 
     @field_validator("name", mode="before")
     @classmethod
@@ -54,7 +61,8 @@ class AccountCreate(WalletFields):
 
 
 class AccountUpdate(BaseModel):
-    account_number_masked: str | None = Field(default=None, pattern=r"^\*{4}[0-9]{4}$")
+    # Cho phép 10 chữ số
+    account_number_masked: str | None = Field(default=None, pattern=r"^[0-9]{10}$")
     target_amount: Decimal | None = Field(default=None, gt=Decimal("0"), max_digits=19, decimal_places=2)
     target_date: date | None = None
     exclude_from_total: bool | None = None
@@ -114,3 +122,10 @@ class AccountOut(WalletFields):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# === SCHEMA MỚI CHO REQUEST GỬI OTP ===
+class SendOtpRequest(BaseModel):
+    """Yêu cầu gửi mã OTP để liên kết ngân hàng."""
+    institution_name: str = Field(min_length=1, max_length=150)
+    account_number: str = Field(pattern=r"^[0-9]{6,20}$")  # 6-20 chữ số

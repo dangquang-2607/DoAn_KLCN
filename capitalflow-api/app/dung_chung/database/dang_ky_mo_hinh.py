@@ -29,5 +29,6 @@ from app.chuc_nang.quan_tri.nguoi_dung.luu_tru.xoa_nguoi_dung import UserDeletio
 __all__ = [
     "Base", "User", "UserRole", "Category", "CategoryType", "Account", "AccountType",
     "Invoice", "InvoiceItem", "OcrJob", "Transaction", "TransactionType", "Budget", "BudgetPeriod", "BudgetChange",
-    "RefreshToken", "AuditLog", "SystemSetting", "UserDeletionRequest", "UserDeletionFile", "Notification"
+    "RefreshToken", "AuditLog", "SystemSetting", "UserDeletionRequest", "UserDeletionFile", "Notification",
+    "PasswordResetOTP",
 ]

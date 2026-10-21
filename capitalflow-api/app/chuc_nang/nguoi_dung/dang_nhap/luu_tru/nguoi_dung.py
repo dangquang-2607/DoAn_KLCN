@@ -30,9 +30,6 @@ class User(Base):
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False)
     deletion_status: Mapped[str] = mapped_column(String(20), default="ACTIVE", server_default="ACTIVE", nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    # Cố ý lưu snapshot bền vững của người thao tác thay vì khóa ngoại. Bản ghi xóa
-    # vẫn phải đọc được nếu quản trị viên thực hiện thao tác bị xóa sau đó theo
-    # một chính sách lưu giữ dữ liệu độc lập.
     deleted_by: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
     email_before_delete_sealed: Mapped[str | None] = mapped_column(UnicodeText, nullable=True)
     pre_delete_is_active: Mapped[bool | None] = mapped_column(Boolean, nullable=True)

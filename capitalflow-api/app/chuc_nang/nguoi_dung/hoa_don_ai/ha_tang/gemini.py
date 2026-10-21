@@ -3,7 +3,8 @@ Dịch vụ Gemini Vision trích xuất dữ liệu hóa đơn bằng Google Gem
 Chỉ gọi từ phía máy chủ. KHÔNG bao giờ để lộ khóa API ra phía người dùng.
 
 Tích hợp:
-  - Tự động Fallback: Ưu tiên gemini-3.5-flash-lite (500 RPD), nếu quá tải tự động chuyển sang gemini-3.6-flash.
+  - Tự động Fallback: Ưu tiên model chính, nếu quá tải tự động chuyển sang model dự phòng.
+  - Hỗ trợ cả 2 loại key: AIzaSy (API key cũ) và AQ. (OAuth-style key mới).
   - Xử lý JSON an toàn, dọn dẹp markdown code fence và encoding UTF-8.
 """
 import base64
@@ -66,11 +67,22 @@ Lưu ý quan trọng:
 """
 
 
+def _build_auth_headers(api_key: str) -> dict:
+    """
+    Xây dựng header xác thực dựa trên định dạng API key.
+    - Key dạng 'AIzaSy...' → header 'x-goog-api-key' (kiểu API key cũ)
+    - Key dạng 'AQ...'      → header 'Authorization: Bearer' (kiểu OAuth-style mới)
+    """
+    if api_key.startswith("AQ.") or api_key.startswith("AQ"):
+        return {"Authorization": f"Bearer {api_key}"}
+    return {"x-goog-api-key": api_key}
+
+
 async def _call_gemini_model(model_name: str, file_bytes: bytes, mime_type: str) -> dict:
     """Gọi một model Gemini cụ thể."""
     encoded = base64.b64encode(file_bytes).decode()
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
-    
+
     payload = {
         "contents": [
             {
@@ -87,13 +99,16 @@ async def _call_gemini_model(model_name: str, file_bytes: bytes, mime_type: str)
         },
     }
 
+    headers = _build_auth_headers(settings.google_ai_api_key)
+    headers["Content-Type"] = "application/json"
+
     started = perf_counter()
     status = None
     outcome = "cancelled"
     try:
         async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.post(
-                url, headers={"x-goog-api-key": settings.google_ai_api_key}, json=payload
+                url, headers=headers, json=payload
             )
             status = resp.status_code
             resp.raise_for_status()
@@ -113,7 +128,6 @@ async def _call_gemini_model(model_name: str, file_bytes: bytes, mime_type: str)
     raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
     raw_text = re.sub(r"```(?:json)?", "", raw_text).strip().rstrip("```").strip()
 
-    # Tìm json object {}
     start = raw_text.find("{")
     end = raw_text.rfind("}")
     if start >= 0 and end > start:
@@ -129,21 +143,33 @@ async def _call_gemini_model(model_name: str, file_bytes: bytes, mime_type: str)
 async def run_gemini_ocr(file_bytes: bytes, mime_type: str) -> dict:
     """
     Gửi hóa đơn sang Google Gemini Vision với cơ chế tự động Fallback:
-    1. Ưu tiên model chính: settings.google_ai_model (mặc định gemini-3.5-flash-lite)
-    2. Nếu gặp sự cố, tự động fallback sang gemini-3.6-flash
+    1. Ưu tiên model chính từ settings.google_ai_model
+    2. Nếu gặp sự cố, tự động fallback sang các model dự phòng
     """
     if not settings.google_ai_api_key:
         raise ValueError("GOOGLE_AI_API_KEY chưa được cấu hình trong file .env")
 
-    primary_model = settings.google_ai_model or "gemini-3.5-flash-lite"
-    fallback_model = "gemini-3.6-flash" if primary_model != "gemini-3.6-flash" else "gemini-3.5-flash-lite"
+    primary_model = settings.google_ai_model or "gemini-2.0-flash"
+    fallback_models = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
 
     try:
         return await _call_gemini_model(primary_model, file_bytes, mime_type)
     except Exception as primary_err:
-        logger.warning("Primary OCR provider failed (%s)", type(primary_err).__name__)
+        logger.warning(
+            "Primary OCR model '%s' failed (%s): %s",
+            primary_model, type(primary_err).__name__, str(primary_err)[:200]
+        )
+
+    for fallback_model in fallback_models:
+        if fallback_model == primary_model:
+            continue
         try:
+            logger.info("Thử fallback model: %s", fallback_model)
             return await _call_gemini_model(fallback_model, file_bytes, mime_type)
         except Exception as fallback_err:
-            logger.error("Fallback OCR provider failed (%s)", type(fallback_err).__name__)
-            raise RuntimeError("Dịch vụ OCR tạm thời không khả dụng") from None
+            logger.warning(
+                "Fallback OCR model '%s' failed (%s): %s",
+                fallback_model, type(fallback_err).__name__, str(fallback_err)[:200]
+            )
+
+    raise RuntimeError("Dịch vụ OCR tạm thời không khả dụng. Vui lòng thử lại sau.")

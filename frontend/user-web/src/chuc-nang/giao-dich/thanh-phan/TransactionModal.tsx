@@ -30,7 +30,16 @@ export default function TransactionModal({ editing, accounts, categories, form, 
     {error && <Alert onDismiss={onClearError}>{error}</Alert>}{dependencyError ? <Alert persistent>Không thể tải tài khoản hoặc danh mục. Đóng biểu mẫu và thử lại.</Alert> : !accounts.length ? <Alert kind="info">Bạn cần tạo tài khoản ở mục Ví & tài khoản trước khi ghi nhận giao dịch.</Alert> : null}
     {bankManaged && <Alert kind="info">Giao dịch ngân hàng: chỉ sửa danh mục và ghi chú.</Alert>}
     <Field label="Loại giao dịch"><select disabled={bankManaged} className="cf-input" value={form.type} onChange={(event) => { setForm({ ...form, type: event.target.value, category_id: "" }); setCategoryTouched(false); }}><option value="EXPENSE">Chi tiêu</option><option value="INCOME">Thu nhập</option></select></Field>
-    <Field label="Tài khoản"><select disabled={bankManaged} required className="cf-input" value={form.account_id} onChange={(event) => setForm({ ...form, account_id: event.target.value })}><option value="">Chọn tài khoản</option>{accounts.filter(item => bankManaged || !item.bank_managed).map((item) => <option value={item.id} key={item.id}>{item.name} · {money(item.balance, item.currency)}</option>)}</select></Field>
+    <Field label="Tài khoản">
+      <select disabled={bankManaged} required className="cf-input" value={form.account_id} onChange={(event) => setForm({ ...form, account_id: event.target.value })}>
+        <option value="">Chọn tài khoản</option>
+        {accounts.map((item) => (
+          <option value={item.id} key={item.id}>
+            {item.name} · {money(item.balance, item.currency)}
+          </option>
+        ))}
+      </select>
+    </Field>
     <Field label="Danh mục"><select className="cf-input" value={form.category_id} onChange={(event) => { setForm({ ...form, category_id: event.target.value }); setCategoryTouched(true); setSuggestion(null); }}><option value="">Chưa phân loại</option>{categories.filter((item) => item.type === form.type && (item.is_active || item.id === editing?.category_id)).map((item) => <option value={item.id} key={item.id} disabled={!item.is_active}>{item.name}{!item.is_active ? " (đã ẩn)" : ""}</option>)}</select>{suggestion && <div className="cf-category-suggestion" role="status"><div><strong>Gợi ý: {suggestion.category_name}</strong><span>{Math.round(suggestion.confidence * 100)}% · {suggestion.reason}</span></div><button type="button" className="cf-btn cf-btn-sm" onClick={() => { setForm({ ...form, category_id: suggestion.category_id || "" }); setCategoryTouched(true); setSuggestion(null); }}>Chọn danh mục</button></div>}</Field>
     <div className="cf-form-grid"><Field label={`Số tiền (${account?.currency || "VND"})`}><input readOnly={bankManaged} className="cf-input" required type="number" min="0.01" step="0.01" value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} /></Field><Field label="Ngày giao dịch"><DateInput readOnly={bankManaged} required value={form.transaction_date} onChange={(value) => setForm({ ...form, transaction_date: value })} /></Field></div>
     <Field label="Mô tả"><input readOnly={bankManaged} className="cf-input" required maxLength={255} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></Field>

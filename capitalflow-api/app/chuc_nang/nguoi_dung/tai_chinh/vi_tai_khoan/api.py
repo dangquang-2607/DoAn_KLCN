@@ -6,19 +6,30 @@ Vai trò: điều phối tạo, đọc, sửa và xóa vĩnh viễn ví qua serv
 Ràng buộc: mọi truy cập phải giới hạn theo chủ sở hữu và cập nhật ví đối ứng khi xóa chuyển tiền.
 """
 
-from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.luy_dang import idempotent_money
+import random
 import uuid
+from datetime import datetime, timedelta
 from decimal import Decimal
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.luy_dang import idempotent_money
 from app.dung_chung.http.phu_thuoc import get_current_user, get_db
 from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan.luu_tru.account import Account
 from app.chuc_nang.nguoi_dung.dang_nhap.luu_tru.nguoi_dung import User
+from app.chuc_nang.nguoi_dung.dang_nhap.luu_tru.dat_lai_mat_khau import PasswordResetOTP
 from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.so_cai import record_balance_adjustment
-from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan.schemas import AccountCreate, AccountOut, AccountUpdate
+from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan.schemas import (
+    AccountCreate,
+    AccountOut,
+    AccountUpdate,
+    SendOtpRequest,
+)
 from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan.deletion import deletion_preview, delete_wallet
+from app.dung_chung.gui_mail import send_otp_email
+
 
 def validate_wallet(values):
     kind = values.get("account_type")
@@ -36,12 +47,56 @@ def validate_wallet(values):
         values["target_date"] = None
     if kind not in ("LINKED", "BANK", "E_WALLET"):
         values["account_number_masked"] = None
-    if kind not in ("LINKED", "BANK", "E_WALLET"):
         values["institution_name"] = None
     return values
 
 
 router = APIRouter(prefix="/accounts", tags=["Accounts"])
+
+
+@router.post(
+    "/send-otp",
+    status_code=200,
+    summary="Gửi mã OTP liên kết ngân hàng",
+    description=(
+        "🇻🇳 **Mô tả**: Gửi mã OTP 6 chữ số đến email đăng ký của người dùng để xác thực liên kết ngân hàng.\n\n"
+        "🇬🇧 **Description**: Send a 6-digit OTP to the user's registered email to verify bank linking."
+    ),
+)
+async def send_otp(
+    payload: SendOtpRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Tạo và gửi mã OTP đến email người dùng với mục đích LINK_BANK."""
+    otp_code = f"{random.randint(0, 999999):06d}"
+    expires_at = datetime.utcnow() + timedelta(minutes=5)
+
+    otp = PasswordResetOTP(
+        user_id=user.id,
+        email=user.email,
+        otp_code=otp_code,
+        purpose="LINK_BANK",
+        expires_at=expires_at,
+        is_used=False,
+    )
+    db.add(otp)
+    db.commit()
+
+    try:
+        await send_otp_email(
+            to_email=user.email,
+            otp_code=otp_code,
+            purpose_label=f"liên kết ngân hàng {payload.institution_name}",
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Không thể gửi email OTP: {exc}")
+
+    return {
+        "message": "Mã OTP đã được gửi đến email của bạn.",
+        "email": user.email,
+        "expires_in_seconds": 300,
+    }
 
 
 @router.get(
@@ -70,13 +125,42 @@ def list_accounts(db: Session = Depends(get_db), user: User = Depends(get_curren
     status_code=201,
     summary="Tạo tài khoản mới (Create Account)",
     description=(
-        "🇻🇳 **Mô tả**: Tạo mới một tài khoản tài chính với số dư ban đầu, loại tài khoản và tiền tệ.\n\n"
-        "🇬🇧 **Description**: Create a new financial account with initial balance, account type, and currency."
+        "🇻🇳 **Mô tả**: Tạo mới một tài khoản tài chính với số dư ban đầu, loại tài khoản và tiền tệ. "
+        "Với ví liên kết, cần gửi kèm mã OTP đã nhận qua email.\n\n"
+        "🇬🇧 **Description**: Create a new financial account with initial balance, account type, and currency. "
+        "For linked wallets, an OTP code received via email is required."
     ),
 )
 @idempotent_money
 def create_account(payload: AccountCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     values = validate_wallet(payload.model_dump())
+
+    # ── Xác thực OTP nếu là ví liên kết ──────────────────────────────────────
+    if values.get("account_type") == "LINKED":
+        if not payload.otp_code:
+            raise HTTPException(status_code=400, detail="Vui lòng nhập mã OTP để liên kết ngân hàng.")
+
+        otp_record = db.scalar(
+            select(PasswordResetOTP)
+            .where(
+                PasswordResetOTP.email == user.email,
+                PasswordResetOTP.otp_code == payload.otp_code,
+                PasswordResetOTP.purpose == "LINK_BANK",
+                PasswordResetOTP.is_used == False,
+                PasswordResetOTP.expires_at > datetime.utcnow(),
+            )
+            .order_by(PasswordResetOTP.created_at.desc())
+        )
+        if not otp_record:
+            raise HTTPException(status_code=400, detail="Mã OTP không đúng hoặc đã hết hạn.")
+
+        # Đánh dấu OTP đã sử dụng
+        otp_record.is_used = True
+        db.flush()
+
+    # ── Loại bỏ otp_code trước khi tạo Account ───────────────────────────────
+    values.pop("otp_code", None)
+
     opening_balance = values.pop("balance")
     acc = Account(user_id=user.id, balance=Decimal("0"), **values)
     db.add(acc)
