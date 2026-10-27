@@ -271,8 +271,8 @@ export default function LoginPage() {
     if (!loginEmail.trim()) {
       setLoginEmailError('Vui lòng nhập email');
       hasErr = true;
-    } else if (!isValidEmail(loginEmail)) {
-      setLoginEmailError('Email không hợp lệ (ví dụ: name@domain.com)');
+    } else if (!isValidEmail(loginEmail.trim())) {
+      setLoginEmailError('Vui lòng nhập địa chỉ email hợp lệ');
       hasErr = true;
     }
     if (!loginPassword) {
@@ -287,7 +287,6 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      // Backend yêu cầu payload JSON gồm email và mật khẩu.
       const res = await api.post('/auth/login', {
         email: loginEmail.trim().toLowerCase(),
         password: loginPassword,
@@ -816,10 +815,10 @@ export default function LoginPage() {
                       </p>
                     </motion.div>
 
-                    {/* Trường email đăng nhập. */}
+                    {/* Đăng nhập bằng email. */}
                     <motion.div variants={formItemVariants} className="space-y-1.5">
                       <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                        Địa chỉ Email
+                        Email
                       </label>
                       <div className="relative group">
                         <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
@@ -827,12 +826,14 @@ export default function LoginPage() {
                         </div>
                         <input
                           type="email"
+                          aria-label="Email"
+                          autoComplete="username"
                           value={loginEmail}
                           onChange={(e) => {
                             setLoginEmail(e.target.value);
                             if (loginEmailError) setLoginEmailError('');
                           }}
-                          placeholder="name@example.com"
+                          placeholder="name@gmail.com"
                           disabled={loading || remainingLockSec > 0}
                           className={`w-full pl-10 pr-4 py-3 bg-slate-50/70 hover:bg-slate-50 focus:bg-white text-slate-900 text-sm font-medium rounded-xl border transition-all duration-200 outline-none shadow-sm ${
                             loginEmailError
@@ -856,7 +857,7 @@ export default function LoginPage() {
                             setShowForgotModal(true);
                             setForgotStep(1);
                             setForgotError('');
-                            if (loginEmail) setForgotEmail(loginEmail);
+                            if (isValidEmail(loginEmail.trim())) setForgotEmail(loginEmail.trim());
                           }}
                           className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline transition-all"
                         >
@@ -1012,7 +1013,7 @@ export default function LoginPage() {
                             setRegisterEmail(e.target.value);
                             if (regEmailError) setRegEmailError('');
                           }}
-                          placeholder="name@example.com"
+                          placeholder="name@gmail.com"
                           disabled={loading}
                           className={`w-full pl-10 pr-4 py-2.5 bg-slate-50/70 hover:bg-slate-50 focus:bg-white text-slate-900 text-sm font-medium rounded-xl border transition-all duration-200 outline-none shadow-sm ${
                             regEmailError

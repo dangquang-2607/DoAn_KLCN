@@ -20,7 +20,8 @@ import DateInput from "@/dung-chung/UI-chung/DateInput";
 import { type Account, type Category } from "@/dung-chung/nghiep-vu/finance";
 
 interface TransactionFiltersProps {
-  filters: { type: string; account_id: string; category_id: string; start_date: string; end_date: string };
+  independent?: boolean;
+  filters: { type: string; account_id: string; category_id: string; start_date: string; end_date: string; origin?: string };
   search: string;
   selectedCount: number;
   exporting: boolean;
@@ -34,6 +35,7 @@ interface TransactionFiltersProps {
 
 // Chỉ xuất các giao dịch đã tick, không có phạm vi xuất ngầm theo trang/bộ lọc.
 export default function TransactionFilters({
+  independent = false,
   filters,
   search,
   selectedCount,
@@ -58,20 +60,35 @@ export default function TransactionFilters({
           <option value="EXPENSE">Chi tiêu</option>
         </select>
       </Field>
-      <Field label="Tài khoản">
-        <select
-          className="cf-input"
-          value={filters.account_id}
-          onChange={(e) => onFilter("account_id", e.target.value)}
-        >
-          <option value="">Tất cả tài khoản</option>
-          {accounts.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
-            </option>
-          ))}
-        </select>
-      </Field>
+      {independent ? (
+        <Field label="Nguồn ghi nhận">
+          <select
+            className="cf-input"
+            value={filters.origin || ""}
+            onChange={(e) => onFilter("origin", e.target.value)}
+          >
+            <option value="">Tất cả nguồn</option>
+            <option value="WALLET">Thanh toán ví</option>
+            <option value="OCR">Hóa đơn AI (OCR)</option>
+            <option value="MANUAL">Nhập thủ công</option>
+          </select>
+        </Field>
+      ) : (
+        <Field label="Tài khoản">
+          <select
+            className="cf-input"
+            value={filters.account_id}
+            onChange={(e) => onFilter("account_id", e.target.value)}
+          >
+            <option value="">Tất cả tài khoản</option>
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
       <Field label="Danh mục">
         <select
           className="cf-input"

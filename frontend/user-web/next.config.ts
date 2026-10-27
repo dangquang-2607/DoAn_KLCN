@@ -13,11 +13,27 @@ const apiProxyTarget = (
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  // Upload now includes bounded OCR (90s) before an invoice is created.
+  experimental: {
+    proxyTimeout: 120_000,
+    optimizePackageImports: ["lucide-react", "recharts"],
+  },
   allowedDevOrigins: [
   ...localDevHosts,
   "capitalflow.online",
   "*.capitalflow.online",
 ],
+  async headers() {
+    // Dev chunks reuse their URLs as source changes; a CDN must not retain them.
+    return process.env.NODE_ENV === "development" ? [{
+      source: "/:path*",
+      headers: [
+        { key: "Cache-Control", value: "no-store, max-age=0" },
+        { key: "CDN-Cache-Control", value: "no-store" },
+        { key: "Cloudflare-CDN-Cache-Control", value: "no-store" },
+      ],
+    }] : [];
+  },
   async rewrites() {
     // Trình duyệt điện thoại gọi cùng cổng frontend; Next.js kết nối backend trên máy chủ.
     return process.env.NODE_ENV === "development"

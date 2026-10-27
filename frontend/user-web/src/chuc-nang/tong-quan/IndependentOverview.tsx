@@ -36,11 +36,11 @@ import styles from "./CSS/overview.module.css";
 export default function Overview() {
   const dashboardQuery = useQuery<OverviewData>({
     queryKey: ["dashboard"],
-    queryFn: async () => (await api.get("/dashboard")).data,
+    queryFn: async () => (await api.get("/bookkeeping/dashboard")).data,
   });
   const accountsQuery = useQuery<Account[]>({
-    queryKey: ["accounts"],
-    queryFn: async () => (await api.get("/accounts")).data,
+    queryKey: ["wallets"],
+    queryFn: async () => ((await api.get<Account[]>("/wallets")).data).map(w => ({ ...w, account_type: "WALLET" })),
   });
   const budgetsQuery = useQuery<Budget[]>({
     queryKey: ["budgets"],
@@ -71,6 +71,10 @@ export default function Overview() {
       ) : (
         dashboardQuery.data && (
           <>
+            {accountsQuery.data?.some(a => !a.exclude_from_total && a.balance_available === false) &&
+              <p role="status">Tổng tài sản chưa đầy đủ: có ví liên kết chưa lấy được số dư.</p>}
+            {accountsQuery.data?.some(a => a.balance_available !== false && a.bank_sync_error) &&
+              <p role="status">Một số ví đang hiển thị số dư tại lần đồng bộ thành công gần nhất.</p>}
             <OverviewStats data={dashboardQuery.data} />
             <OverviewCharts trendQuery={trendQuery} accountsQuery={accountsQuery} />
             <div className={styles.overviewLower}>
@@ -79,7 +83,7 @@ export default function Overview() {
               <BudgetsWidget query={budgetsQuery} />
             </div>
             <p className={styles.overviewFootnote}>
-              Cập nhật lúc {new Date(dashboardQuery.dataUpdatedAt).toLocaleTimeString("vi-VN")}. Số liệu tổng hợp theo hệ thống, chưa quy đổi giữa các loại tiền.
+              Cập nhật lúc {new Date(dashboardQuery.dataUpdatedAt).toLocaleTimeString("vi-VN")}. Số dư ví tách biệt với sổ thu chi. Nạp, rút và chuyển tiền không tính vào thu nhập/chi tiêu.
             </p>
           </>
         )

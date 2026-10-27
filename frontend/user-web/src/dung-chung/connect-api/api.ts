@@ -30,12 +30,20 @@ const api = axios.create({
 });
 
 // Gắn khóa idempotency ổn định cho thao tác tiền để retry mạng không tạo bản ghi trùng.
-api.interceptors.request.use((config) => {
+api.interceptors.request.use(async (config) => {
   if (typeof window !== "undefined") {
     const method = (config.method || "get").toLowerCase();
-    if (["post", "patch", "delete"].includes(method) && /^\/(accounts|transactions)(\/|$)/.test(config.url || "") && !config.headers["Idempotency-Key"]) {
+    if (["post", "patch", "delete"].includes(method) && /^\/(accounts|transactions|wallets|bookkeeping)(\/|$)/.test(config.url || "") && !config.headers["Idempotency-Key"]) {
+      const owner = () => {
+        const token = sessionStorage.getItem("user_access_token");
+        if (!token) throw new Error("Phiên đăng nhập đã thay đổi. Vui lòng đăng nhập lại.");
+        return String(JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).sub);
+      };
+      const user = owner();
       const signature = JSON.stringify([method, config.url, config.data]);
-      const storageKey = "cf-pending-money:" + signature;
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(signature));
+      if (owner() !== user) throw new Error("Phiên đăng nhập đã thay đổi.");
+      const storageKey = "cf-pending-money:" + user + ":" + Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("");
       let key = sessionStorage.getItem(storageKey);
       if (!key) { key = crypto.randomUUID(); sessionStorage.setItem(storageKey, key); }
       config.headers["Idempotency-Key"] = key;
@@ -144,7 +152,7 @@ function _doLogout() {
         .post(`${BASE_URL}/api/v1/auth/logout`, { refresh_token: refreshToken })
         .catch(() => {});
     }
-    for (const key of Object.keys(sessionStorage)) { if (key.startsWith("cf-pending-invoice:")) sessionStorage.removeItem(key); }
+    for (const key of Object.keys(sessionStorage)) { if (key.startsWith("cf-pending-invoice:") || key.startsWith("cf-pending-money:")) sessionStorage.removeItem(key); }
       sessionStorage.removeItem("user_access_token");
     sessionStorage.removeItem("user_refresh_token");
     // Module Axios dùng chung chạy ngoài React nên không có router instance để điều hướng.

@@ -1,2 +1,2 @@
-// Route Next.js: phần giao diện và xử lý nằm trong chuc-nang.
-export { default } from "@/chuc-nang/bao-cao-tai-chinh";
+// Route Next.js: Báo cáo phân tích tài chính
+export { default } from "@/chuc-nang/bao-cao-tai-chinh/page";

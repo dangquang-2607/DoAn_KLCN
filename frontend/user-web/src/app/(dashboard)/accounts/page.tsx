@@ -1,2 +1,2 @@
-// Route Next.js: phần giao diện và xử lý nằm trong chuc-nang.
-export { default } from "@/chuc-nang/vi-tai-khoan";
+// Route Next.js: Không gian quản lý ví độc lập
+export { default } from "@/chuc-nang/vi-tai-khoan/thanh-phan/WalletWorkspace";

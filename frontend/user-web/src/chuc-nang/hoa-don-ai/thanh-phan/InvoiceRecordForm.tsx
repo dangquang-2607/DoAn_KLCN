@@ -14,9 +14,9 @@
  * ============================================================================
  */
 "use client";
-import { useState, useEffect, type FormEvent } from "react";
-import { Plus, Check, Save, Trash2, FileText } from "lucide-react";
 import Link from "next/link";
+import { useState, useEffect, type FormEvent } from "react";
+import { Plus, Check, Save, Trash2, FileText, Store, Receipt, CreditCard, Tag } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/dung-chung/connect-api/api";
 import DateInput from "@/dung-chung/UI-chung/DateInput";
@@ -24,10 +24,19 @@ import { Field, Alert, Empty } from "@/dung-chung/UI-chung/ui";
 import CategoryRestoreModal from "@/dung-chung/nghiep-vu/danh-muc/CategoryRestoreModal";
 import { archivedCategoryFromError, categoryErrorMessage, type ArchivedCategory } from "@/dung-chung/nghiep-vu/danh-muc/categories";
 import { money, errorMessage } from "@/dung-chung/tien-ich/finance";
-import { type Account, type Category } from "@/dung-chung/nghiep-vu/finance";
+import { type Category } from "@/dung-chung/nghiep-vu/finance";
 import type { Invoice, DuplicateCheck } from "../xu-ly/InvoiceTypes";
 import { invoiceError, invoiceMutation } from "../xu-ly/invoiceApi";
 import InvoiceDuplicateReview from "./InvoiceDuplicateReview";
+import useAutomaticDuplicateCheck from "../xu-ly/useAutomaticDuplicateCheck";
+function cleanMoneyNumber(val: unknown): string {
+  if (val === null || val === undefined || val === "") return "";
+  const s = String(val).trim();
+  if (s.endsWith(".00")) return s.slice(0, -3);
+  if (s.endsWith(".0")) return s.slice(0, -2);
+  return s;
+}
+
 export default function InvoiceDetailForm({
   invoice,
   busy,
@@ -40,10 +49,7 @@ export default function InvoiceDetailForm({
   onOpen: (id: string) => void;
 }) {
   const cache = useQueryClient();
-  const accounts = useQuery<Account[]>({
-    queryKey: ["accounts"],
-    queryFn: async () => (await api.get("/accounts")).data,
-  });
+  const [acceptSeparate, setAcceptSeparate] = useState(false);
   const categories = useQuery<Category[]>({
     queryKey: ["categories", "all"],
     queryFn: async () => (await api.get("/categories", { params: { status: "all" } })).data,
@@ -57,10 +63,9 @@ export default function InvoiceDetailForm({
     invoice_symbol: invoice.invoice_symbol || "",
     merchant_tax_code: invoice.merchant_tax_code || "",
     payment_method: invoice.payment_method || "",
-    subtotal_amount: String(invoice.subtotal_amount ?? ""),
-    total_amount: String(invoice.total_amount ?? ""),
-    tax_amount: String(invoice.tax_amount ?? 0),
-    account_id: invoice.account_id || "",
+    subtotal_amount: cleanMoneyNumber(invoice.subtotal_amount),
+    total_amount: cleanMoneyNumber(invoice.total_amount),
+    tax_amount: cleanMoneyNumber(invoice.tax_amount ?? 0),
     category_id: invoice.category_id || "",
     note: invoice.note || "",
   });
@@ -75,11 +80,11 @@ export default function InvoiceDetailForm({
         name: item.name || "",
         sku: item.sku || "",
         unit: item.unit || "",
-        quantity: String(item.quantity ?? ""),
-        unit_price: String(item.unit_price ?? ""),
-        discount_amount: String(item.discount_amount ?? ""),
-        tax_amount: String(item.tax_amount ?? ""),
-        line_total: String(item.line_total ?? ""),
+        quantity: cleanMoneyNumber(item.quantity),
+        unit_price: cleanMoneyNumber(item.unit_price),
+        discount_amount: cleanMoneyNumber(item.discount_amount),
+        tax_amount: cleanMoneyNumber(item.tax_amount),
+        line_total: cleanMoneyNumber(item.line_total),
       })),
     ),
     [itemsBusy, setItemsBusy] = useState(false),
@@ -101,16 +106,25 @@ export default function InvoiceDetailForm({
     merchant_tax_code: form.merchant_tax_code || null, invoice_number: form.invoice_number || null,
     invoice_symbol: form.invoice_symbol || null, invoice_date: form.invoice_date || null,
     invoice_time: form.invoice_time || null, total_amount: form.total_amount || null,
+    items: itemDrafts.map(item => ({
+      name: item.name.trim(), sku: item.sku.trim() || null, unit: item.unit.trim() || null,
+      quantity: item.quantity === "" ? null : Number(item.quantity),
+      unit_price: item.unit_price === "" ? null : Number(item.unit_price),
+      discount_amount: item.discount_amount === "" ? null : Number(item.discount_amount),
+      tax_amount: item.tax_amount === "" ? null : Number(item.tax_amount),
+      line_total: item.line_total === "" ? null : Number(item.line_total),
+    })),
   });
   const inspect = async () => {
     const { data } = await api.post<DuplicateCheck>(`/invoices/${invoice.id}/duplicate-check`, identityFields());
     return data;
   };
-  const reviewNow = async () => {
-    setChecking(true); setError(""); setDuplicateAccepted(false);
-    try { setReview(await inspect()); } catch (e) { setError(invoiceError(e).message); }
-    finally { setChecking(false); }
-  };
+  const hasDuplicateData = Boolean((form.merchant_name.trim() || form.merchant_address.trim()) && (form.invoice_date || form.invoice_number.trim()));
+  const automaticCheckError = useAutomaticDuplicateCheck({
+    invoiceId: invoice.id, payload: JSON.stringify(identityFields()),
+    enabled: hasDuplicateData && !locked && !versionConflict,
+    onResult: setReview, onAccept: setDuplicateAccepted,
+  });
   const sameInvoice = async (id: string) => {
     setChecking(true); setError("");
     try {
@@ -155,11 +169,6 @@ export default function InvoiceDetailForm({
       setError("Tổng thanh toán phải lớn hơn 0.");
       return;
     }
-    const account = accounts.data?.find((a) => a.id === form.account_id);
-    if (account && account.currency !== (invoice.currency || "VND")) {
-      setError("Chọn tài khoản cùng loại tiền với hóa đơn.");
-      return;
-    }
     if (itemDrafts.some((item) => !item.name.trim())) {
       setError("Tên mặt hàng không được để trống.");
       return;
@@ -177,6 +186,7 @@ export default function InvoiceDetailForm({
       ...form,
       ...identityFields(),
       expected_revision: revision,
+      accept_separate_record: acceptSeparate,
       accept_distinct: current.level === "SUSPECTED" && duplicateAccepted,
       duplicate_review_token: current.level === "SUSPECTED" ? current.review_token : null,
       total_amount: Number(form.total_amount),
@@ -201,12 +211,14 @@ export default function InvoiceDetailForm({
       if (problem.code !== "INVOICE_RETRY_REQUIRED") setDuplicateAccepted(false);
     } finally { setChecking(false); }
   };
-  const updateItem = (index: number, key: string, value: string) =>
+  const updateItem = (index: number, key: string, value: string) => {
+    setReview(null); setDuplicateAccepted(false);
     setItemDrafts((rows) =>
       rows.map((row, rowIndex) =>
         rowIndex === index ? { ...row, [key]: value } : row,
       ),
     );
+  };
   const saveItems = async () => {
     setError("");
     setItemsNotice("");
@@ -283,6 +295,20 @@ export default function InvoiceDetailForm({
   };
   return (
     <div className="cf-panel-body cf-stack" style={{ gap: 18 }}>
+      {!locked && error.includes("Có khoản thanh toán") && <label><input type="checkbox" checked={acceptSeparate} onChange={e => setAcceptSeparate(e.target.checked)} />Tôi đã đối chiếu và xác nhận đây là khoản khác với khoản thanh toán ví.</label>}
+      {!invoice.deleted_at && invoice.status !== "CONFIRMED" && <>
+        {invoice.duplicate_of_invoice_id && <div className="cf-row">
+          <button type="button" className="cf-btn" onClick={() => onOpen(invoice.duplicate_of_invoice_id!)}>Mở bản gốc đã liên kết</button>
+          <button type="button" className="cf-btn" disabled={locked} onClick={async () => {
+            setChecking(true);
+            try { const result = await invoiceMutation<{ revision: number }>(invoice.id, "duplicate-resolution", { expected_revision: revision, action: "CLEAR" }); setRevision(result.revision); await cache.invalidateQueries({ queryKey: ["invoice", invoice.id] }); setReview(null); setDuplicateAccepted(false); }
+            catch (e) { setError(invoiceError(e).message); } finally { setChecking(false); }
+          }}>Bỏ liên kết trùng để kiểm tra lại</button>
+        </div>}
+        {automaticCheckError && <Alert persistent kind="info">{automaticCheckError}</Alert>}
+        {!hasDuplicateData && <p className="cf-muted">Chưa đủ thông tin để đối chiếu. Hệ thống sẽ tự kiểm tra trùng sau khi quét hoặc nhập thông tin hóa đơn.</p>}
+        {hasDuplicateData && invoice.status !== "PROCESSING" && <InvoiceDuplicateReview check={review} busy={locked} accepted={duplicateAccepted} onAccept={setDuplicateAccepted} onOpen={onOpen} onSame={sameInvoice} />}
+      </>}
       <div className="cf-tabs" role="tablist" aria-label="Thông tin hóa đơn">
         <button
           role="tab"
@@ -400,96 +426,172 @@ export default function InvoiceDetailForm({
         <form className="cf-form" onSubmit={submit}>
           {error && <Alert onDismiss={() => setError("")}>{error}</Alert>}
           {versionConflict && <button type="button" className="cf-btn" disabled={checking} onClick={reloadRevision}>Tải phiên bản mới, giữ nội dung đang sửa</button>}
-          {!invoice.deleted_at && invoice.status !== "CONFIRMED" && <>
-            {invoice.duplicate_of_invoice_id && <div className="cf-row">
-              <button type="button" className="cf-btn" onClick={() => onOpen(invoice.duplicate_of_invoice_id!)}>Mở bản gốc đã liên kết</button>
-              <button type="button" className="cf-btn" disabled={locked} onClick={async () => {
-                setChecking(true);
-                try { const result = await invoiceMutation<{ revision: number }>(invoice.id, "duplicate-resolution", { expected_revision: revision, action: "CLEAR" }); setRevision(result.revision); await cache.invalidateQueries({ queryKey: ["invoice", invoice.id] }); setReview(null); setDuplicateAccepted(false); }
-                catch (e) { setError(invoiceError(e).message); } finally { setChecking(false); }
-              }}>Bỏ liên kết trùng để kiểm tra lại</button>
-            </div>}
-            <button type="button" className="cf-btn" disabled={locked} onClick={reviewNow}>{checking ? "Đang kiểm tra…" : "Kiểm tra trùng với thông tin đang sửa"}</button>
-            {review && <InvoiceDuplicateReview check={review} busy={locked} accepted={duplicateAccepted} onAccept={setDuplicateAccepted} onOpen={onOpen} onSame={sameInvoice} />}
-          </>}
+
           <fieldset
             disabled={locked}
             style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}
           >
             <div className="cf-form cf-invoice-fields">
-              <Field label="Đơn vị bán hàng">
-                <input
-                  className="cf-input"
-                  required
-                  maxLength={255}
-                  value={form.merchant_name}
-                  onChange={(e) => field("merchant_name", e.target.value)}
-                />
-              </Field>
-              <Field label="Địa chỉ đơn vị bán hàng">
-                <input className="cf-input" maxLength={500} value={form.merchant_address} onChange={(e) => field("merchant_address", e.target.value)} />
-              </Field>
-              <div className="cf-invoice-two-columns">
-                <Field label="Số hóa đơn"><input className="cf-input" maxLength={100} value={form.invoice_number} onChange={e => field("invoice_number", e.target.value)} /></Field>
-                <Field label="Ký hiệu hóa đơn"><input className="cf-input" maxLength={100} value={form.invoice_symbol} onChange={e => field("invoice_symbol", e.target.value)} /></Field>
-                <Field label="Mã số thuế người bán"><input className="cf-input" maxLength={100} value={form.merchant_tax_code} onChange={e => field("merchant_tax_code", e.target.value)} /></Field>
-                <Field label="Giờ lập (nếu có)"><input className="cf-input" type="time" step="1" value={form.invoice_time} onChange={e => field("invoice_time", e.target.value)} /></Field>
-              </div>
-              <div className="cf-invoice-two-columns">
-                <Field label="Ngày lập hóa đơn">
-                  <DateInput required value={form.invoice_date} onChange={(value) => field("invoice_date", value)} />
-                </Field>
-                <Field label="Hình thức thanh toán" hint="TM, CK, TM/CK, thẻ…">
-                  <input className="cf-input" maxLength={50} value={form.payment_method} onChange={(e) => field("payment_method", e.target.value)} />
-                </Field>
-              </div>
-              <div className="cf-invoice-two-columns">
-                <Field label={`Doanh số chưa thuế (${invoice.currency || "VND"})`}>
-                  <input className="cf-input cf-number" type="number" min="0" step="0.01" value={form.subtotal_amount} onChange={(e) => field("subtotal_amount", e.target.value)} />
-                </Field>
-                <Field label={`Tiền thuế GTGT (${invoice.currency || "VND"})`}>
+              {/* Nhóm 1: Thông tin người bán */}
+              <div className="cf-invoice-section">
+                <div className="cf-invoice-section-title">
+                  <Store size={14} aria-hidden="true" />
+                  <span>Thông tin người bán</span>
+                </div>
+                <Field label="Đơn vị bán hàng">
                   <input
                     className="cf-input"
-                    type="number"
-                    min="0"
-                    step="0.01"
                     required
-                    value={form.tax_amount}
-                    onChange={(e) => field("tax_amount", e.target.value)}
+                    maxLength={255}
+                    value={form.merchant_name}
+                    placeholder="Tên công ty, cửa hàng..."
+                    onChange={(e) => field("merchant_name", e.target.value)}
+                  />
+                </Field>
+                <Field label="Địa chỉ đơn vị bán hàng">
+                  <input
+                    className="cf-input"
+                    maxLength={500}
+                    value={form.merchant_address}
+                    placeholder="Địa chỉ kinh doanh..."
+                    onChange={(e) => field("merchant_address", e.target.value)}
+                  />
+                </Field>
+                <Field label="Mã số thuế người bán">
+                  <input
+                    className="cf-input"
+                    maxLength={100}
+                    value={form.merchant_tax_code}
+                    placeholder="Mã số thuế..."
+                    onChange={(e) => field("merchant_tax_code", e.target.value)}
                   />
                 </Field>
               </div>
-              <Field
-                label={`Tổng thanh toán (${invoice.currency || "VND"})`}
-                hint="Tổng tiền đã bao gồm thuế. Đây là số tiền ghi nhận vào khoản chi."
-              >
-                <input
-                  className="cf-input cf-number"
-                  style={{ fontSize: 22, fontWeight: 600 }}
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  required
-                  value={form.total_amount}
-                  onChange={(e) => field("total_amount", e.target.value)}
-                />
-              </Field>
-              <div className="cf-invoice-two-columns">
-                <Field label="Tài khoản thanh toán">
-                  <select
-                    className="cf-input"
-                    required
-                    value={form.account_id}
-                    onChange={(e) => field("account_id", e.target.value)}
+
+              {/* Nhóm 2: Chứng từ & Thời gian */}
+              <div className="cf-invoice-section">
+                <div className="cf-invoice-section-title">
+                  <Receipt size={14} aria-hidden="true" />
+                  <span>Chứng từ & Thời gian</span>
+                </div>
+                <div className="cf-invoice-two-columns">
+                  <Field label="Số hóa đơn">
+                    <input
+                      className="cf-input"
+                      maxLength={100}
+                      value={form.invoice_number}
+                      placeholder="Số HĐ..."
+                      onChange={(e) => field("invoice_number", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Ký hiệu hóa đơn">
+                    <input
+                      className="cf-input"
+                      maxLength={100}
+                      value={form.invoice_symbol}
+                      placeholder="Ký hiệu mẫu..."
+                      onChange={(e) => field("invoice_symbol", e.target.value)}
+                    />
+                  </Field>
+                </div>
+                <div className="cf-invoice-two-columns">
+                  <Field label="Ngày lập hóa đơn">
+                    <DateInput required value={form.invoice_date} onChange={(value) => field("invoice_date", value)} />
+                  </Field>
+                  <Field label="Giờ lập (nếu có)">
+                    <input
+                      className="cf-input"
+                      type="time"
+                      step="1"
+                      value={form.invoice_time}
+                      onChange={(e) => field("invoice_time", e.target.value)}
+                    />
+                  </Field>
+                </div>
+                <div className="cf-invoice-two-columns">
+                  <Field label="Hình thức thanh toán" hint="TM, CK, TM/CK, thẻ…">
+                    <input
+                      className="cf-input"
+                      maxLength={50}
+                      value={form.payment_method}
+                      placeholder="TM, CK, thẻ..."
+                      onChange={(e) => field("payment_method", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="File nguồn">
+                    <div className="cf-readonly-value">
+                      <FileText size={15} aria-hidden="true" />
+                      <span className="cf-file-name">{invoice.original_filename || "Không xác định"}</span>
+                    </div>
+                  </Field>
+                </div>
+              </div>
+
+              {/* Nhóm 3: Chi phí & Thanh toán */}
+              <div className="cf-invoice-section cf-invoice-financials">
+                <div className="cf-invoice-section-title">
+                  <CreditCard size={14} aria-hidden="true" />
+                  <span>Chi phí & Thanh toán</span>
+                </div>
+                <div className="cf-invoice-two-columns">
+                  <Field label="Doanh số chưa thuế">
+                    <div className="cf-amount-input-box">
+                      <input
+                        className="cf-amount-input-control cf-number"
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={form.subtotal_amount}
+                        placeholder="0"
+                        onChange={(e) => field("subtotal_amount", e.target.value)}
+                      />
+                      <span className="cf-amount-currency-suffix">đ</span>
+                    </div>
+                  </Field>
+                  <Field label="Tiền thuế GTGT">
+                    <div className="cf-amount-input-box">
+                      <input
+                        className="cf-amount-input-control cf-number"
+                        type="number"
+                        min="0"
+                        step="1"
+                        required
+                        value={form.tax_amount}
+                        placeholder="0"
+                        onChange={(e) => field("tax_amount", e.target.value)}
+                      />
+                      <span className="cf-amount-currency-suffix">đ</span>
+                    </div>
+                  </Field>
+                </div>
+                <div className="cf-invoice-total-field">
+                  <Field
+                    label="Tổng thanh toán"
+                    hint="Tổng tiền đã bao gồm thuế. Đây là số tiền ghi nhận vào khoản chi."
                   >
-                    <option value="">Chọn tài khoản</option>
-                    {accounts.data?.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name} · {money(a.balance, a.currency)}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
+                    <div className="cf-amount-input-box is-total">
+                      <input
+                        className="cf-amount-input-control cf-number"
+                        type="number"
+                        min="0"
+                        step="1"
+                        required
+                        value={form.total_amount}
+                        placeholder="0"
+                        onChange={(e) => field("total_amount", e.target.value)}
+                      />
+                      <span className="cf-amount-currency-suffix">đ</span>
+                    </div>
+                  </Field>
+                </div>
+              </div>
+
+              {/* Nhóm 4: Phân loại & Ghi chú */}
+              <div className="cf-invoice-section">
+                <div className="cf-invoice-section-title">
+                  <Tag size={14} aria-hidden="true" />
+                  <span>Phân loại & Ghi chú</span>
+                </div>
                 <Field label="Danh mục chi tiêu">
                   <select
                     className="cf-input"
@@ -506,86 +608,72 @@ export default function InvoiceDetailForm({
                       ))}
                   </select>
                 </Field>
-              </div>
-              {accounts.isError ? (
-                <Alert persistent>Không thể tải tài khoản. Vui lòng thử lại.</Alert>
-              ) : (
-                accounts.isSuccess &&
-                !accounts.data?.length && (
-                  <Link className="cf-inline-link" href="/accounts">
-                    Tạo tài khoản trước khi ghi nhận →
-                  </Link>
-                )
-              )}
-              {categorySuggestion && (
-                <div className="cf-category-suggestion" role="status">
-                  <div><strong>Gợi ý: {categorySuggestion.category_name}</strong><span>{Math.round(categorySuggestion.confidence * 100)}% · {categorySuggestion.reason}</span></div>
-                  <button type="button" className="cf-btn cf-btn-sm" onClick={() => { field("category_id", categorySuggestion.category_id); setCategoryTouched(true); setCategorySuggestion(null); }}>Chọn danh mục</button>
-                </div>
-              )}
-              {adding ? (
-                <div className="cf-row">
-                  <input
+                {categorySuggestion && (
+                  <div className="cf-category-suggestion" role="status">
+                    <div><strong>Gợi ý: {categorySuggestion.category_name}</strong><span>{Math.round(categorySuggestion.confidence * 100)}% · {categorySuggestion.reason}</span></div>
+                    <button type="button" className="cf-btn cf-btn-sm" onClick={() => { field("category_id", categorySuggestion.category_id); setCategoryTouched(true); setCategorySuggestion(null); }}>Chọn danh mục</button>
+                  </div>
+                )}
+                {adding ? (
+                  <div className="cf-row" style={{ gap: 8 }}>
+                    <input
+                      className="cf-input"
+                      aria-label="Tên danh mục mới"
+                      style={{ flex: 1 }}
+                      value={newCategory}
+                      onChange={(e) => setNewCategory(e.target.value)}
+                      placeholder="Tên danh mục mới"
+                    />
+                    <button
+                      type="button"
+                      className="cf-btn cf-btn-primary cf-btn-sm"
+                      disabled={categoryBusy || !newCategory.trim()}
+                      onClick={addCategory}
+                    >
+                      Tạo
+                    </button>
+                    <button
+                      type="button"
+                      className="cf-btn cf-btn-ghost cf-btn-sm"
+                      onClick={() => setAdding(false)}
+                    >
+                      Hủy
+                    </button>
+                  </div>
+                ) : (
+                  !locked && (
+                    <button
+                      type="button"
+                      className="cf-btn cf-btn-ghost cf-btn-sm"
+                      style={{ alignSelf: "flex-start", marginTop: -4 }}
+                      onClick={() => setAdding(true)}
+                    >
+                      <Plus size={14} aria-hidden="true" />
+                      Thêm danh mục
+                    </button>
+                  )
+                )}
+                <Field label="Ghi chú">
+                  <textarea
                     className="cf-input"
-                    aria-label="Tên danh mục mới"
-                    style={{ flex: 1 }}
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value)}
-                    placeholder="Tên danh mục mới"
+                    rows={2}
+                    value={form.note}
+                    placeholder="Ghi chú thêm về khoản chi..."
+                    onChange={(e) => field("note", e.target.value)}
                   />
-                  <button
-                    type="button"
-                    className="cf-btn cf-btn-sm"
-                    disabled={categoryBusy || !newCategory.trim()}
-                    onClick={addCategory}
-                  >
-                    Tạo
-                  </button>
-                  <button
-                    type="button"
-                    className="cf-btn cf-btn-ghost cf-btn-sm"
-                    onClick={() => setAdding(false)}
-                  >
-                    Hủy
-                  </button>
-                </div>
-              ) : (
-                !locked && (
-                  <button
-                    type="button"
-                    className="cf-btn cf-btn-ghost cf-btn-sm"
-                    style={{ alignSelf: "flex-start" }}
-                    onClick={() => setAdding(true)}
-                  >
-                    <Plus />
-                    Thêm danh mục
-                  </button>
-                )
-              )}
-              <Field label="Ghi chú">
-                <textarea
-                  className="cf-input"
-                  rows={2}
-                  value={form.note}
-                  onChange={(e) => field("note", e.target.value)}
-                />
-              </Field>
-              <Field label="File nguồn">
-                <div className="cf-readonly-value"><FileText size={16} /> <span>{invoice.original_filename || "Không xác định"}</span></div>
-              </Field>
+                </Field>
+              </div>
             </div>
           </fieldset>
           {!invoice.deleted_at && invoice.status !== "CONFIRMED" && (
             <button
-              className="cf-btn cf-btn-primary"
+              className="cf-btn cf-btn-primary cf-invoice-submit-btn"
               disabled={
                 locked ||
-                accounts.isError ||
-                !accounts.data?.length ||
                 categoryBusy || versionConflict
               }
             >
-              <Check />
+              <Check size={16} aria-hidden="true" />
               {busy ? "Đang lưu…" : "Xác nhận & ghi nhận khoản chi"}
             </button>
           )}

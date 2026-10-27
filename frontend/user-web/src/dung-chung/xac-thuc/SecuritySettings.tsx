@@ -30,7 +30,6 @@ import {
   Loading,
   ErrorState,
 } from "@/dung-chung/UI-chung/ui";
-import { settingsStyles } from "./settings.styles";
 export default function SecuritySettings({
   firstTime = false,
   sessions,
@@ -68,7 +67,7 @@ export default function SecuritySettings({
       setCurrent("");
       setPassword("");
       setConfirm("");
-      for (const key of Object.keys(sessionStorage)) { if (key.startsWith("cf-pending-invoice:")) sessionStorage.removeItem(key); }
+      for (const key of Object.keys(sessionStorage)) { if (key.startsWith("cf-pending-invoice:") || key.startsWith("cf-pending-money:")) sessionStorage.removeItem(key); }
       sessionStorage.removeItem("user_access_token");
       sessionStorage.removeItem("user_refresh_token");
       router.replace("/login");
@@ -98,7 +97,7 @@ export default function SecuritySettings({
         <form
           onSubmit={submit}
           className="cf-panel-body cf-form"
-          style={firstTime ? settingsStyles.form : undefined}
+          style={firstTime ? { maxWidth: 540 } : undefined}
         >
           {error && <Alert onDismiss={() => setError("")}>{error}</Alert>}
           {success && <Alert kind="success" onDismiss={() => setSuccess("")}>{success}</Alert>}

@@ -1,3 +1,46 @@
+.walletTabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  width: fit-content;
+}
+
+.walletTabs button {
+  font-size: 13.5px;
+  font-weight: 500;
+  padding: 7px 15px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  outline: none;
+}
+
+.walletTabs button:hover:not([aria-pressed="true"]) {
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.walletTabs button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.walletTabs button[aria-pressed="true"] {
+  color: #2563eb !important;
+  background: #ffffff !important;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+
 .cardBody {
   display: flex;
   min-height: 210px;
@@ -223,3 +266,290 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Thẻ tạo ví mới có dấu cộng trong danh sách ví */
+.addWalletCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 210px;
+  height: 100%;
+  padding: 24px;
+  background: #ffffff;
+  border: 2px dashed #cbd5e1;
+  border-radius: 14px;
+  cursor: pointer;
+  text-align: center;
+  gap: 12px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  color: var(--cf-ink, #0f172a);
+  outline: none;
+  width: 100%;
+}
+
+.addWalletCard:hover,
+.addWalletCard:focus-visible {
+  border-color: #2563eb;
+  background: #f8faff;
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px -10px rgba(37, 99, 235, 0.15);
+}
+
+.addWalletIconCircle {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #eff6ff;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s ease;
+  border: 1.5px solid #dbeafe;
+}
+
+.addWalletCard:hover .addWalletIconCircle,
+.addWalletCard:focus-visible .addWalletIconCircle {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+  transform: scale(1.08) rotate(90deg);
+}
+
+.addWalletTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.addWalletSubtitle {
+  font-size: 13px;
+  color: #64748b;
+  max-width: 220px;
+  line-height: 1.4;
+}
+
+/* Thanh công cụ gom nhóm Tabs (trái) và Nút thao tác (phải) trên cùng 1 hàng gọn gàng */
+.workspaceToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  width: 100%;
+}
+
+.headerActions {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.headerBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 7px 14px;
+  border-radius: 9px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #1e293b;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.headerBtn svg {
+  color: #64748b;
+  transition: color 0.18s ease, transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.headerBtn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px -1px rgba(15, 23, 42, 0.08);
+}
+
+.headerBtn:hover svg {
+  transform: scale(1.08);
+}
+
+.headerBtn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.headerBtnPrimary {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  border: 1px solid #1d4ed8;
+  color: #ffffff;
+  box-shadow: 0 2px 5px rgba(37, 99, 235, 0.25), 0 1px 2px rgba(37, 99, 235, 0.12);
+}
+
+.headerBtnPrimary svg {
+  color: #ffffff !important;
+}
+
+.headerBtnPrimary:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  border-color: #1e40af;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 5px 15px rgba(37, 99, 235, 0.35);
+}
+
+.headerBtnPrimary:hover svg {
+  color: #ffffff !important;
+  transform: scale(1.1);
+}
+
+/* Biểu tượng màu tinh tế trên các nút thao tác */
+.iconTransfer {
+  color: #0284c7 !important;
+}
+
+.iconBill {
+  color: #16a34a !important;
+}
+
+.iconBank {
+  color: #7c3aed !important;
+}
+
+@media (max-width: 768px) {
+  .workspaceToolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .headerActions {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    width: 100%;
+  }
+}
+
+
+.headerBtnPrimary:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  border-color: #1e40af;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 5px 15px rgba(37, 99, 235, 0.35);
+}
+
+.headerBtnPrimary:hover svg {
+  color: #ffffff;
+  transform: scale(1.1);
+}
+
+/* Khung hiển thị mã nhận tiền với nút sao chép icon kế bên */
+.receiveCodeBox {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 6px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.receiveCodeBox:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.receiveCodeBox:focus-within {
+  background: #ffffff;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.receiveCodeText {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cf-ink, #0f172a);
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  user-select: all;
+  min-width: 0;
+  line-height: 1.45;
+}
+
+.copyCodeBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.copyCodeBtn:hover:not(:disabled) {
+  background: #ffffff;
+  border-color: #2563eb;
+  color: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(37, 99, 235, 0.15);
+}
+
+.copyCodeBtn:active:not(:disabled) {
+  transform: translateY(0) scale(0.95);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.copyCodeBtn:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.copyCodeBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #94a3b8;
+  transform: none;
+  box-shadow: none;
+}
+
+.copySuccessIcon {
+  color: #16a34a;
+  animation: copyPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes copyPop {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+

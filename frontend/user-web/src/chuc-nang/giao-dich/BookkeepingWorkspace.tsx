@@ -18,30 +18,27 @@
 /** Điều phối query, cache và nghiệp vụ sổ giao dịch; UI form/bảng nằm trong `thanh-phan`. */
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeftRight, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import api from "@/dung-chung/connect-api/api";
 import { Alert, PageHead, Panel } from "@/dung-chung/UI-chung/ui";
-import { TransferFlow } from "@/dung-chung/UI-chung/Motion";
-import { errorMessage, exportFinanceExcel, localDate, money } from "@/dung-chung/tien-ich/finance";
+import { errorMessage, exportFinanceExcel, localDate } from "@/dung-chung/tien-ich/finance";
 import { type Account, type Category, type Transaction } from "@/dung-chung/nghiep-vu/finance";
 import TransactionDeleteModal from "./thanh-phan/TransactionDeleteModal";
 import TransactionFilters from "./thanh-phan/TransactionFilters";
 import TransactionModal, { type CategorySuggestion, type TransactionForm } from "./thanh-phan/TransactionModal";
 import TransactionTable from "./thanh-phan/TransactionTable";
-import TransferModal from "./thanh-phan/TransferModal";
 
 const fresh = (): TransactionForm => ({ account_id: "", category_id: "", type: "EXPENSE", amount: "", transaction_date: localDate(), description: "", note: "", to_account_id: "" });
 
 export default function Transactions() {
   const cache = useQueryClient();
-  const [receipt, setReceipt] = useState<{ from: string; to: string; amount: string } | null>(null);
   const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState({ type: "", account_id: "", category_id: "", start_date: "", end_date: "" });
+  const [filters, setFilters] = useState({ type: "", account_id: "", category_id: "", start_date: "", end_date: "", origin: "", included: "" });
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [linkedInvoiceId, setLinkedInvoiceId] = useState("");
   const [urlReady, setUrlReady] = useState(false);
-  const [mode, setMode] = useState<"" | "create" | "edit" | "transfer">("");
+  const [mode, setMode] = useState<"" | "create" | "edit">("");
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [deleting, setDeleting] = useState<Transaction[] | null>(null);
   const [selection, setSelection] = useState<Record<string, Transaction>>({});
@@ -61,7 +58,6 @@ export default function Transactions() {
     // Đồng bộ query string một lần sau mount để hỗ trợ deep-link từ dashboard/tài khoản.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (params.get("new")) setMode("create");
-    if (params.get("account_id")) setFilters((current) => ({ ...current, account_id: params.get("account_id") || "" }));
     setLinkedInvoiceId(params.get("invoice_id") || "");
     setUrlReady(true);
   }, []);
@@ -83,12 +79,12 @@ export default function Transactions() {
     return () => { active = false; window.clearTimeout(timer); };
   }, [mode, editing, categoryTouched, form.category_id, form.description, form.note, form.type]);
 
-  const accounts = useQuery<Account[]>({ queryKey: ["accounts"], queryFn: async () => (await api.get("/accounts")).data });
+  const accounts = { data: [] as Account[], isPending: false, isError: false };
   const categories = useQuery<Category[]>({ queryKey: ["categories", "all"], queryFn: async () => (await api.get("/categories", { params: { status: "all" } })).data });
   const filterParams = { ...Object.fromEntries(Object.entries(filters).filter(([, value]) => value)), search: debouncedSearch || undefined, invoice_id: linkedInvoiceId || undefined };
   const query = useQuery<{ items: Transaction[]; total: number }>({
     queryKey: ["transactions", page, filters, debouncedSearch, linkedInvoiceId],
-    queryFn: async () => (await api.get("/transactions", { params: { page, page_size: 15, ...filterParams } })).data,
+    queryFn: async () => (await api.get("/bookkeeping", { params: { page, page_size: 15, ...filterParams } })).data,
     enabled: urlReady,
   });
   const list = query.data?.items || [];
@@ -96,7 +92,7 @@ export default function Transactions() {
   const selected = Object.keys(selection);
   const waitingForSearch = search.trim() !== debouncedSearch;
   const selectionDisabled = selecting || waitingForSearch || query.isFetching;
-  const account = (id: string) => accounts.data?.find((item) => item.id === id);
+  const account = (id: string | null) => accounts.data?.find((item) => item.id === id);
   const category = (id: string | null) => categories.data?.find((item) => item.id === id);
   // Một thay đổi giao dịch tác động số dư, dashboard, ngân sách và báo cáo nên phải làm mới toàn bộ cache liên quan.
   const clearSelection = () => {
@@ -107,7 +103,7 @@ export default function Transactions() {
   };
   const invalidate = () => {
     clearSelection();
-    return Promise.all(["transactions", "accounts", "dashboard", "budgets", "analytics", "invoices", "invoice", "notifications"].map((key) => cache.invalidateQueries({ queryKey: [key] })));
+    return Promise.all(["transactions", "wallets", "accounts", "dashboard", "budgets", "analytics", "invoices", "invoice", "notifications", "payment-records", "wallet-history"].map((key) => cache.invalidateQueries({ queryKey: [key] })));
   };
   const selectRows = (rows: Transaction[], checked: boolean) => {
     if (selectionDisabled) return;
@@ -117,7 +113,7 @@ export default function Transactions() {
       return next;
     });
   };
-  const fetchFiltered = async () => (await api.get<Transaction[]>("/transactions/export-data", { params: filterParams })).data;
+  const fetchFiltered = async () => (await api.get<Transaction[]>("/bookkeeping/export-data", { params: filterParams })).data;
   const selectAllResults = async () => {
     if (selectionDisabled || query.isError || !query.data?.total) return;
     const version = ++selectionVersion.current;
@@ -149,9 +145,9 @@ export default function Transactions() {
         scope: `Các giao dịch đã chọn: ${selectedRows.length} giao dịch. ${filterLabel}.`,
         transactions: selectedRows.map((transaction) => ({
           ...transaction,
-          account_name: account(transaction.account_id)?.name || "Tài khoản không xác định",
+          account_name: "Sổ thu chi",
           category_name: category(transaction.category_id)?.name || "Không phân loại",
-          currency: account(transaction.account_id)?.currency || "Chưa xác định",
+          currency: "VND",
         })),
       });
     } catch (caught) { setExportError(errorMessage(caught)); }
@@ -159,28 +155,21 @@ export default function Transactions() {
   };
 
   // Chuẩn bị form riêng cho tạo mới, chỉnh sửa hoặc chuyển tiền trước khi mở modal.
-  const open = (kind: "create" | "edit" | "transfer", transaction?: Transaction) => {
+  const open = (kind: "create" | "edit", transaction?: Transaction) => {
     setMode(kind); setEditing(transaction || null); setError(""); setSuggestion(null); setCategoryTouched(false);
-    setForm(transaction ? { ...fresh(), account_id: transaction.account_id, category_id: transaction.category_id || "", type: transaction.type, amount: String(Math.abs(Number(transaction.amount))), transaction_date: transaction.transaction_date, description: transaction.description || "", note: transaction.note || "" } : { ...fresh(), account_id: accounts.data?.[0]?.id || "" });
+    setForm(transaction ? { ...fresh(), include_in_reports: transaction.include_in_reports !== false, account_id: transaction.account_id || "", category_id: transaction.category_id || "", type: transaction.type, amount: String(Math.abs(Number(transaction.amount))), transaction_date: transaction.transaction_date, description: transaction.description || "", note: transaction.note || "" } : { ...fresh(), account_id: accounts.data?.find(item => !item.bank_read_only)?.id || "" });
   };
 
   // Validate hai ví và loại tiền khi chuyển; các luồng còn lại tạo hoặc cập nhật giao dịch thu/chi.
   const submit = async (event: FormEvent) => {
-    event.preventDefault(); setError(""); setBusy(true); setReceipt(null);
+    event.preventDefault(); setError(""); setBusy(true);
     try {
-      if (mode === "transfer") {
-        const from = account(form.account_id); const to = account(form.to_account_id);
-        if (!from || !to || from.id === to.id) throw new Error("Chọn hai tài khoản khác nhau.");
-        if (from.currency !== to.currency) throw new Error("Chỉ chuyển giữa các tài khoản cùng loại tiền tệ.");
-        await api.post("/transactions/transfer", { from_account_id: form.account_id, to_account_id: form.to_account_id, amount: form.amount, transaction_date: form.transaction_date, note: form.note || null });
-      } else {
-        const payload = { account_id: form.account_id, category_id: form.category_id || null, type: form.type, amount: form.amount, transaction_date: form.transaction_date, description: form.description.trim(), note: form.note || null };
-        if (editing) await api.patch("/transactions/" + editing.id, editing.bank_reference ? { category_id: payload.category_id, note: payload.note } : payload); else await api.post("/transactions", payload);
-      }
+      const payload = { category_id: form.category_id || null, type: form.type, amount: form.amount, transaction_date: form.transaction_date, description: form.description.trim(), note: form.note || null, ...(editing?.wallet_entry_id ? { include_in_reports: form.include_in_reports !== false } : {}),
+        ...(!editing ? { wallet_entry_id: form.wallet_entry_id || null, accept_separate_record: !!form.accept_separate_record } : {}) };
+      if (editing) await api.patch("/bookkeeping/" + editing.id, payload); else await api.post("/bookkeeping", payload);
       await invalidate();
-      if (mode === "transfer") setReceipt({ from: account(form.account_id)?.name || "Ví nguồn", to: account(form.to_account_id)?.name || "Ví nhận", amount: money(form.amount) });
       setMode("");
-      setNotice(mode === "transfer" ? "Đã chuyển tiền giữa hai tài khoản." : "Đã lưu giao dịch và cập nhật số dư.");
+      setNotice(form.wallet_entry_id ? "Đã cập nhật khoản thanh toán có sẵn, không ghi chi lần hai." : "Đã ghi sổ thu chi. Số dư ví không thay đổi.");
     } catch (caught) { setError(caught instanceof Error && !("response" in caught) ? caught.message : errorMessage(caught)); } finally { setBusy(false); }
   };
 
@@ -191,10 +180,10 @@ export default function Transactions() {
     try {
       let count: number;
       if (deleting.length === 1) {
-        await api.delete("/transactions/" + deleting[0].id);
+        await api.delete("/bookkeeping/" + deleting[0].id);
         count = deleting[0].kind === "TRANSFER" ? 2 : 1;
       } else {
-        const response = await api.post<{ deleted_count: number }>("/transactions/batch-delete", {
+        const response = await api.post<{ deleted_count: number }>("/bookkeeping/batch-delete", {
           transaction_ids: deleting.map((transaction) => transaction.id),
         });
         count = response.data.deleted_count;
@@ -218,12 +207,11 @@ export default function Transactions() {
   const dependencyError = accounts.isError || categories.isError;
 
   return <div className="cf-stack">
-    <PageHead eyebrow="SỔ GIAO DỊCH" title="Giao dịch" description="Ghi nhận thu chi và theo dõi dòng tiền qua từng tài khoản." actions={<><button className="cf-btn" onClick={() => open("transfer")}><ArrowLeftRight />Chuyển tiền</button><button className="cf-btn cf-btn-primary" onClick={() => open("create")}><Plus />Thêm giao dịch</button></>} />
-    {receipt && <TransferFlow {...receipt} confirmed onClose={() => setReceipt(null)} />}
+    <PageHead eyebrow="SỔ THU CHI" title="Giao dịch" description="Ghi nhận từ thanh toán ví, OCR hoặc nhập tay. Khoản thanh toán ví tắt Tính vào chi tiêu chỉ còn trong lịch sử ví." actions={<><button className="cf-btn cf-btn-primary" onClick={() => open("create")}><Plus />Thêm giao dịch</button></>} />
     {notice && <Alert kind="success" onDismiss={() => setNotice("")}>{notice}</Alert>}
     {linkedInvoiceId && <Alert kind="info">Đang xem giao dịch của hóa đơn đã chọn. <button type="button" className="cf-btn cf-btn-sm" onClick={clearInvoiceFilter}>Hiện tất cả giao dịch</button></Alert>}
     <Panel>
-      <TransactionFilters filters={filters} search={search} selectedCount={selected.length} exporting={exporting} exportDisabled={!selected.length || selectionDisabled || query.isError || accounts.isPending || categories.isPending || dependencyError} onExport={exportTransactions} accounts={accounts.data || []} categories={categories.data || []} onFilter={filter} onSearch={(value) => { setSearch(value); setPage(1); clearSelection(); }} />
+      <TransactionFilters independent filters={filters} search={search} selectedCount={selected.length} exporting={exporting} exportDisabled={!selected.length || selectionDisabled || query.isError || accounts.isPending || categories.isPending || dependencyError} onExport={exportTransactions} accounts={accounts.data || []} categories={categories.data || []} onFilter={filter} onSearch={(value) => { setSearch(value); setPage(1); clearSelection(); }} />
       {exportError && <Alert onDismiss={() => setExportError("")}>{exportError}</Alert>}
       <div className="cf-transaction-selection" role="group" aria-label="Thao tác với giao dịch đã chọn" aria-busy={selecting}>
         <div className="cf-transaction-selection-status" role="status" aria-live="polite">
@@ -232,13 +220,12 @@ export default function Transactions() {
         </div>
         <div className="cf-transaction-selection-actions">
           <button type="button" className="cf-btn cf-btn-ghost cf-btn-sm" disabled={!selecting && !selected.length} onClick={clearSelection}>{selecting ? "Hủy chọn" : "Bỏ chọn"}</button>
-          <button type="button" className="cf-btn cf-btn-danger cf-btn-sm" disabled={!selected.length || selecting || selected.length > 100} aria-describedby="transaction-selection-hint" title={selected.length > 100 ? "API hiện cho phép xóa tối đa 100 giao dịch mỗi lần" : "Xóa các giao dịch đã chọn"} onClick={() => { setDeleting(selectedRows); setError(""); }}><Trash2 size={16} />Xóa</button>
+          <button type="button" className="cf-btn cf-btn-danger cf-btn-sm" disabled={!selected.length || selecting || selected.length > 100 || selectedRows.some(t => !!t.wallet_entry_id || account(t.account_id)?.bank_read_only)} aria-describedby="transaction-selection-hint" title={selected.length > 100 ? "API hiện cho phép xóa tối đa 100 giao dịch mỗi lần" : "Xóa các giao dịch đã chọn"} onClick={() => { setDeleting(selectedRows); setError(""); }}><Trash2 size={16} />Xóa</button>
         </div>
       </div>
-      <TransactionTable query={query} list={list} page={page} total={query.data?.total || 0} selected={selected} selectionDisabled={selectionDisabled} getAccount={account} getCategory={category} onSelectAll={(checked) => { if (checked) void selectAllResults(); else clearSelection(); }} onSelectOne={(id, checked) => selectRows(list.filter((row) => row.id === id), checked)} onEdit={(transaction) => open("edit", transaction)} onDelete={(transaction) => { setDeleting([transaction]); setError(""); }} onPageChange={setPage} />
+      <TransactionTable independent query={query} list={list} page={page} total={query.data?.total || 0} selected={selected} selectionDisabled={selectionDisabled} getAccount={account} getCategory={category} onSelectAll={(checked) => { if (checked) void selectAllResults(); else clearSelection(); }} onSelectOne={(id, checked) => selectRows(list.filter((row) => row.id === id), checked)} onEdit={(transaction) => open("edit", transaction)} onDelete={(transaction) => { setDeleting([transaction]); setError(""); }} onPageChange={setPage} />
     </Panel>
-    {(mode === "create" || mode === "edit") && <TransactionModal editing={editing} accounts={accounts.data || []} categories={categories.data || []} form={form} setForm={setForm} suggestion={suggestion} setSuggestion={setSuggestion} setCategoryTouched={setCategoryTouched} error={error} busy={busy} dependencyError={dependencyError} onSubmit={submit} onClose={() => setMode("")} onClearError={() => setError("")} />}
-    {mode === "transfer" && <TransferModal accounts={accounts.data || []} form={form} setForm={setForm} error={error} busy={busy} dependencyError={dependencyError} onSubmit={submit} onClose={() => setMode("")} onClearError={() => setError("")} />}
-    {deleting && <TransactionDeleteModal transactions={deleting} getAccount={account} error={error} busy={busy} onConfirm={remove} onClose={() => setDeleting(null)} onClearError={() => setError("")} />}
+    {(mode === "create" || mode === "edit") && <TransactionModal independent editing={editing} accounts={accounts.data || []} categories={categories.data || []} form={form} setForm={setForm} suggestion={suggestion} setSuggestion={setSuggestion} setCategoryTouched={setCategoryTouched} error={error} busy={busy} dependencyError={dependencyError} onSubmit={submit} onClose={() => setMode("")} onClearError={() => setError("")} />}
+    {deleting && <TransactionDeleteModal independent transactions={deleting} getAccount={account} error={error} busy={busy} onConfirm={remove} onClose={() => setDeleting(null)} onClearError={() => setError("")} />}
   </div>;
 }

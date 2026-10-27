@@ -16,7 +16,10 @@
 export type Money = number | string;
 
 export interface Account {
+  balance_available?: boolean;
+  bank_sync_error?: string | null;
   bank_managed?: boolean;
+  bank_read_only?: boolean;
   bank_status?: string;
   bank_last_sync?: string | null;
   id: string;
@@ -49,7 +52,9 @@ export interface Transaction {
   bank_reference?: string | null;
   invoice_id?: string | null;
   id: string;
-  account_id: string;
+  account_id: string | null;
+  wallet_entry_id?: string | null;
+  include_in_reports?: boolean;
   category_id: string | null;
   amount: Money;
   type: string;

@@ -18,7 +18,7 @@
  * Khung ứng dụng sau đăng nhập: bảo vệ phiên, điều hướng sidebar/header và
  * chứa các màn nghiệp vụ. Không đặt logic CRUD của từng tính năng tại đây.
  */
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -61,8 +61,8 @@ const groups: { label: string; items: NavItem[] }[] = [
     label: "Không gian tài chính",
     items: [
       { href: "/", label: "Tổng quan", icon: LayoutDashboard, shortcut: "Ctrl+1" },
-      { href: "/accounts", label: "Ví & tài khoản", icon: Wallet, shortcut: "Ctrl+2" },
-      { href: "/transactions", label: "Giao dịch", icon: ArrowLeftRight, shortcut: "Ctrl+3" },
+      { href: "/accounts", label: process.env.NEXT_PUBLIC_INDEPENDENT_WALLETS === "true" ? "Ví" : "Ví & tài khoản", icon: Wallet, shortcut: "Ctrl+2" },
+      { href: "/transactions", label: process.env.NEXT_PUBLIC_INDEPENDENT_WALLETS === "true" ? "Sổ thu chi" : "Giao dịch", icon: ArrowLeftRight, shortcut: "Ctrl+3" },
       { href: "/budgets", label: "Ngân sách", icon: PieChart, shortcut: "Ctrl+4" },
     ],
   },
@@ -143,6 +143,7 @@ export default function DashboardLayout({
     left: number;
   } | null>(null);
   const [showKeyToast, setShowKeyToast] = useState(false);
+  const keyToastTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const toggleCollapsed = () => {
     toggleSidebarPreference();
@@ -158,11 +159,15 @@ export default function DashboardLayout({
         e.preventDefault();
         toggleCollapsed();
         setShowKeyToast(true);
-        setTimeout(() => setShowKeyToast(false), 1500);
+        if (keyToastTimerRef.current) clearTimeout(keyToastTimerRef.current);
+        keyToastTimerRef.current = setTimeout(() => setShowKeyToast(false), 1500);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      if (keyToastTimerRef.current) clearTimeout(keyToastTimerRef.current);
+    };
   }, []);
 
   const profile = useQuery<Profile>({
@@ -181,7 +186,7 @@ export default function DashboardLayout({
       if (token) await api.post("/auth/logout", { refresh_token: token });
     } catch {
     } finally {
-      for (const key of Object.keys(sessionStorage)) { if (key.startsWith("cf-pending-invoice:")) sessionStorage.removeItem(key); }
+      for (const key of Object.keys(sessionStorage)) { if (key.startsWith("cf-pending-invoice:") || key.startsWith("cf-pending-money:")) sessionStorage.removeItem(key); }
       sessionStorage.removeItem("user_access_token");
       sessionStorage.removeItem("user_refresh_token");
       cache.clear();

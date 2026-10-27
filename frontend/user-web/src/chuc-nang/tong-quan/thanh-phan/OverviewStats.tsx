@@ -24,7 +24,7 @@ import { type Transaction } from "@/dung-chung/nghiep-vu/finance";
 import styles from "../CSS/overview.module.css";
 
 export interface OverviewData {
-  net_worth: number;
+  net_worth: number | string;
   income_this_month: number;
   expense_this_month: number;
   net_cash_flow: number;
@@ -43,7 +43,7 @@ export default function OverviewStats({ data }: { data: OverviewData }) {
       </section>
       <section className={styles.monthCard}>
         <span className={styles.overline}>NHỊP TIỀN · THÁNG {data.period.month}/{data.period.year}</span>
-        <span>Tháng này bạn giữ lại</span>
+        <span>Chênh lệch thu chi tháng này</span>
         <strong className={data.net_cash_flow < 0 ? styles.negative : ""}>{money(data.net_cash_flow)}</strong>
         <div className={styles.monthBreakdown}>
           <span><ArrowDownLeft size={20} color="#208f87" /><span>Tiền vào<b>{money(data.income_this_month)}</b></span></span>

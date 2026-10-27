@@ -40,12 +40,13 @@ import {
 } from "@/dung-chung/UI-chung/ui";
 import { errorMessage } from "@/dung-chung/tien-ich/finance";
 import InvoiceStatusBadge from "./thanh-phan/InvoiceStatusBadge";
-import InvoiceDetailForm from "./thanh-phan/InvoiceDetailForm";
+import InvoiceDetailForm from "./thanh-phan/InvoiceRecordForm";
 import InvoiceQueueList from "./thanh-phan/InvoiceQueueList";
+import InvoiceTrashNotice from "./thanh-phan/InvoiceTrashNotice";
 import InvoiceUploadZone from "./thanh-phan/InvoiceUploadZone";
-import type { Invoice, UploadResult } from "./xu-ly/InvoiceTypes";
+import InvoiceIntakeFeedback from "./thanh-phan/InvoiceIntakeFeedback";
+import type { Invoice, UploadResult, UploadEntry } from "./xu-ly/InvoiceTypes";
 import { uploadInvoice, invoiceMutation, invoiceError } from "./xu-ly/invoiceApi";
-import { ocrStyles } from "./CSS/ocr.styles";
 export default function Ocr() {
   const cache = useQueryClient(),
     uploadInput = useRef<HTMLInputElement>(null);
@@ -64,14 +65,16 @@ export default function Ocr() {
     [previewVersion, setPreviewVersion] = useState(0),
     [zoom, setZoom] = useState(1),
     [rotation, setRotation] = useState(0);
-  const [uploadResults, setUploadResults] = useState<Array<{ file: File; result?: UploadResult; error?: string }>>([]);
+  const [uploadResults, setUploadResults] = useState<UploadEntry[]>([]);
+  const [uploadMatch, setUploadMatch] = useState<UploadResult | null>(null);
+  const [permanentDelete, setPermanentDelete] = useState(false);
   const [missingFile, setMissingFile] = useState(false);
   const query = useQuery<{ items: Invoice[]; total: number }>({
     queryKey: ["invoices", page, status],
     queryFn: async () =>
       (
         await api.get("/invoices", {
-          params: { page, page_size: 15, status: status === "HIDDEN" ? undefined : status || undefined, visibility: status === "HIDDEN" ? "hidden" : "active" },
+          params: { page, page_size: 15, status: status === "HIDDEN" ? undefined : status || undefined, visibility: status === "HIDDEN" ? "trash" : "active" },
         })
       ).data,
     refetchInterval: (q) =>
@@ -128,12 +131,12 @@ export default function Ocr() {
         "transactions",
         "dashboard",
         "budgets",
-        "analytics",
+        "analytics", "payment-records", "wallet-history",
       ].map((key) => cache.invalidateQueries({ queryKey: [key] })),
     );
   };
   // Kiểm tra định dạng và giới hạn 10 MB trước khi tuần tự tải từng tệp lên backend.
-  const upload = async (files: FileList | File[] | null) => {
+  const upload = async (files: FileList | File[] | null, ticket?: string) => {
     if (!files?.length || busy) return;
     const valid = Array.from(files);
     const unsupported = valid.find(
@@ -149,13 +152,14 @@ export default function Ocr() {
     setBusy("upload");
     setError("");
     setNotice("");
-    const results: Array<{ file: File; result?: UploadResult; error?: string }> = [];
+    const results: UploadEntry[] = uploadResults.filter(r => r.error && !valid.includes(r.file));
     try {
       for (const file of valid) {
         try {
-          const result = await uploadInvoice(file);
+          const result = await uploadInvoice(file, ticket);
           results.push({ file, result }); setSelectedId(result.id);
-        } catch (e) { results.push({ file, error: invoiceError(e).message }); }
+          if (result.outcome !== "CREATED") setUploadMatch(result);
+        } catch (e) { const issue = invoiceError(e); results.push({ file, error: issue.message, issue }); }
         setUploadResults([...results]);
       }
       setStatus("");
@@ -217,10 +221,10 @@ export default function Ocr() {
     setError("");
     setNotice("");
     try {
-      const result = await invoiceMutation<{ outcome: string }>(activeSelectedId, "confirm", payload);
+      const result = await invoiceMutation<{ outcome: string }>(activeSelectedId, "record", payload);
       await invalidate();
       setVersion((v) => v + 1);
-      setNotice(result.outcome === "ALREADY_CONFIRMED" ? "Hóa đơn đã được ghi sổ trước đó; không tạo thêm khoản chi." : "Đã ghi sổ hóa đơn và cập nhật khoản chi.");
+      setNotice(result.outcome === "ALREADY_CONFIRMED" ? "Hóa đơn đã được ghi sổ trước đó; không tạo thêm khoản chi." : result.outcome === "LINKED_PAYMENT" ? "Đã gắn hóa đơn vào khoản thanh toán có sẵn, không ghi chi lần hai." : "Đã ghi sổ hóa đơn và cập nhật khoản chi.");
     } catch (e) {
       setError(invoiceError(e).message);
       throw e;
@@ -243,7 +247,7 @@ export default function Ocr() {
     setBusy("delete");
     setError("");
     try {
-      const { data } = await api.post("/invoices/batch-delete", {
+      const { data } = await api.post(permanentDelete ? "/invoices/batch-purge" : "/invoices/batch-delete", {
         invoice_ids: deleting,
       });
       const removedCurrent = deleting.includes(activeSelectedId || "");
@@ -253,7 +257,9 @@ export default function Ocr() {
       await invalidate();
       if (removedCurrent) setSelectedId(null);
       setNotice(
-        `Đã ẩn ${data.deleted} hóa đơn và yêu cầu xóa ảnh. Các khoản chi đã ghi nhận vẫn được giữ lại.`,
+        permanentDelete
+          ? `Đã xóa vĩnh viễn ${data.deleted} hóa đơn. Các khoản chi đã ghi sổ vẫn được giữ lại.`
+          : `Đã chuyển ${data.deleted} hóa đơn vào Thùng rác, giữ trong 30 ngày. Các khoản chi đã ghi nhận vẫn được giữ lại.`,
       );
     } catch (e) {
       setError(errorMessage(e));
@@ -289,13 +295,9 @@ export default function Ocr() {
       {error && <Alert onDismiss={() => setError("")}>{error}</Alert>}
       {notice && <Alert kind="success" onDismiss={() => setNotice("")}>{notice}</Alert>}
       <InvoiceUploadZone inputRef={uploadInput} busy={!!busy} onUpload={upload} />
-      {uploadResults.length > 0 && <div className="cf-panel-body cf-stack" aria-label="Kết quả tải hóa đơn">
-        {uploadResults.map((entry, index) => <div key={index} className="cf-row" style={{ flexWrap: "wrap" }}>
-          <span>{entry.file.name}: {entry.error || ({ CREATED: "Hóa đơn mới", REUSED_DRAFT: "Tiếp tục bản đã tải", ALREADY_CONFIRMED: "Đã ghi sổ trước đó", RESTORE_REQUIRED: "Đã ẩn — cần khôi phục" }[entry.result!.outcome])}</span>
-          {entry.result && <button className="cf-btn cf-btn-sm" disabled={!!busy} onClick={() => setSelectedId(entry.result!.id)}>Mở hóa đơn</button>}
-          {entry.error && <button className="cf-btn cf-btn-sm" disabled={!!busy} onClick={() => upload([entry.file])}>Thử lại tệp này</button>}
-        </div>)}
-      </div>}
+      <InvoiceIntakeFeedback entries={uploadResults} match={uploadMatch} busy={!!busy} checking={busy === "upload"}
+        onRetry={(file, token) => upload([file], token)} onOpen={id => { setSelectedId(id); setVersion(v => v + 1); }}
+        onRemove={file => setUploadResults(rows => rows.filter(r => r.file !== file))} onDismiss={() => setUploadMatch(null)} />
       <div className="cf-ocr-grid">
         <InvoiceQueueList
           query={query}
@@ -321,7 +323,7 @@ export default function Ocr() {
           onCheckedChange={setChecked}
           onSelect={setSelectedId}
           onScan={scan}
-          onDelete={setDeleting}
+          onDelete={ids => { setPermanentDelete(status === "HIDDEN"); setDeleting(ids); }}
         />
         <Panel
           title="Kiểm tra thông tin"
@@ -341,7 +343,7 @@ export default function Ocr() {
               <>
                 <div
                   className="cf-panel-body cf-row cf-between"
-                  style={{ paddingBottom: 0 }}
+                  style={{ paddingBottom: 0, justifyContent: inv.deleted_at ? "flex-end" : "space-between" }}
                 >
                   {!inv.deleted_at && !["CONFIRMED", "PROCESSING"].includes(inv.status) && inv.mime_type !== "application/xml" && (
                     <button
@@ -359,14 +361,14 @@ export default function Ocr() {
                   )}
                   <button
                     className="cf-btn cf-btn-ghost cf-btn-sm"
-                    disabled={!!busy || !!inv.deleted_at}
-                    onClick={() => setDeleting([inv.id])}
+                    disabled={!!busy}
+                    onClick={() => { setPermanentDelete(!!inv.deleted_at); setDeleting([inv.id]); }}
                   >
                     <Trash2 />
-                    Ẩn và xóa ảnh
+                    {inv.deleted_at ? "Xóa vĩnh viễn" : "Chuyển vào Thùng rác"}
                   </button>
                 </div>
-                {inv.deleted_at && <div className="cf-panel-body"><Alert persistent kind="info">Hóa đơn đã ẩn. Khoản chi đã ghi sổ vẫn được giữ; khôi phục thông tin không tự tạo khoản chi.</Alert><button className="cf-btn" disabled={!!busy} onClick={restoreInvoice}>Khôi phục hóa đơn</button></div>}
+                <InvoiceTrashNotice invoice={inv} busy={!!busy} onRestore={restoreInvoice} />
                 <InvoiceDetailForm
                   key={inv.id + ":" + inv.status + ":" + version}
                   invoice={inv}
@@ -411,7 +413,7 @@ export default function Ocr() {
           }
         >
           {inv && <OcrSteps status={inv.status} />}
-          <div style={ocrStyles.preview} className={`cf-ocr-preview-body ${inv?.status === "PROCESSING" ? "is-processing" : ""}`}>
+          <div style={{ minHeight: 240 }} className={`cf-ocr-preview-body ${inv?.status === "PROCESSING" ? "is-processing" : ""}`}>
           {!activeSelectedId ? (
               <Empty title="Chưa chọn tài liệu" />
             ) : previewBusy ? (
@@ -480,16 +482,16 @@ export default function Ocr() {
       </p>
       {deleting && (
         <Modal
-          title="Ẩn hóa đơn và xóa ảnh"
+          title={permanentDelete ? "Xóa vĩnh viễn hóa đơn" : "Chuyển hóa đơn vào Thùng rác"}
           onClose={() => setDeleting(null)}
           busy={!!busy}
         >
           <div className="cf-form">
             {error && <Alert onDismiss={() => setError("")}>{error}</Alert>}
-            <p>
-              Ẩn {deleting.length} hóa đơn và xóa tệp gốc? Thông tin chống trùng và các khoản chi đã ghi sổ vẫn được giữ.
-              Bạn có thể khôi phục thông tin trong mục “Đã ẩn”; ảnh đã xóa cần tải lại.
-            </p>
+            {permanentDelete ? <p>Xóa vĩnh viễn {deleting.length} hóa đơn cùng ảnh và chi tiết mặt hàng? Thao tác này không thể khôi phục. Các khoản chi đã ghi sổ vẫn được giữ lại.</p> : <p>
+              Chuyển {deleting.length} hóa đơn vào Thùng rác? Giữ ảnh và thông tin trong 30 ngày, sau đó xóa vĩnh viễn hóa đơn. Các khoản chi đã ghi sổ vẫn được giữ.
+              Bạn có thể khôi phục hóa đơn từ Thùng rác trước khi hết hạn.
+            </p>}
             <div className="cf-form-actions">
               <button
                 className="cf-btn"
@@ -503,7 +505,7 @@ export default function Ocr() {
                 disabled={!!busy}
                 onClick={remove}
               >
-                {busy ? "Đang xóa…" : "Xóa hóa đơn"}
+                {busy ? "Đang xử lý…" : permanentDelete ? "Xóa vĩnh viễn" : "Chuyển vào Thùng rác"}
               </button>
             </div>
           </div>

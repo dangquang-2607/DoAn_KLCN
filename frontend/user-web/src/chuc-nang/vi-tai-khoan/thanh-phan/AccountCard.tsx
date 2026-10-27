@@ -4,7 +4,6 @@ import { ArrowRight, Eye, Pencil, Trash2, Wallet } from "lucide-react";
 import { Panel } from "@/dung-chung/UI-chung/ui";
 import { accountTypes, type Account } from "@/dung-chung/nghiep-vu/finance";
 import { money } from "@/dung-chung/tien-ich/finance";
-import { accountStyles } from "../CSS/accounts.styles";
 import styles from "./AccountCard.module.css";
 
 export default function AccountCard({ account, onDetails, onEdit, onDelete }: {
@@ -27,10 +26,14 @@ export default function AccountCard({ account, onDetails, onEdit, onDelete }: {
         {isLinked && account.institution_name && <p className={styles.cardSubtitle}>{account.institution_name}</p>}
         <div className={styles.cardSummary}>
           <span className={styles.label}>{isSavings ? "Đã tiết kiệm" : "Số dư hiện tại"}</span>
-          <div className="cf-number" style={accountStyles.balance}>
-            {money(account.balance, account.currency)}
+          <div className="cf-number" style={{ fontSize: "clamp(22px, 2vw, 30px)", fontWeight: 650, margin: "4px 0 0", overflowWrap: "anywhere" }}>
+            {account.balance_available === false ? "Chưa có dữ liệu số dư" : money(account.balance, account.currency)}
           </div>
         </div>
+        {isLinked && <p className={styles.cardSubtitle}>
+          {account.bank_last_sync ? `Cập nhật thành công lần cuối: ${new Date(account.bank_last_sync + "Z").toLocaleString("vi-VN")}` : "Chưa đồng bộ số dư"}
+        </p>}
+        {account.bank_sync_error && <p role="status">{account.bank_sync_error}</p>}
         <div className={styles.cardFooter}>
           <div className="cf-row cf-between">
             <Link href={`/transactions?account_id=${account.id}`} className="cf-inline-link">

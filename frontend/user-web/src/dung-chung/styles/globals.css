@@ -66,7 +66,8 @@ body {
 .cf-security-profile h2 { margin: 0 0 3px; font-size: 20px; font-weight: 750; letter-spacing: -.025em; }
 .cf-security-profile div > span { color: #c2d2d1; font-size: 14px; }
 .cf-security-profile-badge { margin-left: auto; flex-shrink: 0; padding: 5px 10px; border-radius: 999px; color: #c8ecdb; background: #ffffff1c; font-size: 12px; }
-.cf-security-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.cf-security-columns { display: grid; min-width: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.cf-security-columns > * { min-width: 0; overflow-wrap: anywhere; }
 .cf-security-card { border-color: #e9e4de; border-radius: 12px; box-shadow: none; }
 .cf-security-card .cf-panel-head { padding: 20px; align-items: flex-start; flex-wrap: nowrap; border-bottom: 0; color: #415168; }
 .cf-security-card .cf-panel-head > div { min-width: 0; }
@@ -99,7 +100,7 @@ body {
 .cf-security-session-footer nav { display: flex; align-items: center; gap: 10px; }
 .cf-security-session-footer .cf-icon-btn { width: 34px; height: 34px; }
 @container (max-width: 700px) {
-  .cf-security-columns { grid-template-columns: 1fr; }
+  .cf-security-columns { grid-template-columns: minmax(0, 1fr); }
   .cf-security-session-list { max-height: none; }
 }
 @container (max-width: 400px) {

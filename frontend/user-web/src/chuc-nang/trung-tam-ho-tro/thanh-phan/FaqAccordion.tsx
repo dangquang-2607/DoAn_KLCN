@@ -17,7 +17,19 @@
  * Danh sách câu hỏi thường gặp về cách CapitalFlow cập nhật số dư, OCR và bảo mật.
  * Dùng details/summary gốc để giữ khả năng truy cập bàn phím.
  */
-const faqs = [
+const faqs = process.env.NEXT_PUBLIC_INDEPENDENT_WALLETS === "true" ? [
+  ["Ví mới có sẵn tiền không?", "Không. Bạn chỉ đặt tên ví; số dư ban đầu là 0đ. Nạp từ ngân hàng liên kết hoặc nhận chuyển tiền từ ví khác để sử dụng."],
+  ["Liên kết ngân hàng dùng để làm gì?", "Liên kết mô phỏng dùng để nạp tiền vào ví và rút tiền về ngân hàng. Không đồng bộ số dư hoặc giao dịch ngân hàng, không chuyển tiền thật."],
+  ["Quét hóa đơn có trừ tiền trong ví không?", "Không. OCR và khoản thu chi nhập tay chỉ ghi vào sổ thu chi để tính báo cáo, ngân sách; tạo, sửa hoặc xóa khoản ghi sổ không thay đổi tiền trong ví."],
+  ["Tính vào chi tiêu xuất hiện khi nào?", "Sau khi thanh toán hóa đơn bằng ví thành công. Mặc định khoản thanh toán mới được phân loại khi đủ dữ liệu và tính vào chi tiêu. Bạn có thể đổi danh mục hoặc tắt nút trong lịch sử ví."],
+  ["Tắt Tính vào chi tiêu có hoàn tiền không?", "Không. Tiền đã thanh toán và lịch sử ví giữ nguyên. Khoản này chỉ bị loại khỏi sổ thu chi, báo cáo và ngân sách. Bật lại sẽ tính đúng một lần theo danh mục và phần chi tiêu cá nhân đã lưu."],
+  ["Hóa đơn đã trả bằng ví có cần nhập lại qua OCR không?", "Bạn có thể gắn hóa đơn OCR vào khoản thanh toán đã có bằng lựa chọn Khoản thanh toán ví đã có. Hệ thống dùng lại một bản ghi thu chi và không trừ tiền lần hai. Nếu đã ghi sổ trước khi thanh toán, chọn khoản chi đó ở bước thanh toán."],
+  ["Có thể chuyển tiền cho ai?", "Bạn có thể chuyển giữa các ví của mình hoặc sang ví của người dùng khác bằng mã ví. Kiểm tra tên người nhận, tên ví và số tiền trước khi xác nhận."],
+  ["Có thể sửa hoặc xóa lịch sử tiền trong ví không?", "Không. Lịch sử nạp, rút và chuyển tiền được lưu để đối chiếu. Sổ thu chi riêng vẫn cho phép sửa và xóa khoản ghi chép của bạn."],
+  ["Đóng ví có mất lịch sử không?", "Chỉ đóng được ví có số dư 0đ. Ví đã đóng không thể khôi phục hay thực hiện giao dịch; lịch sử vẫn xem được trong mục Ví đã đóng. Bạn có thể tạo ví mới với mã ví mới."],
+  ["Có thể tải lên những loại tệp nào?", "Ảnh JPG, JPEG, PNG, WEBP và tài liệu PDF; mỗi tệp tối đa 10 MB. Bạn có thể chọn tối đa 5 hóa đơn để quét AI cùng lúc."],
+  ["Làm thế nào để đổi mật khẩu?", "Mở Cài đặt & bảo mật, nhập mật khẩu hiện tại và mật khẩu mới. Nếu quên mật khẩu, dùng chức năng khôi phục tại trang đăng nhập."],
+] : [
   ["CapitalFlow có tự kết nối ngân hàng không?", "Tính năng liên kết ngân hàng hiện là mô phỏng để thử quy trình đăng nhập, xác thực và đồng bộ; không truy cập ngân hàng thật. Bạn vẫn có thể ghi nhận giao dịch thủ công."],
   ["Quét hóa đơn có tự trừ tiền trong ví không?", "Chưa. Sau khi quét, bạn cần kiểm tra thông tin, chọn ví và xác nhận hóa đơn. Bước xác nhận mới tạo giao dịch chi tiêu và cập nhật số dư."],
   ["Có thể tải lên những loại tệp nào?", "Ảnh JPG, JPEG, PNG, WEBP và tài liệu PDF; mỗi tệp tối đa 10 MB. Bạn có thể chọn tối đa 5 hóa đơn để quét AI cùng lúc."],

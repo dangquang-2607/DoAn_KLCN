@@ -25,12 +25,12 @@ import styles from "../CSS/overview.module.css";
 export default function AccountsWidget({ query }: { query: UseQueryResult<Account[]> }) {
   return (
     <section className={`${styles.panel} ${styles.overviewCard} ${styles.walletPanel}`}>
-      <header className={styles.overviewCardHead}><div><span className={styles.overline}>NGUỒN TIỀN</span><h2>Ví & tài khoản</h2><p>Số dư ở từng nơi</p></div><Link href="/accounts">Xem tất cả →</Link></header>
+      <header className={styles.overviewCardHead}><div><span className={styles.overline}>NGUỒN TIỀN</span><h2>{process.env.NEXT_PUBLIC_INDEPENDENT_WALLETS === "true" ? "Ví của bạn" : "Ví & tài khoản"}</h2><p>Số dư ở từng nơi</p></div><Link href="/accounts">Xem tất cả →</Link></header>
       {query.isPending ? <Loading /> : query.isError ? <ErrorState retry={() => query.refetch()} /> : !query.data?.length ? (
         <div className={styles.overviewEmpty}>Chưa có ví nào. <Link href="/accounts">Thêm ví để bắt đầu →</Link></div>
       ) : <div className={styles.walletList}>{query.data.slice(0, 4).map((account) => {
         const Icon = account.account_type === "CASH" ? Banknote : ["LINKED", "BANK"].includes(account.account_type) ? Landmark : Wallet;
-        return <div className={styles.walletRow} key={account.id}><span className={styles.walletIcon} aria-hidden="true"><Icon size={18} /></span><div className={styles.walletCopy}><strong>{account.name}</strong><small>{["LINKED", "BANK", "E_WALLET"].includes(account.account_type) && account.institution_name ? account.institution_name : account.currency}</small><b>{money(account.balance, account.currency)}</b></div></div>;
+        return <div className={styles.walletRow} key={account.id}><span className={styles.walletIcon} aria-hidden="true"><Icon size={18} /></span><div className={styles.walletCopy}><strong>{account.name}</strong><small>{["LINKED", "BANK", "E_WALLET"].includes(account.account_type) && account.institution_name ? account.institution_name : account.currency}</small><b>{account.balance_available === false ? "Chưa có dữ liệu số dư" : money(account.balance, account.currency)}</b>{account.bank_last_sync && <small>Cập nhật thành công lần cuối: {new Date(account.bank_last_sync + "Z").toLocaleString("vi-VN")}</small>}{account.bank_sync_error && <small role="status">{account.bank_sync_error}</small>}</div></div>;
       })}</div>}
     </section>
   );

@@ -19,31 +19,36 @@ import DateInput from "@/dung-chung/UI-chung/DateInput";
 import { money } from "@/dung-chung/tien-ich/finance";
 import { type Account, type Category, type Transaction } from "@/dung-chung/nghiep-vu/finance";
 
-export type TransactionForm = { account_id: string; category_id: string; type: string; amount: string; transaction_date: string; description: string; note: string; to_account_id: string };
+export type TransactionForm = { account_id: string; category_id: string; type: string; amount: string; transaction_date: string; description: string; note: string; to_account_id: string; include_in_reports?: boolean; wallet_entry_id?: string; accept_separate_record?: boolean };
 export type CategorySuggestion = { category_id: string | null; category_name: string | null; confidence: number; source: string; auto_apply: boolean; reason: string };
 
 /** Form tạo/sửa giao dịch thu chi, gồm gợi ý danh mục từ backend. */
-export default function TransactionModal({ editing, accounts, categories, form, setForm, suggestion, setSuggestion, setCategoryTouched, error, busy, dependencyError, onSubmit, onClose, onClearError }: { editing: Transaction | null; accounts: Account[]; categories: Category[]; form: TransactionForm; setForm: Dispatch<SetStateAction<TransactionForm>>; suggestion: CategorySuggestion | null; setSuggestion: (value: CategorySuggestion | null) => void; setCategoryTouched: (value: boolean) => void; error: string; busy: boolean; dependencyError: boolean; onSubmit: (event: FormEvent) => void; onClose: () => void; onClearError: () => void }) {
-  const bankManaged = !!editing?.bank_reference;
+export default function TransactionModal({ independent = false, editing, accounts, categories, form, setForm, suggestion, setSuggestion, setCategoryTouched, error, busy, dependencyError, onSubmit, onClose, onClearError }: { independent?: boolean; editing: Transaction | null; accounts: Account[]; categories: Category[]; form: TransactionForm; setForm: Dispatch<SetStateAction<TransactionForm>>; suggestion: CategorySuggestion | null; setSuggestion: (value: CategorySuggestion | null) => void; setCategoryTouched: (value: boolean) => void; error: string; busy: boolean; dependencyError: boolean; onSubmit: (event: FormEvent) => void; onClose: () => void; onClearError: () => void }) {
+  const bankManaged = !independent && !!editing?.bank_reference;
   const account = accounts.find((item) => item.id === form.account_id);
   return <Modal title={editing ? "Chỉnh sửa giao dịch" : "Thêm giao dịch"} onClose={onClose} busy={busy}><form className="cf-form" onSubmit={onSubmit}>
-    {error && <Alert onDismiss={onClearError}>{error}</Alert>}{dependencyError ? <Alert persistent>Không thể tải tài khoản hoặc danh mục. Đóng biểu mẫu và thử lại.</Alert> : !accounts.length ? <Alert kind="info">Bạn cần tạo tài khoản ở mục Ví & tài khoản trước khi ghi nhận giao dịch.</Alert> : null}
+    {error && <Alert onDismiss={onClearError}>{error}</Alert>}{dependencyError ? <Alert persistent>Không thể tải tài khoản hoặc danh mục. Đóng biểu mẫu và thử lại.</Alert> : !independent && !accounts.length ? <Alert kind="info">Bạn cần tạo tài khoản ở mục Ví & tài khoản trước khi ghi nhận giao dịch.</Alert> : null}
     {bankManaged && <Alert kind="info">Giao dịch ngân hàng: chỉ sửa danh mục và ghi chú.</Alert>}
-    <Field label="Loại giao dịch"><select disabled={bankManaged} className="cf-input" value={form.type} onChange={(event) => { setForm({ ...form, type: event.target.value, category_id: "" }); setCategoryTouched(false); }}><option value="EXPENSE">Chi tiêu</option><option value="INCOME">Thu nhập</option></select></Field>
-    <Field label="Tài khoản">
+    {independent && editing?.wallet_entry_id && <Alert persistent kind="info">Đây là phần chi tiêu cá nhân của một khoản thanh toán ví. Chỉnh sửa không thay đổi số tiền đã thanh toán; số ghi nhận không được vượt số đã trả.</Alert>}
+    <Field label="Loại giao dịch"><select disabled={bankManaged || !!editing?.wallet_entry_id || !!form.wallet_entry_id} className="cf-input" value={form.type} onChange={(event) => { setForm({ ...form, type: event.target.value, category_id: "", accept_separate_record: false }); setCategoryTouched(false); }}><option value="EXPENSE">Chi tiêu</option><option value="INCOME">Thu nhập</option></select></Field>
+    {independent && editing?.wallet_entry_id && <label className="cf-switch-row"><input className="cf-switch-input" type="checkbox" role="switch" checked={form.include_in_reports !== false} onChange={e => setForm({ ...form, include_in_reports: e.target.checked })} />{form.type === "INCOME" ? "Tính vào thu nhập" : "Tính vào chi tiêu"}</label>}
+    {independent && editing?.wallet_entry_id && <small>Tắt để chỉ giữ khoản thanh toán trong lịch sử ví, không tính vào sổ thu chi và ngân sách. Số dư ví không thay đổi.</small>}
+    {independent && !editing && !form.wallet_entry_id && error.includes("Có khoản thanh toán") && <label><input type="checkbox" checked={!!form.accept_separate_record} onChange={e => setForm({ ...form, accept_separate_record: e.target.checked })} /> Tôi đã đối chiếu và xác nhận đây là khoản khác với khoản thanh toán ví.</label>}
+    {!independent && <Field label="Tài khoản">
       <select disabled={bankManaged} required className="cf-input" value={form.account_id} onChange={(event) => setForm({ ...form, account_id: event.target.value })}>
         <option value="">Chọn tài khoản</option>
-        {accounts.map((item) => (
+        {accounts.filter(item => !item.bank_read_only || item.id === editing?.account_id).map((item) => (
           <option value={item.id} key={item.id}>
             {item.name} · {money(item.balance, item.currency)}
           </option>
         ))}
       </select>
     </Field>
+    }
     <Field label="Danh mục"><select className="cf-input" value={form.category_id} onChange={(event) => { setForm({ ...form, category_id: event.target.value }); setCategoryTouched(true); setSuggestion(null); }}><option value="">Chưa phân loại</option>{categories.filter((item) => item.type === form.type && (item.is_active || item.id === editing?.category_id)).map((item) => <option value={item.id} key={item.id} disabled={!item.is_active}>{item.name}{!item.is_active ? " (đã ẩn)" : ""}</option>)}</select>{suggestion && <div className="cf-category-suggestion" role="status"><div><strong>Gợi ý: {suggestion.category_name}</strong><span>{Math.round(suggestion.confidence * 100)}% · {suggestion.reason}</span></div><button type="button" className="cf-btn cf-btn-sm" onClick={() => { setForm({ ...form, category_id: suggestion.category_id || "" }); setCategoryTouched(true); setSuggestion(null); }}>Chọn danh mục</button></div>}</Field>
     <div className="cf-form-grid"><Field label={`Số tiền (${account?.currency || "VND"})`}><input readOnly={bankManaged} className="cf-input" required type="number" min="0.01" step="0.01" value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} /></Field><Field label="Ngày giao dịch"><DateInput readOnly={bankManaged} required value={form.transaction_date} onChange={(value) => setForm({ ...form, transaction_date: value })} /></Field></div>
     <Field label="Mô tả"><input readOnly={bankManaged} className="cf-input" required maxLength={255} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></Field>
     <Field label="Ghi chú (tùy chọn)"><textarea className="cf-input" rows={2} value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} /></Field>
-    <div className="cf-form-actions"><button type="button" disabled={busy} className="cf-btn" onClick={onClose}>Hủy</button><button className="cf-btn cf-btn-primary" disabled={busy || !accounts.length || dependencyError}>{busy ? "Đang xử lý…" : "Lưu giao dịch"}</button></div>
+    <div className="cf-form-actions"><button type="button" disabled={busy} className="cf-btn" onClick={onClose}>Hủy</button><button className="cf-btn cf-btn-primary" disabled={busy || (!independent && !accounts.length) || dependencyError}>{busy ? "Đang xử lý…" : "Lưu giao dịch"}</button></div>
   </form></Modal>;
 }

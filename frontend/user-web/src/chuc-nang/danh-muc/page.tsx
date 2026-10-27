@@ -82,10 +82,51 @@ export default function Categories() {
   return <div className="cf-stack">
     <PageHead eyebrow="TỔ CHỨC DỮ LIỆU" title="Danh mục" description="Phân loại khoản thu và chi bằng danh mục hệ thống hoặc danh mục riêng." actions={<button className="cf-btn cf-btn-primary" onClick={() => open()}><Plus />Tạo danh mục</button>} />
     {notice && <Alert kind="success" onDismiss={() => setNotice("")}>{notice}</Alert>}
-    <div className="cf-tabs" role="tablist" aria-label="Trạng thái danh mục">
-      {[["active", "Đang dùng"], ["archived", "Đã ẩn"]].map(([value, label]) => <button key={value} role="tab" aria-selected={status === value} onClick={() => setStatus(value)}>{label}{value === "archived" && archived.data ? ` (${archived.data.length})` : ""}</button>)}
+    <div className="cf-row cf-between" style={{ flexWrap: "wrap", gap: "12px", alignItems: "center" }}>
+      <div className="cf-row" style={{ gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
+        {/* Nhóm tab Loại danh mục */}
+        <div className="cf-tabs" role="tablist" aria-label="Loại danh mục">
+          {[["EXPENSE", "Chi tiêu"], ["INCOME", "Thu nhập"]].map(([value, label]) => (
+            <button
+              key={value}
+              role="tab"
+              aria-selected={type === value}
+              onClick={() => setType(value)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ width: "1px", height: "22px", background: "var(--cf-line, #e2e8f0)" }} />
+
+        {/* Nhóm tab Trạng thái danh mục */}
+        <div className="cf-tabs" role="tablist" aria-label="Trạng thái danh mục">
+          {[["active", "Đang dùng"], ["archived", "Đã ẩn"]].map(([value, label]) => (
+            <button
+              key={value}
+              role="tab"
+              aria-selected={status === value}
+              onClick={() => setStatus(value)}
+            >
+              {label}{value === "archived" && archived.data ? ` (${archived.data.length})` : ""}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Ô tìm kiếm danh mục */}
+      <div className="cf-search" style={{ minWidth: "260px" }}>
+        <Search />
+        <input
+          className="cf-input"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          aria-label="Tìm danh mục"
+          placeholder="Tìm danh mục…"
+        />
+      </div>
     </div>
-    <div className="cf-row cf-between"><div className="cf-tabs" role="tablist" aria-label="Loại danh mục">{[["EXPENSE", "Chi tiêu"], ["INCOME", "Thu nhập"]].map(([value, label]) => <button key={value} role="tab" aria-selected={type === value} onClick={() => setType(value)}>{label}</button>)}</div><div className="cf-search"><Search /><input className="cf-input" value={search} onChange={(event) => setSearch(event.target.value)} aria-label="Tìm danh mục" placeholder="Tìm danh mục…" /></div></div>
     {current.isPending ? <Loading /> : current.isError ? <ErrorState retry={() => current.refetch()} /> : <CategoryTable key={`${status}:${type}`} categories={list} archived={status === "archived"} onEdit={open} onDelete={(category) => { setDeleting(category); setError(""); }} onRestore={(category) => { setRestoring({ category, draft: null }); setError(""); }} />}
     {show && !restoring && <CategoryModal editing={editing} form={form} error={error} busy={busy} onChange={setForm} onSubmit={save} onClose={() => setShow(false)} onClearError={() => setError("")} />}
     {deleting && <CategoryDeleteModal category={deleting} error={error} busy={busy} onConfirm={remove} onClose={() => setDeleting(null)} onClearError={() => setError("")} />}

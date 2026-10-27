@@ -18,12 +18,11 @@ import { CategoryIcon } from "@/dung-chung/UI-chung/CategoryIcon";
 import { Panel } from "@/dung-chung/UI-chung/ui";
 import { dateLabel, money } from "@/dung-chung/tien-ich/finance";
 import { type Budget, type Category } from "@/dung-chung/nghiep-vu/finance";
-import { budgetStyles } from "../CSS/budgets.styles";
 
 /** Thẻ tiến độ ngân sách và cảnh báo theo ngưỡng backend đã tính. */
 export default function BudgetCard({ budget, category, onEdit, onDelete, onToggle, onEnd, onReuse, history = false, embedded = false }: { budget: Budget; category?: Category; onEdit?: () => void; onDelete?: () => void; onToggle?: () => void; onEnd?: () => void; onReuse?: () => void; history?: boolean; embedded?: boolean }) {
   const status = budget.progress_status;
-  const content = <div className={embedded ? "cf-stack" : "cf-panel-body cf-stack"} style={{ gap: budgetStyles.cardGap }}>
+  const content = <div className={embedded ? "cf-stack" : "cf-panel-body cf-stack"} style={{ gap: 18 }}>
     <div className="cf-row cf-between">{!embedded && <h2>{budget.budget_name}</h2>}<span className={`cf-badge ${budget.period_state === "PAUSED" ? "warning" : status === "EXCEEDED" ? "danger" : status === "WARNING" ? "warning" : "success"}`}>{budget.period_state === "UPCOMING" ? "Sắp bắt đầu" : budget.period_state === "PAUSED" && !history ? "Tạm dừng" : status === "EXCEEDED" ? "Vượt hạn mức" : status === "WARNING" ? "Gần hạn mức" : "Trong hạn mức"}</span></div>
     <div className="cf-row" style={{ gap: 8 }}>{category && <CategoryIcon icon={category.icon} color={category.color} size={28} />}<p className="cf-muted" style={{ fontSize: 13, margin: 0 }}>{category?.name || "Tất cả danh mục"} · {dateLabel(budget.start_date)} – {dateLabel(budget.end_date)}</p></div>
     <div className="cf-row cf-between"><strong className="cf-number" style={{ fontSize: 27 }}>{money(budget.spent_amount, budget.currency)}</strong><span className="cf-muted" style={{ fontSize: 14 }}>/ {money(budget.amount_limit, budget.currency)}</span></div>

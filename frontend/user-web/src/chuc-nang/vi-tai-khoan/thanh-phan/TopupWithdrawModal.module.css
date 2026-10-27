@@ -1,0 +1,549 @@
+/* Giao diện cửa sổ Nạp / Rút tiền đồng bộ hoàn toàn với hệ thống CapitalFlow */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: #14234166;
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: overlayFadeIn 0.18s ease-out;
+}
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modalCard {
+  width: 100%;
+  max-width: 560px;
+  max-height: 90dvh;
+  background: #ffffff;
+  border: 1px solid var(--cf-line, #dbe4f0);
+  border-radius: 14px;
+  box-shadow: 0 24px 100px #17203333;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: modalScaleUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalScaleUp {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Header cửa sổ đồng bộ 100% với cf-dialog-head */
+.modalHead {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--cf-line, #e2e8f0);
+  background: #ffffff;
+  gap: 16px;
+  box-sizing: border-box;
+}
+
+/* Tab chuyển đổi Nạp / Rút kiểu segmented pills hiện đại */
+.tabGroup {
+  display: inline-flex !important;
+  align-items: center !important;
+  background: #f1f5f9;
+  padding: 3px;
+  border-radius: 10px;
+  gap: 4px;
+  border: 1px solid var(--cf-line, #e2e8f0);
+  margin: 0;
+}
+
+.tabBtn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--cf-muted, #64748b);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+}
+
+.tabBtn:hover:not(.tabBtnActive) {
+  color: var(--cf-ink, #0f172a);
+}
+
+.tabBtnActive {
+  background: #ffffff !important;
+  color: var(--cf-blue, #2563eb) !important;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Nút đóng cửa sổ chuẩn theo cf-icon-btn của hệ thống CapitalFlow */
+.closeButton {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--cf-line, #dbe4f0);
+  border-radius: 10px;
+  background: #ffffff;
+  cursor: pointer;
+  color: var(--cf-ink, #0f172a);
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.closeButton:hover:not(:disabled) {
+  background: var(--cf-panel-subtle, #f8fafc);
+  border-color: var(--cf-line-subtle, #cbd5e1);
+}
+
+/* Nội dung cuộn của modal */
+.modalBody {
+  padding: 22px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sectionTitle {
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--cf-ink, #0f172a);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.sectionSubtitle {
+  font-size: 13px;
+  color: var(--cf-muted, #64748b);
+  font-weight: 500;
+}
+
+.inputLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cf-ink, #0f172a);
+}
+
+/* Danh sách thẻ ví nằm ngang */
+.walletCardsRow {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 4px 2px 8px;
+  scrollbar-width: thin;
+  scrollbar-color: #bfdbfe transparent;
+}
+
+.walletCardsRow::-webkit-scrollbar {
+  height: 4px;
+}
+
+.walletCardsRow::-webkit-scrollbar-thumb {
+  background: #bfdbfe;
+  border-radius: 4px;
+}
+
+.walletCard {
+  flex: 0 0 auto;
+  min-width: 170px;
+  max-width: 220px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: #ffffff;
+  border: 1.5px solid var(--cf-line, #e2e8f0);
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+.walletCard:hover {
+  border-color: #93c5fd;
+  transform: translateY(-1px);
+}
+
+.walletCardActive {
+  border: 2px solid var(--cf-blue, #2563eb);
+  background: #eff6ff;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12);
+}
+
+.walletAvatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(29, 78, 216, 0.25);
+}
+
+.walletInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.walletName {
+  font-size: 14px;
+  font-weight: 650;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.walletBalance {
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Thẻ ngân hàng nguồn/đích */
+.bankGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.bankCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: #ffffff;
+  border: 1.5px solid var(--cf-line, #e2e8f0);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  width: 100%;
+}
+
+.bankCard:hover {
+  border-color: #93c5fd;
+  background: #f8faff;
+}
+
+.bankCardActive {
+  border: 2px solid var(--cf-blue, #2563eb);
+  background: #eff6ff;
+  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.1);
+}
+
+.bankLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bankIconWrapper {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.bankMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bankTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.bankSubtitle {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.bankBadge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #059669;
+  background: #ecfdf5;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.bankEmptyBox {
+  padding: 16px;
+  background: #f8fafc;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+}
+
+.linkBankBtn {
+  align-self: flex-start;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cf-blue, #2563eb);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.linkBankBtn:hover {
+  text-decoration: underline;
+}
+
+/* Ô nhập số tiền đồng bộ hoàn toàn kích thước (width, height, border, radius) với .cf-input */
+.amountContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.amountInputWrapper {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 42px;
+  min-height: 42px;
+  padding: 0 12px;
+  background: #ffffff;
+  border: 1px solid #d8dfe9;
+  border-radius: 8px;
+  box-sizing: border-box;
+  transition: border-color 160ms, box-shadow 160ms;
+}
+
+.amountInputWrapper:focus-within {
+  border-color: var(--cf-blue, #2563eb);
+  box-shadow: 0 0 0 3px #2454e612;
+}
+
+.amountInput {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cf-ink, #0f172a);
+  width: 100%;
+  min-width: 0;
+  flex: 1;
+  height: 100%;
+  padding: 0;
+  line-height: 40px;
+  font-variant-numeric: tabular-nums;
+}
+
+.amountInput::placeholder {
+  color: #8a94a5;
+  font-weight: 400;
+}
+
+.currencySuffix {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cf-ink, #0f172a);
+  margin-left: 4px;
+  margin-right: 6px;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.clearAmountBtn {
+  background: #f1f5f9;
+  border: none;
+  color: #64748b;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  transition: all 0.15s ease;
+}
+
+.clearAmountBtn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+/* Dãy chip chọn nhanh */
+.chipsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #f8fafc;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-variant-numeric: tabular-nums;
+}
+
+.chip:hover {
+  background: #eff6ff;
+  color: #2563eb;
+  border-color: #bfdbfe;
+  transform: translateY(-1px);
+}
+
+.chipActive {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border-color: #2563eb;
+  font-weight: 700;
+}
+
+.chipSpecial {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.chipSpecial:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1e40af;
+}
+
+.amountHint {
+  font-size: 12px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.amountError {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e11d48;
+}
+
+/* Nút bấm hành động chính theo tông xanh hệ thống */
+.submitContainer {
+  margin-top: 4px;
+}
+
+.submitBtn {
+  width: 100%;
+  height: 44px;
+  padding: 0 20px;
+  border-radius: 10px;
+  border: none;
+  font-size: 15px;
+  font-weight: 650;
+  color: #ffffff;
+  background: var(--cf-blue, #2563eb);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25);
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.submitBtn:hover:not(:disabled) {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.35);
+}
+
+.submitBtn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.submitBtn:disabled {
+  background: #cbd5e1;
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

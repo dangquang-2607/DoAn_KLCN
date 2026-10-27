@@ -1,9 +1,10 @@
 import axios from "axios";
 import api from "@/dung-chung/connect-api/api";
-import type { DuplicateCheck, UploadResult } from "./InvoiceTypes";
+import type { UploadIssue, UploadResult } from "./InvoiceTypes";
 
 const prefix = "cf-pending-invoice:";
 function owner() {
+  if (typeof window === "undefined") return "";
   const token = sessionStorage.getItem("user_access_token");
   if (!token) throw new Error("Phiên đăng nhập đã thay đổi. Vui lòng đăng nhập lại.");
   const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
@@ -32,16 +33,18 @@ async function mutation<T>(path: string, body: unknown, signature: string, user:
     throw error;
   }
 }
-export async function uploadInvoice(file: File) {
+export async function uploadInvoice(file: File, ticket?: string) {
   const user = owner();
   const digest = await hash(await file.arrayBuffer());
   const data = new FormData(); data.append("file", file); data.append("source", "UPLOAD");
+  if (ticket) { data.append("upload_ticket", ticket); data.append("accept_distinct", "true"); }
   return mutation<UploadResult>("/invoices", data, digest + ":UPLOAD", user);
 }
 export function invoiceMutation<T>(id: string, action: string, payload: Record<string, unknown>) {
+  if (action === "record") return mutation<T>(`/bookkeeping/invoices/${id}/confirm`, payload, JSON.stringify(payload), owner());
   return mutation<T>(`/invoices/${id}/${action}`, payload, JSON.stringify(payload), owner());
 }
-export function invoiceError(error: unknown): { code?: string; message: string; duplicate_check?: DuplicateCheck; revision?: number } {
+export function invoiceError(error: unknown): UploadIssue {
   if (axios.isAxiosError(error)) {
     const detail = error.response?.data?.detail;
     if (detail && typeof detail === "object" && !Array.isArray(detail)) return detail;

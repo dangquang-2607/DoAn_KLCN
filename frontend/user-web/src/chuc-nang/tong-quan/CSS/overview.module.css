@@ -30,7 +30,7 @@
 .monthBreakdown > span { display: flex; gap: 8px; align-items: center; color: #786d73; font-size: 11px; }
 .monthBreakdown svg { flex: none; }
 .monthBreakdown b { display: block; color: #30283d; font-size: 14px; }
-.overviewLower { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(300px, .75fr); gap: 18px; align-items: start; }
+.overviewLower { display: grid; grid-template-columns: minmax(0, 1.13fr) minmax(0, .87fr); gap: 18px; align-items: start; }
 .overviewLower > :last-child { grid-column: 1 / -1; }
 .overviewCard { min-width: 0; padding: 0; overflow: hidden; }
 .activityPanel { background: #fffefa; }

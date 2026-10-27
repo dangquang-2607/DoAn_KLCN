@@ -17,7 +17,7 @@ export default function OverviewCharts({ trendQuery, accountsQuery }: {
   accountsQuery: UseQueryResult<Account[]>;
 }) {
   const trend = trendQuery.data?.period_trend ?? [];
-  const accounts = (accountsQuery.data ?? []).filter((account) => account.is_active && !account.exclude_from_total && Number(account.balance) > 0);
+  const accounts = (accountsQuery.data ?? []).filter((account) => account.is_active && account.balance_available !== false && !account.exclude_from_total && Number(account.balance) > 0);
   const chartAccounts = accounts.map((account) => ({ ...account, amount: Number(account.balance) }));
   const total = accounts.reduce((sum, account) => sum + Number(account.balance), 0);
   const mixedCurrencies = new Set(accounts.map((account) => account.currency)).size > 1;

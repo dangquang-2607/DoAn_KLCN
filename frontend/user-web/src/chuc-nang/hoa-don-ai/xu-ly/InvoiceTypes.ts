@@ -32,10 +32,14 @@ export interface Invoice {
   id: string;
   revision: number;
   deleted_at?: string | null;
+  trash_expires_at?: string | null;
+  can_restore?: boolean;
   invoice_time?: string | null;
   transaction_id?: string | null;
   duplicate_of_invoice_id?: string | null;
   duplicate_level?: "NONE" | "SUSPECTED" | "EXACT";
+  duplicate_similarity_percent?: number;
+  duplicate_match_id?: string | null;
   duplicate_check?: DuplicateCheck;
   merchant_name: string | null;
   merchant_address: string | null;
@@ -61,6 +65,8 @@ export interface Invoice {
 }
 
 export interface DuplicateCandidate {
+  similarity_percent?: number;
+  level?: "EXACT" | "SUSPECTED";
   invoice_id: string;
   transaction_id: string | null;
   merchant_name: string | null;
@@ -72,6 +78,8 @@ export interface DuplicateCandidate {
   deleted_at: string | null;
 }
 export interface DuplicateCheck {
+  similarity_percent?: number;
+  score_version?: number;
   level: "NONE" | "SUSPECTED" | "EXACT";
   review_token: string;
   candidate_count: number;
@@ -83,7 +91,19 @@ export interface UploadResult {
   outcome: "CREATED" | "REUSED_DRAFT" | "ALREADY_CONFIRMED" | "RESTORE_REQUIRED";
   revision: number;
   transaction_id?: string | null;
+  match_kind?: "SHA256" | "DATA" | null;
+  duplicate_check?: DuplicateCheck | null;
 }
+
+export interface UploadIssue {
+  code?: string;
+  message: string;
+  upload_ticket?: string;
+  duplicate_check?: DuplicateCheck;
+  blockers?: Array<{ id: string; filename: string; status: string }>;
+  revision?: number;
+}
+export interface UploadEntry { file: File; result?: UploadResult; error?: string; issue?: UploadIssue }
 
 // Ánh xạ mã backend sang nhãn tiếng Việt; không dùng nhãn hiển thị để gửi ngược API.
 export const STATUSES: Record<string, string> = {

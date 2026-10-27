@@ -53,6 +53,7 @@ export function errorMessage(error: unknown) {
   };
   const detail = e?.response?.data?.detail;
   if (typeof detail === "string") return detail;
+  if (detail && typeof detail === "object" && "message" in detail && typeof detail.message === "string") return detail.message;
   if (Array.isArray(detail))
     return detail.map((d: { msg?: string }) => d.msg).join(". ");
   if (e?.response?.status === 429)
@@ -61,6 +62,7 @@ export function errorMessage(error: unknown) {
 }
 
 export type ExcelTransaction = {
+  include_in_reports?: boolean;
   transaction_date: string;
   type: string;
   kind?: string;
@@ -98,12 +100,12 @@ export async function createFinanceWorkbook({ title, scope, transactions }: Fina
   const numberFormat = (currency: string) => currency === "VND" ? '#,##0;[Red](#,##0);"—"' : '#,##0.00;[Red](#,##0.00);"—"';
   sheet.getCell("A2").value = title;
   sheet.getCell("A3").value = scope;
-  sheet.getCell("A4").value = "Tổng thu/chi theo từng loại tiền, không gồm chuyển khoản và điều chỉnh số dư.";
+  sheet.getCell("A4").value = "Tổng thu/chi theo từng loại tiền, không gồm chuyển khoản, điều chỉnh và các khoản đã tắt tính thu chi.";
   sheet.getRow(5).values = ["Tiền tệ", "Tổng thu", "Tổng chi", "Thu trừ chi"];
   currencies.forEach((currency, index) => {
     const row = 6 + index;
-    const income = transactions.reduce((sum, transaction, i) => sum + (transaction.currency === currency && (!transaction.kind || transaction.kind === "NORMAL") && transaction.type === "INCOME" ? amounts[i] : 0), 0);
-    const expense = transactions.reduce((sum, transaction, i) => sum - (transaction.currency === currency && (!transaction.kind || transaction.kind === "NORMAL") && transaction.type === "EXPENSE" ? amounts[i] : 0), 0);
+    const income = transactions.reduce((sum, transaction, i) => sum + (transaction.include_in_reports !== false && transaction.currency === currency && (!transaction.kind || transaction.kind === "NORMAL") && transaction.type === "INCOME" ? amounts[i] : 0), 0);
+    const expense = transactions.reduce((sum, transaction, i) => sum - (transaction.include_in_reports !== false && transaction.currency === currency && (!transaction.kind || transaction.kind === "NORMAL") && transaction.type === "EXPENSE" ? amounts[i] : 0), 0);
     sheet.getCell(row, 1).value = currency;
     const criteria = `$F$${firstRow}:$F$${lastRow},A${row},$I$${firstRow}:$I$${lastRow},"Thu/chi"`;
     sheet.getCell(row, 2).value = { formula: `SUMIFS($E$${firstRow}:$E$${lastRow},$B$${firstRow}:$B$${lastRow},"Thu nhập",${criteria})`, result: income };
@@ -119,8 +121,8 @@ export async function createFinanceWorkbook({ title, scope, transactions }: Fina
     const row = sheet.getRow(firstRow + index);
     row.values = [date, ({ INCOME: "Thu nhập", EXPENSE: "Chi tiêu" } as Record<string, string>)[transaction.type] || transaction.type,
       transaction.account_name, transaction.category_name, amounts[index], transaction.currency, transaction.description,
-      ({ MANUAL: "Nhập thủ công", OCR: "Hóa đơn AI", BANK: "Ngân hàng", IMPORT: "Nhập dữ liệu", SYSTEM: "Hệ thống" } as Record<string, string>)[transaction.source] || transaction.source,
-      ({ NORMAL: "Thu/chi", TRANSFER: "Chuyển khoản", ADJUSTMENT: "Điều chỉnh số dư" } as Record<string, string>)[transaction.kind || "NORMAL"] || transaction.kind];
+      ({ WALLET: "Thanh toán ví", MANUAL: "Nhập thủ công", OCR: "Hóa đơn AI", BANK: "Ngân hàng", IMPORT: "Nhập dữ liệu", SYSTEM: "Hệ thống" } as Record<string, string>)[transaction.source] || transaction.source,
+      transaction.include_in_reports === false ? "Không tính thu chi" : ({ NORMAL: "Thu/chi", TRANSFER: "Chuyển khoản", ADJUSTMENT: "Điều chỉnh số dư" } as Record<string, string>)[transaction.kind || "NORMAL"] || transaction.kind];
     row.getCell(1).numFmt = "dd/mm/yyyy";
     row.getCell(5).numFmt = numberFormat(transaction.currency);
     const lines = Math.max(1, ...[transaction.account_name, transaction.category_name, transaction.description].map((text, i) =>

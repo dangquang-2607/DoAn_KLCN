@@ -20,16 +20,16 @@ import { CategoryIcon } from "@/dung-chung/UI-chung/CategoryIcon";
 import { Loading, ErrorState, Empty, Pagination } from "@/dung-chung/UI-chung/ui";
 import { money, dateLabel } from "@/dung-chung/tien-ich/finance";
 import { type Account, type Category, type Transaction } from "@/dung-chung/nghiep-vu/finance";
-import { transactionStyles } from "../CSS/transactions.styles";
 
 interface TransactionTableProps {
+  independent?: boolean;
   query: UseQueryResult<{ items: Transaction[]; total: number }>;
   list: Transaction[];
   page: number;
   total: number;
   selected: string[];
   selectionDisabled: boolean;
-  getAccount: (id: string) => Account | undefined;
+  getAccount: (id: string | null) => Account | undefined;
   getCategory: (id: string | null) => Category | undefined;
   onSelectAll: (checked: boolean) => void;
   onSelectOne: (id: string, checked: boolean) => void;
@@ -40,6 +40,7 @@ interface TransactionTableProps {
 
 // Mọi dòng đều chọn/xóa được; giao dịch hệ thống vẫn không được sửa trực tiếp.
 export default function TransactionTable({
+  independent = false,
   query,
   list,
   page,
@@ -78,7 +79,7 @@ export default function TransactionTable({
                 <th>Ngày</th>
                 <th>Giao dịch</th>
                 <th>Danh mục</th>
-                <th>Tài khoản</th>
+                {!independent && <th>Tài khoản</th>}
                 <th className="right">Số tiền</th>
                 <th aria-label="Thao tác" style={{ width: 120 }} />
               </tr>
@@ -95,7 +96,7 @@ export default function TransactionTable({
                     <td>
                       <strong>{t.description || "Giao dịch"}</strong>
                       <div className="cf-sub">
-                        {t.bank_reference
+                        {t.wallet_entry_id ? "Thanh toán ví" : t.bank_reference
                           ? "Đồng bộ ngân hàng"
                           : t.source === "OCR"
                           ? "Từ hóa đơn"
@@ -122,10 +123,11 @@ export default function TransactionTable({
                         )}
                       </span>
                     </td>
-                    <td>{acc?.name || "Tài khoản đã ngừng sử dụng"}</td>
-                    <td style={transactionStyles.amount} className={`right cf-number ${Number(t.amount) > 0 ? "cf-success" : ""}`}>
+                    {!independent && <td>{acc?.name || "Tài khoản đã ngừng sử dụng"}</td>}
+                    <td style={{ fontVariantNumeric: "tabular-nums" }} className={`right cf-number ${Number(t.amount) > 0 ? "cf-success" : ""}`}>
                       {Number(t.amount) > 0 ? "+" : ""}
                       {money(t.amount, acc?.currency || "VND")}
+                      {independent && <div className="cf-sub">{t.include_in_reports === false ? "Không tính vào thu chi" : "Đang tính vào thu chi"}</div>}
                     </td>
                     <td>
                       <div className="cf-transaction-actions">
@@ -139,7 +141,7 @@ export default function TransactionTable({
                             <Pencil size={15} />
                           </button>
                         )}
-                        <button className="cf-icon-btn" aria-label={`Xóa giao dịch ${t.description || t.id}`} title={t.kind === "TRANSFER" ? "Xóa cả hai vế chuyển tiền" : t.bank_reference ? "Gỡ khỏi sổ theo dõi, giữ số dư ngân hàng" : "Xóa giao dịch"} onClick={() => onDelete(t)}><Trash2 size={15} /></button>
+                        <button className="cf-icon-btn" disabled={!!t.wallet_entry_id || getAccount(t.account_id)?.bank_read_only} aria-label={`Xóa giao dịch ${t.description || t.id}`} title={t.wallet_entry_id ? "Giữ lịch sử thanh toán; có thể tắt Tính vào chi tiêu trong phần sửa" : getAccount(t.account_id)?.bank_read_only ? "Lịch sử ngân hàng được cập nhật qua đồng bộ" : t.kind === "TRANSFER" ? "Xóa cả hai vế chuyển tiền" : t.bank_reference ? "Gỡ khỏi sổ theo dõi, giữ số dư ngân hàng" : "Xóa giao dịch"} onClick={() => onDelete(t)}><Trash2 size={15} /></button>
                       </div>
                     </td>
                   </tr>
