@@ -13,9 +13,17 @@
  *   Chỉ hiển thị thông báo lỗi backend cung cấp; ID đầy đủ nằm trong title.
  * ============================================================================
  */
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, RotateCw } from "lucide-react";
 import { timestamp } from "../../../dung-chung/tien-ich/adminPresentation";
-import OcrRetryButton from "./OcrRetryButton";
+
+function OcrRetryButton({ jobId, retrying, onRetry }) {
+  return (
+    <button className="cf-btn cf-btn-sm" disabled={Boolean(retrying)} onClick={() => onRetry(jobId)}>
+      <RotateCw size={15} />
+      {retrying === jobId ? "Đang gửi…" : "Thử lại"}
+    </button>
+  );
+}
 
 export default function OcrFailureTable({ failures, retrying, onRetry }) {
   return (

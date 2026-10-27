@@ -1,0 +1,150 @@
+{
+  "schema_version": 1,
+  "accounts": {
+    "VCB": {
+      "opening_balance": "10000000",
+      "events": [
+        {
+          "id": "sample-0",
+          "date": "2026-10-18",
+          "amount": "15000000",
+          "description": "Nhận lương",
+          "status": "BOOKED"
+        },
+        {
+          "id": "sample-1",
+          "date": "2026-10-19",
+          "amount": "-350000",
+          "description": "Mua sắm siêu thị",
+          "status": "BOOKED"
+        },
+        {
+          "id": "sample-2",
+          "date": "2026-10-20",
+          "amount": "-1200000",
+          "description": "Thanh toán tiền điện",
+          "status": "BOOKED"
+        }
+        
+      ]
+    },
+    "ACB": {
+      "opening_balance": "5000000",
+      "events": [
+        {
+          "id": "sample-0",
+          "date": "2026-10-18",
+          "amount": "2000000",
+          "description": "Nhận chuyển khoản",
+          "status": "BOOKED"
+        },
+        {
+          "id": "sample-1",
+          "date": "2026-10-19",
+          "amount": "-180000",
+          "description": "Ăn uống",
+          "status": "BOOKED"
+        },
+        {
+          "id": "sample-2",
+          "date": "2026-10-20",
+          "amount": "-500000",
+          "description": "Thanh toán Internet",
+          "status": "BOOKED"
+        }
+      ]
+    },
+    "MB": {
+      "opening_balance": "8000000",
+      "events": [
+        {
+          "id": "sample-0",
+          "date": "2026-10-18",
+          "amount": "12000000",
+          "description": "Nhận lương",
+          "status": "BOOKED"
+        },
+        {
+          "id": "sample-1",
+          "date": "2026-10-19",
+          "amount": "-800000",
+          "description": "Mua sắm",
+          "status": "BOOKED"
+        },
+        {
+          "id": "sample-2",
+          "date": "2026-10-20",
+          "amount": "-250000",
+          "description": "Đổ xăng",
+          "status": "BOOKED"
+        }
+      ]
+    },
+    "TCB": {
+      "opening_balance": "20000000",
+      "events": [
+        {
+          "id": "sample-0",
+          "date": "2026-10-18",
+          "amount": "5000000",
+          "description": "Nhận tiền thưởng",
+          "status": "BOOKED"
+        },
+        {
+          "id": "sample-1",
+          "date": "2026-10-19",
+          "amount": "-3000000",
+          "description": "Thanh toán tiền thuê nhà",
+          "status": "BOOKED"
+        },
+        {
+          "id": "sample-2",
+          "date": "2026-10-20",
+          "amount": "-450000",
+          "description": "Mua sắm siêu thị",
+          "status": "BOOKED"
+        },
+        {
+          "id": "sample-3",
+          "date": "2026-10-22",
+          "amount": "-1400000",
+          "description": "Sửa điện thoại",
+          "status": "BOOKED"
+        }
+      ]
+    },
+    "MOMO": {
+      "opening_balance": "1000000",
+      "events": [
+        {
+          "id": "sample-0",
+          "date": "2026-10-18",
+          "amount": "500000",
+          "description": "Nạp tiền vào ví",
+          "status": "BOOKED"
+        },
+        {
+          "id": "sample-1",
+          "date": "2026-10-19",
+          "amount": "-65000",
+          "description": "Thanh toán đồ ăn",
+          "status": "BOOKED"
+        },
+        {
+          "id": "sample-2",
+          "date": "2026-10-20",
+          "amount": "-120000",
+          "description": "Thanh toán điện thoại",
+          "status": "BOOKED"
+        },
+        {
+          "id": "sample-3",
+          "date": "2026-10-21",
+          "amount": "-1000000",
+          "description": "Mua quà tặng",
+          "status": "BOOKED"
+        }
+      ]
+    }
+  }
+}

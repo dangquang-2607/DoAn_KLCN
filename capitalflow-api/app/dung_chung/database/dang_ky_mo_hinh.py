@@ -15,6 +15,7 @@ from app.dung_chung.database.nen_tang import Base
 from app.chuc_nang.nguoi_dung.dang_nhap.luu_tru.nguoi_dung import User, UserRole
 from app.chuc_nang.nguoi_dung.danh_muc.luu_tru.danh_muc import Category, CategoryType
 from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan.luu_tru.account import Account, AccountType
+from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan.luu_tru.wallet import Wallet, WalletEntry, UserBankLink, DemoBankBalance
 from app.chuc_nang.nguoi_dung.tai_chinh.thong_bao.luu_tru.thong_bao import Notification
 from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.invoice import Invoice
 from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.lich_su import InvoiceEvent

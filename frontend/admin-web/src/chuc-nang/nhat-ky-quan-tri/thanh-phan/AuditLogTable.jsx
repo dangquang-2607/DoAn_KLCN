@@ -1,8 +1,27 @@
+/**
+ * ============================================================================
+ * TÊN FILE: AuditLogTable.jsx
+ * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
+ * MÀN HÌNH / PHÂN HỆ: Nhật ký kiểm toán (Audit Logs)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Bảng danh sách sự kiện kiểm toán hệ thống: thời điểm xảy ra, người thực hiện,
+ *   hành động (action), tài nguyên đích và nút mở xem chi tiết kỹ thuật.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Props logs, selectedLogId, onSelectLog, phân trang.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Default export AuditLogTable component.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Hỗ trợ theo dõi tuân thủ quy chuẩn an toàn dữ liệu và phát hiện bất thường.
+ * ============================================================================
+ */
 import { Empty, ErrorState, Loading, Pagination } from "../../../dung-chung/UI-chung/design";
 import { ArrowRight } from "lucide-react";
 import { actionLabel, auditResult } from "../../../dung-chung/nghiep-vu/auditPresentation";
 import { timestamp } from "../../../dung-chung/tien-ich/adminPresentation";
 
+/**
+ * Bảng kết xuất dòng thời gian các sự kiện kiểm toán toàn hệ thống.
+ */
 export default function AuditLogTable({ query, page, onPageChange, onSelect, selectedId }) {
   const list = query.data?.items || [];
   const label = (log) => <><span className={`adm-audit-action${log.target_type === "CATEGORIES" ? " adm-audit-action--categories" : ""}`}>{actionLabel(log.action)}</span><code>{log.action}</code></>;

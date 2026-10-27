@@ -10,10 +10,13 @@ from decimal import Decimal
 from uuid import UUID
 from datetime import datetime, date
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan.luu_tru.account import AccountType
 from app.dung_chung.text.unicode import normalize_unicode_text
+from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan.number_rules import (
+    validate_account_number, mask_account_number,
+)
 
 
 class WalletFields(BaseModel):
@@ -34,10 +37,17 @@ class AccountCreate(WalletFields):
     balance: Decimal = Field(default=Decimal("0"), max_digits=19, decimal_places=2)
     currency: str = "VND"
     color: str | None = None
-    # Override với pattern chặt cho request (bắt buộc 10 chữ số)
-    account_number_masked: str | None = Field(default=None, pattern=r"^[0-9]{10}$")
+    # Raw request only. The API masks after binding and verifying the challenge.
+    account_number_masked: str | None = Field(default=None, pattern=r"^[0-9]{6,20}$")
     # Trường OTP: Chỉ bắt buộc khi tạo ví liên kết
     otp_code: str | None = Field(default=None, min_length=6, max_length=6)
+    otp_request_id: UUID | None = None
+
+    @model_validator(mode="after")
+    def validate_and_mask_account_number(self):
+        if self.account_type in ("LINKED", "BANK", "E_WALLET"):
+            validate_account_number(self.institution_name, self.account_number_masked)
+        return self
 
     @field_validator("name", mode="before")
     @classmethod
@@ -61,8 +71,8 @@ class AccountCreate(WalletFields):
 
 
 class AccountUpdate(BaseModel):
-    # Cho phép 10 chữ số
-    account_number_masked: str | None = Field(default=None, pattern=r"^[0-9]{10}$")
+    # Cho phép giữ số đã che khi sửa, hoặc nhập số đầy đủ để thay thế.
+    account_number_masked: str | None = Field(default=None, pattern=r"^(?:[0-9]{6,20}|\*{3,17}[0-9]{3}|\*{4}[0-9]{4})$")
     target_amount: Decimal | None = Field(default=None, gt=Decimal("0"), max_digits=19, decimal_places=2)
     target_date: date | None = None
     exclude_from_total: bool | None = None
@@ -106,7 +116,10 @@ class AccountUpdate(BaseModel):
 
 
 class AccountOut(WalletFields):
+    balance_available: bool = True
+    bank_sync_error: str | None = None
     bank_managed: bool = False
+    bank_read_only: bool = False
     bank_status: str = "NOT_CONNECTED"
     bank_last_sync: str | None = None
     id: UUID
@@ -129,3 +142,9 @@ class SendOtpRequest(BaseModel):
     """Yêu cầu gửi mã OTP để liên kết ngân hàng."""
     institution_name: str = Field(min_length=1, max_length=150)
     account_number: str = Field(pattern=r"^[0-9]{6,20}$")  # 6-20 chữ số
+    account_id: UUID | None = None
+
+    @model_validator(mode="after")
+    def validate_provider_number(self):
+        validate_account_number(self.institution_name, self.account_number)
+        return self

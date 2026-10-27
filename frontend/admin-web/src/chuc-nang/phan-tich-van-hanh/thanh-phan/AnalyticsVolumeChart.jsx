@@ -1,11 +1,26 @@
-import { useState } from "react";
+/**
+ * ============================================================================
+ * TÊN FILE: AnalyticsVolumeChart.jsx
+ * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
+ * MÀN HÌNH / PHÂN HỆ: Phân tích & Vận hành hệ thống
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Biểu đồ cột/đường trực quan hóa khối lượng giao dịch và số lượng người dùng
+ *   mới theo từng ngày/tuần/tháng trong kỳ báo cáo đã chọn.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Props data, thư viện Recharts (ResponsiveContainer, BarChart, LineChart).
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Default export AnalyticsVolumeChart component.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Tối ưu hiển thị số lượng lớn điểm dữ liệu mà không gây giật lag giao diện.
+ * ============================================================================
+ */
+import { useState, useMemo } from "react";
 import { useMotionAllowed } from "../../../dung-chung/tien-ich/useMotionAllowed";
+import { number, decimal } from "../../../dung-chung/tien-ich/adminPresentation";
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import "./analytics-volume-chart.css";
 
 const ranges = [{ value: 3, label: "3 kỳ" }, { value: 6, label: "6 kỳ" }, { value: "all", label: "Tất cả" }];
-const number = new Intl.NumberFormat("vi-VN");
-const decimal = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 });
 
 function VolumeTooltip({ active, payload, unit }) {
   if (!active || !payload?.length) return null;
@@ -14,22 +29,31 @@ function VolumeTooltip({ active, payload, unit }) {
   return <div className="cf-volume-tooltip"><span>{unit.toUpperCase()} {point.label}</span><strong>{number.format(point.count)} giao dịch</strong><small>{point.partial ? "Kỳ đang diễn ra; chưa so sánh với kỳ trọn vẹn" : change}</small></div>;
 }
 
+/**
+ * Biểu đồ xu hướng khối lượng vận hành hệ thống theo dòng thời gian.
+ */
 export default function AnalyticsVolumeChart({ view, period }) {
   const motionAllowed = useMotionAllowed();
   const [range, setRange] = useState(6);
-  const selectedIndex = view.trend.findIndex((item) => item.id === period.id);
-  const timeline = view.trend.slice(0, selectedIndex + 1).map((item, index, all) => {
-    const previous = all[index - 1]?.count;
-    const change = previous ? (item.count - previous) / previous * 100 : null;
-    const color = item.partial ? "#dfa847" : change === null || change === 0 ? "#7898ae" : change > 0 ? "#258b80" : "#dc775a";
-    return { ...item, previousCount: previous, change, color };
-  });
-  const data = range === "all" ? timeline : timeline.slice(-range);
-  const completed = data.filter((item) => !item.partial);
-  const peak = completed.reduce((best, item) => item.count > best.count ? item : best, completed[0]);
-  const average = completed.length ? completed.reduce((sum, item) => sum + item.count, 0) / completed.length : null;
-  const comparison = period.previous ? ((period.comparableTotal ?? period.total) - period.previous) / period.previous * 100 : null;
-  const comparisonLabel = comparison === null ? "—" : comparison === 0 ? "Không đổi" : `${comparison > 0 ? "+" : "−"}${decimal.format(Math.abs(comparison))}%`;
+
+  const { data, peak, average, comparison, comparisonLabel } = useMemo(() => {
+    const trend = view?.trend || [];
+    const selectedIndex = trend.findIndex((item) => item.id === period?.id);
+    const endIdx = selectedIndex === -1 ? trend.length : selectedIndex + 1;
+    const timeline = trend.slice(0, endIdx).map((item, index, all) => {
+      const previous = all[index - 1]?.count;
+      const change = previous ? ((item.count - previous) / previous) * 100 : null;
+      const color = item.partial ? "#dfa847" : change === null || change === 0 ? "#7898ae" : change > 0 ? "#258b80" : "#dc775a";
+      return { ...item, previousCount: previous, change, color };
+    });
+    const sliceData = range === "all" ? timeline : timeline.slice(-range);
+    const completed = sliceData.filter((item) => !item.partial);
+    const peakItem = completed.length ? completed.reduce((best, item) => (item.count > best.count ? item : best), completed[0]) : null;
+    const avg = completed.length ? completed.reduce((sum, item) => sum + item.count, 0) / completed.length : null;
+    const comp = period?.previous ? (((period.comparableTotal ?? period.total ?? 0) - period.previous) / period.previous) * 100 : null;
+    const compLabel = comp === null ? "—" : comp === 0 ? "Không đổi" : `${comp > 0 ? "+" : "−"}${decimal.format(Math.abs(comp))}%`;
+    return { data: sliceData, peak: peakItem, average: avg, comparison: comp, comparisonLabel: compLabel };
+  }, [view.trend, period, range]);
 
   return <section className="cf-volume" aria-labelledby="cf-volume-title">
     <header className="cf-volume-head">

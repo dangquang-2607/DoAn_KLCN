@@ -52,12 +52,19 @@ export default function Login() {
   const [lampOn, setLampOn] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [cordY, setCordY] = useState(CORD_BASE_Y);
-  const [startY, setStartY] = useState(0);
-  const [pullAmount, setPullAmount] = useState(0);
+  const startYRef = useRef(0);
+  const pullAmountRef = useRef(0);
   const [stars] = useState(() => Array.from({ length: 50 }, (_, index) => ({ id: index, width: Math.random() * 2 + 1, top: Math.random() * 100, left: Math.random() * 100, opacity: Math.random() * 0.7 + 0.1, duration: Math.random() * 3 + 2, delay: Math.random() * 3 })));
   const emailInputRef = useRef(null);
   const dragRef = useRef(false);
   const navigate = useNavigate();
+
+  // Tự động chuyển đến dashboard nếu phiên đăng nhập đã tồn tại trong sessionStorage.
+  useEffect(() => {
+    if (sessionStorage.getItem('admin_access_token')) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [navigate]);
 
   // Đồng bộ bộ đếm khóa với mốc thời gian trong sessionStorage và tự mở khóa khi hết hạn.
   useEffect(() => {
@@ -93,7 +100,7 @@ export default function Login() {
       const until = Date.now() + LOCKOUT_SECONDS * 1000;
       setLockUntil(until);
       sessionStorage.setItem('admin_lock_until', until);
-      setError(`Bạn đã nhập sai ${MAX_ATTEMPTS} lần. Tài khoản tạm thời bị khóa trong 15 phút.`);
+      setError(`Bạn đã nhập sai ${MAX_ATTEMPTS} lần. Tài khoản tạm thời bị khóa trong ${LOCKOUT_SECONDS} giây.`);
       setShowForgot(true);
     } else {
       const remaining = MAX_ATTEMPTS - newCount;
@@ -128,12 +135,56 @@ export default function Login() {
     } finally { setLoading(false); }
   };
 
-  const onMouseDown = useCallback((event) => { event.preventDefault(); dragRef.current = true; setIsDragging(true); setStartY(event.clientY); }, []);
-  const onMouseMove = useCallback((event) => { if (!dragRef.current) return; const delta = event.clientY - startY; setCordY(Math.min(Math.max(CORD_BASE_Y, CORD_BASE_Y + delta), CORD_BASE_Y + 120)); setPullAmount(Math.max(0, delta)); }, [startY]);
-  const onMouseUp = useCallback(() => { if (!dragRef.current) return; dragRef.current = false; setIsDragging(false); if (pullAmount >= PULL_THRESHOLD) setLampOn((current) => !current); setCordY(CORD_BASE_Y); setPullAmount(0); }, [pullAmount]);
-  const onTouchStart = useCallback((event) => { dragRef.current = true; setIsDragging(true); setStartY(event.touches[0].clientY); }, []);
-  const onTouchMove = useCallback((event) => { if (!dragRef.current) return; const delta = event.touches[0].clientY - startY; setCordY(Math.min(Math.max(CORD_BASE_Y, CORD_BASE_Y + delta), CORD_BASE_Y + 120)); setPullAmount(Math.max(0, delta)); }, [startY]);
-  const onTouchEnd = useCallback(() => { if (!dragRef.current) return; dragRef.current = false; setIsDragging(false); if (pullAmount >= PULL_THRESHOLD) setLampOn((current) => !current); setCordY(CORD_BASE_Y); setPullAmount(0); }, [pullAmount]);
+  const onMouseDown = useCallback((event) => {
+    event.preventDefault();
+    dragRef.current = true;
+    setIsDragging(true);
+    startYRef.current = event.clientY;
+    pullAmountRef.current = 0;
+  }, []);
+
+  const onMouseMove = useCallback((event) => {
+    if (!dragRef.current) return;
+    const delta = event.clientY - startYRef.current;
+    pullAmountRef.current = Math.max(0, delta);
+    setCordY(Math.min(Math.max(CORD_BASE_Y, CORD_BASE_Y + delta), CORD_BASE_Y + 120));
+  }, []);
+
+  const onMouseUp = useCallback(() => {
+    if (!dragRef.current) return;
+    dragRef.current = false;
+    setIsDragging(false);
+    if (pullAmountRef.current >= PULL_THRESHOLD) {
+      setLampOn((current) => !current);
+    }
+    setCordY(CORD_BASE_Y);
+    pullAmountRef.current = 0;
+  }, []);
+
+  const onTouchStart = useCallback((event) => {
+    dragRef.current = true;
+    setIsDragging(true);
+    startYRef.current = event.touches[0].clientY;
+    pullAmountRef.current = 0;
+  }, []);
+
+  const onTouchMove = useCallback((event) => {
+    if (!dragRef.current) return;
+    const delta = event.touches[0].clientY - startYRef.current;
+    pullAmountRef.current = Math.max(0, delta);
+    setCordY(Math.min(Math.max(CORD_BASE_Y, CORD_BASE_Y + delta), CORD_BASE_Y + 120));
+  }, []);
+
+  const onTouchEnd = useCallback(() => {
+    if (!dragRef.current) return;
+    dragRef.current = false;
+    setIsDragging(false);
+    if (pullAmountRef.current >= PULL_THRESHOLD) {
+      setLampOn((current) => !current);
+    }
+    setCordY(CORD_BASE_Y);
+    pullAmountRef.current = 0;
+  }, []);
 
   useEffect(() => {
     window.addEventListener('mousemove', onMouseMove); window.addEventListener('mouseup', onMouseUp);
@@ -143,14 +194,10 @@ export default function Login() {
   const isLocked = countdown > 0;
   const pullOffset = (cordY - CORD_BASE_Y) * 0.3;
   const cordPath = `M ${CORD_START_X} ${CORD_START_Y} Q ${CORD_START_X - 10 + pullOffset * 0.4} ${(CORD_START_Y + cordY) / 2} ${CORD_START_X + 5 + pullOffset * 0.1} ${cordY}`;
-  const getInputStyle = (hasError) => ({ width: '100%', boxSizing: 'border-box', paddingLeft: '42px', paddingRight: '14px', paddingTop: '12px', paddingBottom: '12px', fontSize: '14px', background: hasError ? 'rgba(239,68,68,0.05)' : 'rgba(255,255,255,0.06)', border: hasError ? '1px solid rgba(239,68,68,0.6)' : '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', color: 'white', outline: 'none', transition: 'all 0.2s ease', opacity: isLocked ? 0.5 : 1 });
-  const onFocusInput = (hasError, event) => { event.target.style.borderColor = hasError ? 'rgba(239,68,68,0.8)' : 'rgba(255,200,80,0.5)'; event.target.style.background = hasError ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.09)'; event.target.style.boxShadow = hasError ? '0 0 0 3px rgba(239,68,68,0.15)' : '0 0 0 3px rgba(255,180,50,0.1)'; };
-  const onBlurInput = (hasError, event) => { event.target.style.borderColor = hasError ? 'rgba(239,68,68,0.6)' : 'rgba(255,255,255,0.12)'; event.target.style.background = hasError ? 'rgba(239,68,68,0.05)' : 'rgba(255,255,255,0.06)'; event.target.style.boxShadow = 'none'; };
-
   return (
     <div className="admin-login-screen" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#080810', transition: 'background 1.2s ease', fontFamily: "'Inter', 'Segoe UI', sans-serif", overflow: 'hidden', position: 'relative' }} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
       <LampAnimation stars={stars} lampOn={lampOn} isDragging={isDragging} cordY={cordY} pullOffset={pullOffset} cordPath={cordPath} onMouseDown={onMouseDown} onTouchStart={onTouchStart} />
-      <LoginForm lampOn={lampOn} isShake={isShake} isLocked={isLocked} error={error} emailError={emailError} countdown={countdown} formatCountdown={formatCountdown} emailInputRef={emailInputRef} email={email} password={password} showPassword={showPassword} showForgot={showForgot} loading={loading} onEmailChange={setEmail} onPasswordChange={setPassword} onTogglePassword={() => setShowPassword((current) => !current)} onEmailKeyDown={() => { if (error || emailError) { setError(''); setEmailError(''); setShowForgot(false); } }} onPasswordKeyDown={() => { if (error) { setError(''); setShowForgot(false); } }} onEmailBlur={handleEmailBlur} onSubmit={handleLogin} getInputStyle={getInputStyle} onFocusInput={onFocusInput} onBlurInput={onBlurInput} />
+      <LoginForm lampOn={lampOn} isShake={isShake} isLocked={isLocked} error={error} emailError={emailError} countdown={countdown} formatCountdown={formatCountdown} emailInputRef={emailInputRef} email={email} password={password} showPassword={showPassword} showForgot={showForgot} loading={loading} onEmailChange={setEmail} onPasswordChange={setPassword} onTogglePassword={() => setShowPassword((current) => !current)} onEmailKeyDown={() => { if (error || emailError) { setError(''); setEmailError(''); setShowForgot(false); } }} onPasswordKeyDown={() => { if (error) { setError(''); setShowForgot(false); } }} onEmailBlur={handleEmailBlur} onSubmit={handleLogin} />
       {!lampOn && <div style={{ position: 'absolute', bottom: '30px', left: '50%', transform: 'translateX(-50%)', color: 'rgba(255,255,255,0.2)', fontSize: '12px', fontWeight: '500', letterSpacing: '2px', textAlign: 'center', animation: 'admin-login-fadeInOut 3s ease-in-out infinite', whiteSpace: 'nowrap' }}>☝️ Kéo sợi dây để bật đèn...</div>}
     </div>
   );

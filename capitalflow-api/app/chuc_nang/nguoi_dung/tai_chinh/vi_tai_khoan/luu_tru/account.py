@@ -36,7 +36,7 @@ class Account(Base):
     institution_name: Mapped[str | None] = mapped_column(Unicode(150), nullable=True)
     balance: Mapped[Decimal] = mapped_column(Numeric(19, 2), default=0)
     currency: Mapped[str] = mapped_column(String(3), default="VND")
-    account_number_masked: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    account_number_masked: Mapped[str | None] = mapped_column(String(20), nullable=True)
     target_amount: Mapped[Decimal | None] = mapped_column(Numeric(19, 2), nullable=True)
     target_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     exclude_from_total: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
@@ -64,8 +64,24 @@ class Account(Base):
         return bool(json.loads(self.bank_state or "{}").get("external_account"))
 
     @property
+    def bank_read_only(self):
+        import json
+        return json.loads(self.bank_state or "{}").get("version") == 2
+
+    @property
+    def balance_available(self):
+        import json
+        state = json.loads(self.bank_state or "{}")
+        return state.get("version") != 2 or bool(state.get("last_sync"))
+
+    @property
+    def bank_sync_error(self):
+        import json
+        return json.loads(self.bank_state or "{}").get("sync_error")
+
+    @property
     def bank_status(self):
-        from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan.bank import view, read_state
+        from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan.legacy_bank_sync.bank import view, read_state
         return view(read_state(self)).get("stage", "NOT_CONNECTED")
 
     @property

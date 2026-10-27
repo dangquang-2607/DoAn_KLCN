@@ -13,7 +13,7 @@
  *   Logout luôn xóa token/cache; bắt buộc đổi mật khẩu được ưu tiên trước nội dung khác.
  * ============================================================================
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Outlet,
   NavLink,
@@ -88,6 +88,7 @@ export default function DashboardLayout() {
   );
   const [tooltipData, setTooltipData] = useState(null);
   const [showKeyToast, setShowKeyToast] = useState(false);
+  const keyToastTimerRef = useRef(null);
 
   const nav = useNavigate();
   const location = useLocation();
@@ -114,12 +115,24 @@ export default function DashboardLayout() {
         e.preventDefault();
         toggleCollapsed();
         setShowKeyToast(true);
-        setTimeout(() => setShowKeyToast(false), 1500);
+        if (keyToastTimerRef.current) clearTimeout(keyToastTimerRef.current);
+        keyToastTimerRef.current = setTimeout(() => setShowKeyToast(false), 1500);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key >= "1" && e.key <= "8") {
+        const index = Number(e.key) - 1;
+        const allItems = groups.flatMap((g) => g.items);
+        if (allItems[index]) {
+          e.preventDefault();
+          nav(allItems[index].to);
+        }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      if (keyToastTimerRef.current) clearTimeout(keyToastTimerRef.current);
+    };
+  }, [nav]);
 
   const profile = useQuery({
     queryKey: ["admin-me"],
@@ -270,6 +283,20 @@ export default function DashboardLayout() {
                     onMouseLeave={() => {
                       setTooltipData(null);
                     }}
+                    onFocus={(e) => {
+                      if (collapsed) {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setTooltipData({
+                          label: i.label,
+                          shortcut: i.shortcut,
+                          top: rect.top + rect.height / 2,
+                          left: rect.right + 12,
+                        });
+                      }
+                    }}
+                    onBlur={() => {
+                      setTooltipData(null);
+                    }}
                   >
                     <NavLink
                       to={i.to}
@@ -369,7 +396,7 @@ export default function DashboardLayout() {
           </form>
           <Link to="/settings" className="cf-profile">
             <span className="cf-avatar">
-              {(user.full_name || user.email).slice(0, 2).toUpperCase()}
+              {((user?.full_name || user?.email || "AD").trim().slice(0, 2)).toUpperCase()}
             </span>
             <span>
               {user.full_name || user.email}

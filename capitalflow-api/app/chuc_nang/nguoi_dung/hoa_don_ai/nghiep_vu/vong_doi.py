@@ -23,7 +23,7 @@ def lock_invoice(db, user, invoice_id):
 
 def require_visible(invoice):
     if invoice.deleted_at:
-        conflict("INVOICE_DELETED", "Hóa đơn đã bị ẩn. Vui lòng khôi phục trước khi tiếp tục.")
+        conflict("INVOICE_DELETED", "Hóa đơn đang trong Thùng rác. Vui lòng khôi phục trong 30 ngày trước khi tiếp tục.")
 
 
 def check_revision(invoice, expected, *, required=False):

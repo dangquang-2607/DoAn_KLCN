@@ -1,3 +1,20 @@
+/**
+ * ============================================================================
+ * TÊN FILE: report-period.js
+ * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
+ * MÀN HÌNH / PHÂN HỆ: Phân tích & Vận hành hệ thống
+ * NHÓM VỆ TINH: xu-ly (Tiện ích tính toán khoảng thời gian báo cáo)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Tính toán ngày bắt đầu và kết thúc cho các chu kỳ phân tích vận hành quản trị
+ *   (hôm nay, 7 ngày, 30 ngày, tháng này, quý này, năm này).
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Date API chuẩn.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Các hàm tiện ích resolveAdminPeriod, formatPeriodLabel.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Xử lý ranh giới múi giờ Việt Nam (+07:00) bảo đảm không lệch ngày.
+ * ============================================================================
+ */
 export const units = { day: "Ngày", week: "Tuần", month: "Tháng" };
 
 export function todayInVietnam() {

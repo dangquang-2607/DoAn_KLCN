@@ -4,4 +4,80 @@
 @keyframes admin-login-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(5px); } }
 @keyframes admin-login-shake { 10%, 90% { transform: translate3d(-2px, 0, 0); } 20%, 80% { transform: translate3d(3px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-5px, 0, 0); } 40%, 60% { transform: translate3d(5px, 0, 0); } }
 @keyframes admin-login-fadeInOut { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.6; } }
-.admin-login-screen input::placeholder { color: rgba(255,255,255,0.25); } .admin-login-screen, .admin-login-screen * { -webkit-tap-highlight-color: transparent; }
+.admin-login-screen input::placeholder { color: rgba(255,255,255,0.25); }
+.admin-login-screen, .admin-login-screen * { -webkit-tap-highlight-color: transparent; }
+
+.admin-login-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding-left: 42px;
+  padding-right: 14px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  font-size: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  color: white;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.admin-login-input:focus-visible,
+.admin-login-input:focus {
+  border-color: rgba(255, 200, 80, 0.5);
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 0 0 3px rgba(255, 180, 50, 0.1);
+}
+
+.admin-login-input.has-error {
+  background: rgba(239, 68, 68, 0.05);
+  border-color: rgba(239, 68, 68, 0.6);
+}
+
+.admin-login-input.has-error:focus-visible,
+.admin-login-input.has-error:focus {
+  border-color: rgba(239, 68, 68, 0.8);
+  background: rgba(239, 68, 68, 0.08);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+}
+
+.admin-login-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-login-btn {
+  width: 100%;
+  padding: 13px 0;
+  background: linear-gradient(135deg, #ff8f00, #ff6b35);
+  color: white;
+  font-size: 15px;
+  font-weight: 700;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 20px rgba(255, 140, 0, 0.4);
+  transition: all 0.2s ease;
+  letter-spacing: 0.02em;
+}
+
+.admin-login-btn:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(255, 140, 0, 0.5);
+}
+
+.admin-login-btn:disabled {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.3);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.admin-login-btn.is-loading {
+  background: rgba(255, 255, 255, 0.1);
+}

@@ -13,7 +13,6 @@
  *   Sau khi đổi mật khẩu phải xóa token và yêu cầu đăng nhập lại.
  * ============================================================================
  */
-"use client";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import api from "../connect-api/api";
@@ -58,13 +57,15 @@ export default function SecuritySettings({ firstTime = false }) {
         firstTime ? "/auth/first-time-password" : "/auth/change-password",
         { current_password: current, new_password: password },
       );
-      setSuccess("Đã cập nhật mật khẩu.");
+      setSuccess("Đã cập nhật mật khẩu thành công. Đang chuyển về trang đăng nhập…");
       setCurrent("");
       setPassword("");
       setConfirm("");
       sessionStorage.removeItem("admin_access_token");
       sessionStorage.removeItem("admin_refresh_token");
-      window.location.href = "/";
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 1200);
     } catch (err) {
       setError(errorMessage(err));
     } finally {

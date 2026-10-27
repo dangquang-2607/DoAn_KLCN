@@ -1,5 +1,129 @@
 # Schema hiện tại của CapitalFlow
 
+## Dọn phần legacy có giới hạn — 27/10/2026
+
+- Revision hiện tại: `cfdb_legacy_cleanup`, sau `cfdb_wallet_short_code`.
+- Bỏ duy nhất bảng `wallet_bank_links` rỗng; `user_bank_links` tiếp tục phục vụ
+  liên kết ngân hàng hiện hành. ORM đã gỡ model cũ và dùng tên `UserBankLink` rõ ràng.
+- Database còn 26 bảng, 35 FK đang bật/trusted; kiểm tra không có FK mồ côi.
+- Công cụ `tools/apply_review_cleanup.py` mặc định chỉ đọc. Đã chạy `--apply
+  --resume-failed-purge` sau preflight, backup COPY_ONLY/CHECKSUM, VERIFYONLY và
+  diễn tập upgrade/downgrade/rollback trong transaction; đối chiếu hash mọi dòng
+  ngoài phạm vi xử lý và cấu trúc bảng/view còn lại đều đạt.
+- Đã xóa 258 refresh token thuộc family hết hạn toàn bộ và 1 OTP hết hạn.
+  Hoàn tất yêu cầu hard-delete bị kẹt ImportError bằng dịch vụ purge hiện tại:
+  xóa 1 user đã PURGE_PENDING, 4 ngân hàng demo chưa dùng và 1 token của user đó;
+  giữ/anonymize log theo workflow, thêm sự kiện audit hoàn tất. Không gửi email,
+  không gọi OCR và không xóa tệp. Lỗi import cũ không tái hiện ở tiến trình mới;
+  không kết luận nguyên nhân gốc từ error_code lịch sử.
+- Sau xử lý: 2 users, 3 wallets, 8 wallet_demo_banks, 63 refresh_tokens;
+  cả 12 token chưa revoke/còn hiệu lực trước đợt dọn vẫn được giữ.
+- Giữ nguyên 5 accounts legacy (kể cả account còn số dư), 1 hóa đơn, 62
+  idempotency_records, 12 thông báo, ngân sách, các job khác, 3 view và bộ sơ đồ SSMS.
+- Alembic check đạt; API đang chạy trả `/health`, `/ready`, `/openapi.json` HTTP 200,
+  có 14 path ví và 7 path bookkeeping, không đăng ký accounts legacy.
+- Backup đã xác minh:
+  `C:\Program Files\Microsoft SQL Server\MSSQL16.SQLEXPRESS\MSSQL\Backup\CapitalFlow_pre_review_cleanup_20261027_095224_b275e7d1.bak`.
+  Manifest cục bộ (không commit):
+  `.maintenance-backups/CapitalFlow_pre_review_cleanup_20261027_095224_b275e7d1/manifest.json`.
+- Downgrade revision này chỉ dựng lại bảng liên kết cũ rỗng; dữ liệu đã dọn cần
+  phương án khôi phục từ backup, không thể khôi phục bằng downgrade schema.
+
+## Mã nhận tiền ngắn — 26/10/2026
+
+- Revision hiện tại: `cfdb_wallet_short_code`, sau `cfdb_default_wallet`.
+- Thêm `wallets.short_code` NOT NULL và `UQ_wallets_short_code`, cấp mã cho ví cũ.
+- Ví mặc định nhận bằng email; ví phụ dùng mã `CF-` + 8 ký tự. UUID/QR/số dư giữ nguyên.
+- Diễn tập, đối soát trường cũ, backup VERIFYONLY và Alembic check đạt.
+- [Chi tiết mã ngắn và backup](../docs/wallet-receiving.md).
+
+## Ví mặc định và QR — 26/10/2026
+
+- Revision tại đợt này: `cfdb_default_wallet`, sau `cfdb_email_only`.
+- `wallets.is_default`, unique index theo user và constraint ví mặc định luôn hoạt động.
+- Tạo ví mặc định số dư 0 cho user hiện có chưa xóa; bảo toàn mọi ví, số dư và lịch sử cũ.
+- Diễn tập rollback, đối soát, backup VERIFYONLY và Alembic check đạt.
+- [Hợp đồng email/QR và bản sao lưu](../docs/wallet-receiving.md).
+
+## Chỉ dùng email — 26/10/2026
+
+- Revision tại đợt này: `cfdb_email_only`, sau `cfdb_phone_verify`.
+- Đã bỏ cột/index điện thoại và OTP điện thoại; giữ nguyên tài khoản, mật khẩu,
+  ngân hàng, dữ liệu tài chính và OTP email. [Hợp đồng hiện tại](../docs/auth-email.md).
+- Đã diễn tập rollback, đối soát và VERIFYONLY bản sao lưu:
+  `C:\Program Files\Microsoft SQL Server\MSSQL16.SQLEXPRESS\MSSQL\Backup\CapitalFlow_pre_email_only_20261026_151127_148cf955.bak`.
+- Các mục bên dưới là lịch sử thay đổi, không phải cấu hình xác thực hiện hành.
+
+## Ngân hàng cấp người dùng và OTP — 26/10/2026
+
+- Revision tại đợt này: `cfdb_phone_verify`, sau `cfdb_user_banks` và `cfdb_user_phone`.
+- `wallet_demo_banks.account_number` riêng cho mỗi người/ngân hàng;
+  `user_bank_links` dùng chung mọi ví; giữ bảng liên kết cũ để tra cứu.
+- `users.phone_verified_at`, `phone_verification_method` phân biệt DEMO/SMS.
+- Đã diễn tập rollback, đối soát dữ liệu và backup VERIFYONLY:
+  `C:\Program Files\Microsoft SQL Server\MSSQL16.SQLEXPRESS\MSSQL\Backup\CapitalFlow_pre_user_banks_20261026_074331_a788cc55.bak`.
+- [Hợp đồng và kiểm chứng](../docs/user-bank-links.md).
+
+## Số điện thoại đăng nhập — 26/10/2026
+
+- Revision tại đợt bổ sung số điện thoại: `cfdb_user_phone`, sau `cfdb_wallet_spending`.
+- Thêm `users.phone_number` nullable cho người dùng cũ, check định dạng chuẩn
+  và unique index có điều kiện NOT NULL. Đăng ký mới bắt buộc số ở tầng API.
+- Backup đã VERIFYONLY:
+  `C:\Program Files\Microsoft SQL Server\MSSQL16.SQLEXPRESS\MSSQL\Backup\CapitalFlow_pre_user_phone_20261026_070652_436a33a8.bak`.
+- Diễn tập nâng/hạ và đối soát trường/index cũ đạt; Alembic check không phát hiện
+  khác biệt. [Hợp đồng đăng nhập](../docs/auth-email.md).
+
+## Thanh toán ví và ghi nhận chi tiêu — ngày 2026-10-26
+
+- Revision tại đợt thanh toán ví: `cfdb_wallet_spending`, sau `cfdb_independent_wallets`.
+- Bổ sung PAYMENT, thông tin hóa đơn trên lịch sử ví, `wallet_entry_id` và
+  `include_in_reports` trên sổ thu chi; unique index bảo vệ liên kết một-một.
+- Công cụ `tools/apply_wallet_spending.py --apply` đã backup/VERIFYONLY,
+  diễn tập nâng-hạ rollback, đối soát 24 bảng cũ và index, kiểm tra metadata.
+- Backup: `C:\Program Files\Microsoft SQL Server\MSSQL16.SQLEXPRESS\MSSQL\Backup\CapitalFlow_pre_wallet_spending_20261025_192255_99a953cc.bak`.
+- [Hợp đồng thanh toán và chi tiêu](../docs/wallet-payment-spending.md).
+
+## Ví độc lập — ngày 2026-10-25
+
+- Revision tại ngày 25/10: `cfdb_independent_wallets`, sau `cfdb_bank_link_v2`.
+- Thêm `wallets`, `wallet_entries`, `wallet_demo_banks`, `wallet_bank_links`.
+  Ví không âm; sổ tiền tách khỏi thu chi cá nhân. `transactions.account_id`
+  cho phép NULL, không thay đổi giá trị của các giao dịch cũ.
+- `tools/apply_independent_wallets.py --apply` đã backup, diễn tập nâng/hạ và
+  rollback, áp dụng, kiểm tra Alembic metadata, hash dữ liệu và index. 20 bảng
+  cũ không đổi; 4 bảng mới rỗng lúc áp dụng.
+- Backup đã qua RESTORE VERIFYONLY:
+  `C:\Program Files\Microsoft SQL Server\MSSQL16.SQLEXPRESS\MSSQL\Backup\CapitalFlow_pre_independent_wallets_20261025_142236_884f9d4f.bak`.
+- Chi tiết hợp đồng và kiểm thử: [Ví độc lập](../docs/independent-wallets.md).
+
+## Liên kết ngân hàng v2 — ngày 2026-10-21
+
+- Revision tại thời điểm này: `cfdb_bank_link_v2`, sau `cfdb_bank_otp`.
+- Mở rộng `accounts.account_number_masked` từ VARCHAR(8) lên VARCHAR(20).
+  Ví liên kết mới lưu chuỗi che cùng độ dài, chỉ hiện 3 số cuối.
+- Backup COPY_ONLY/CHECKSUM đã qua RESTORE VERIFYONLY:
+  `C:\Program Files\Microsoft SQL Server\MSSQL16.SQLEXPRESS\MSSQL\Backup\CapitalFlow_pre_bank_otp_20261021_150230_336ec8c0.bak`.
+- `tools/apply_bank_link_v2.py --apply`: preflight, backup, diễn tập rollback,
+  nâng schema và so sánh hash toàn bộ dữ liệu trong 20 bảng: không thay đổi.
+  Không xóa ví/giao dịch cũ; không ghi tài khoản mẫu vào ví người dùng.
+- Integration API dùng dữ liệu thử rollback và email mock. Gửi SMTP thật chưa
+  được kiểm chứng trong lần triển khai này.
+
+## Bổ sung schema OTP email ngày 2026-10-21
+
+- Database `personal_finance` đã nâng từ `cfdb_invoice_dedup` lên `cfdb_bank_otp`.
+- Thêm `password_reset_otps.purpose`, mặc định `RESET_PASSWORD` cho dữ liệu cũ;
+  OTP liên kết ngân hàng sử dụng `LINK_BANK`. Thêm mặc định `SYSUTCDATETIME()`
+  cho `created_at`, khớp cách ORM mới tạo OTP mà không truyền thời gian.
+- Backup COPY_ONLY/CHECKSUM đã qua RESTORE VERIFYONLY:
+  `C:\Program Files\Microsoft SQL Server\MSSQL16.SQLEXPRESS\MSSQL\Backup\CapitalFlow_pre_bank_otp_20261021_032857_630c030b.bak`.
+- Công cụ `tools/apply_bank_otp.py --apply` đã diễn tập nâng schema và rollback
+  trước khi áp dụng thật. Hàm gửi OTP liên kết được kiểm tra với email giả lập;
+  OTP thử được rollback, không gửi email và không tạo ví/giao dịch.
+- Đối chiếu dữ liệu cũ trong 20 bảng nghiệp vụ không đổi; `alembic check` đạt.
+  Chưa kiểm chứng gửi email SMTP thật. Không tự chạy migration khi API khởi động.
+
 ## Dọn môi trường QA ngày 19/10/2026
 
 - Đã xóa hai database `capitalflow_*_verify_*`, `CapitalFlow_QA_20261008_b5fcca32`

@@ -1,3 +1,20 @@
+/**
+ * ============================================================================
+ * TÊN FILE: auditPresentation.js
+ * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
+ * MÀN HÌNH / PHÂN HỆ: Nhật ký kiểm toán & Trình bày dữ liệu
+ * NHÓM VỆ TINH: dung-chung (Định dạng hiển thị nhật ký)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Chuẩn hóa các mã hành động kiểm toán (Audit Actions) thành nhãn tiếng Việt
+ *   thân thiện, gắn biểu tượng và màu sắc phù hợp cho từng mức độ nghiêm trọng.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Chuỗi action, resource name từ audit log backend.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Các hàm resolveAuditActionLabel, auditActionTone.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Phân loại rõ các hành động có tác động lớn (khóa tài khoản, đổi cấu hình bảo mật).
+ * ============================================================================
+ */
 const actionLabels = {
   CREATE_LOGIN: "Đăng nhập", CREATE_LOGOUT: "Đăng xuất", CREATE_REFRESH: "Làm mới phiên",
   CREATE_SUGGEST: "Đề xuất danh mục", CREATE_USER: "Tạo tài khoản", USER_CREATE: "Tạo tài khoản",

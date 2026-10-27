@@ -28,6 +28,38 @@ bản schema sau khi giai đoạn chuyển đổi hoàn tất.
 
 ## Lệnh vận hành
 
+Đợt dọn có giới hạn ngày 27/10/2026 đã nâng database chính lên
+`cfdb_legacy_cleanup`. Chạy `tools/apply_review_cleanup.py` để kiểm tra chỉ đọc;
+thêm `--apply` mới tạo/xác minh backup, diễn tập rollback và áp dụng. Công cụ
+chỉ bỏ bảng liên kết theo ví cũ khi rỗng, dọn token thuộc family hết hạn toàn bộ
+không còn token con được giữ lại tham chiếu, và OTP hết hạn đã quá cửa sổ giới
+hạn yêu cầu 60 giây. Không tự chạy khi API/worker khởi động và không tự lập lịch.
+
+Cờ `--resume-failed-purge` chỉ dành cho yêu cầu ImportError đã được rà soát,
+yêu cầu đúng một user PURGE_PENDING không có ví/dữ liệu tài chính/tệp. Yêu cầu
+này đã hoàn tất; không dùng lại cờ trên trạng thái hiện tại. Công cụ sử dụng dịch
+vụ purge trong transaction, không phát thư hoặc chạy tác vụ ngoài phạm vi.
+
+Giữ nguyên accounts, thông báo/ngân sách lịch sử, log, khóa chống gửi lặp,
+3 view cũ và bộ sơ đồ SSMS. Downgrade `cfdb_legacy_cleanup` chỉ khôi phục bảng
+cũ rỗng; khôi phục dữ liệu đã xóa phải dựa vào backup đã VERIFYONLY.
+Xem [kết quả triển khai và backup](CURRENT_SCHEMA.md).
+
+Chỉ dùng email (sau `cfdb_phone_verify`): chạy `tools/apply_email_only.py --apply`
+để backup, diễn tập và bỏ dữ liệu điện thoại mà giữ nguyên người dùng/tài chính.
+Các migration điện thoại trước đây chỉ còn là lịch sử nâng cấp.
+[Hợp đồng đăng ký/đăng nhập](../docs/auth-email.md).
+
+Ví độc lập (sau revision `cfdb_bank_link_v2`): chạy
+`tools/apply_independent_wallets.py` để diễn tập rollback; thêm `--apply` để
+backup, kiểm chứng và áp dụng. Công cụ không bật cờ ứng dụng. Xem
+[hợp đồng ví độc lập](../docs/independent-wallets.md) trước khi chuyển API/web.
+
+Thanh toán hóa đơn và tính chi tiêu (sau `cfdb_independent_wallets`): chạy
+`tools/apply_wallet_spending.py` để diễn tập; thêm `--apply` để backup, kiểm
+chứng và áp dụng. Phiên bản API/web ví độc lập hiện tại yêu cầu hoàn tất cả
+hai migration trước khi bật cờ. Xem [nghiệp vụ thanh toán](../docs/wallet-payment-spending.md).
+
 Chạy từ thư mục `capitalflow-database`, sử dụng môi trường Python của API:
 
 ```powershell
@@ -57,6 +89,22 @@ preflight/rollback và xin xác nhận nếu có thao tác phá hủy trước k
 `upgrade head` trên database thật.
 
 ## Ba loại ví và kết nối ngân hàng mô phỏng
+
+Revision hiện tại `cfdb_bank_link_v2` mở rộng cột số tài khoản đã che từ 8 lên
+20 ký tự. Công cụ `tools/apply_bank_link_v2.py` mặc định chỉ preflight;
+`--apply` chỉ nhận baseline `cfdb_bank_otp`, tạo/xác minh backup, diễn tập
+rollback và đối soát dữ liệu trước/sau. Đã áp dụng vào 21/10/2026, không chạy
+lại trên DB đã nâng. Luồng mới che mọi chữ số trừ 3 số cuối. Chi tiết demo và
+kiểm thử tại `../docs/bank-link-demo.md`.
+
+Revision `cfdb_bank_otp` bổ sung `password_reset_otps.purpose` và mặc định
+thời gian tạo OTP cho luồng gửi email liên kết ngân hàng. Database chính đã
+được nâng ngày 21/10/2026; xem bản sao lưu và kết quả kiểm tra trong
+`CURRENT_SCHEMA.md`. Công cụ `tools/apply_bank_otp.py` chỉ kiểm tra khi chạy
+không tham số; `--apply` yêu cầu database đang ở đúng `cfdb_invoice_dedup`,
+tạo và xác minh backup, diễn tập rollback, sau đó nâng schema và đối soát
+dữ liệu. Không chạy lại trên database đã nâng. OTP thử sử dụng email giả lập
+và được rollback; công cụ không gửi thư thật.
 
 Revision `cfdb_wallet_demo` thêm cột cho mục tiêu tiết kiệm, trạng thái liên kết
 ngân hàng mô phỏng và mã tham chiếu giao dịch ngân hàng. Revision đã được kiểm

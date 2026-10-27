@@ -3,9 +3,9 @@
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from app.chuc_nang.nguoi_dung.dang_nhap.luu_tru.nguoi_dung import User
@@ -56,6 +56,47 @@ def list_notifications(
         .offset((page - 1) * page_size).limit(page_size)).all()
     return NotificationPage(items=items, unread_count=unread_count,
                             total=total, page=page, page_size=page_size)
+
+
+@router.post("/read-all")
+def mark_all_notifications_read(
+    db: Session = Depends(get_db), user: User = Depends(get_current_user),
+):
+    db.execute(update(Notification).where(
+        Notification.user_id == user.id, Notification.read_at.is_(None),
+    ).values(read_at=utc_now_naive()))
+    db.commit()
+    return {"success": True}
+
+
+@router.delete("", status_code=204)
+def clear_read_notifications(
+    only_read: bool = Query(True),
+    db: Session = Depends(get_db), user: User = Depends(get_current_user),
+):
+    # This endpoint only clears read items; unread alerts require individual deletion.
+    if not only_read:
+        raise HTTPException(400, "Chỉ hỗ trợ xóa thông báo đã đọc")
+    db.execute(delete(Notification).where(
+        Notification.user_id == user.id, Notification.read_at.is_not(None),
+    ))
+    db.commit()
+    return Response(status_code=204)
+
+
+@router.delete("/{notification_id}", status_code=204)
+def delete_notification(
+    notification_id: uuid.UUID,
+    db: Session = Depends(get_db), user: User = Depends(get_current_user),
+):
+    notification = db.scalar(select(Notification).where(
+        Notification.id == notification_id, Notification.user_id == user.id,
+    ))
+    if notification is None:
+        raise HTTPException(404, "Không tìm thấy thông báo")
+    db.delete(notification)
+    db.commit()
+    return Response(status_code=204)
 
 
 @router.post("/{notification_id}/read", response_model=NotificationOut)

@@ -90,6 +90,8 @@ class InvoiceOut(BaseModel):
     duplicate_check: dict = Field(default_factory=dict)
     revision: int = 1
     deleted_at: datetime | None = None
+    trash_expires_at: datetime | None = None
+    can_restore: bool = False
     invoice_time: str | None = None
     duplicate_of_invoice_id: UUID | None = None
     transaction_id: UUID | None = None
@@ -103,6 +105,8 @@ class InvoiceListOut(BaseModel):
     """Dùng cho danh sách hóa đơn — không cần load items để giảm tải."""
     id: UUID
     deleted_at: datetime | None = None
+    trash_expires_at: datetime | None = None
+    can_restore: bool = False
     user_id: UUID
     source: str
     status: str
@@ -119,6 +123,8 @@ class InvoiceListOut(BaseModel):
     duplicate_of_invoice_id: UUID | None = None
     duplicate_level: Literal["NONE", "SUSPECTED", "EXACT"] = "NONE"
     duplicate_candidate_count: int = 0
+    duplicate_similarity_percent: int = 0
+    duplicate_match_id: UUID | None = None
 
     model_config = {"from_attributes": True}
 
@@ -169,6 +175,7 @@ class InvoicePage(BaseModel):
 
 
 class InvoiceDuplicateCheck(BaseModel):
+    items: list[InvoiceItemEdit] | None = Field(default=None, max_length=200)
     merchant_name: str | None = Field(default=None, max_length=255)
     merchant_address: str | None = Field(default=None, max_length=500)
     merchant_tax_code: str | None = Field(default=None, max_length=100)

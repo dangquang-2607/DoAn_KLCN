@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.dung_chung.http.phu_thuoc import get_current_user, get_db
@@ -26,6 +27,7 @@ from app.chuc_nang.nguoi_dung.dang_nhap.nghiep_vu.khoi_phuc_mat_khau import sele
 from app.chuc_nang.nguoi_dung.dang_nhap.nghiep_vu.tokens import create_refresh_token as _create_refresh_token
 from app.chuc_nang.nguoi_dung.dang_nhap.nghiep_vu.tokens import hash_refresh_token as _hash_token
 from app.chuc_nang.nguoi_dung.tai_chinh.thong_bao.dich_vu import emit_notification
+from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan.receiving import ensure_default_wallet
 from app.chuc_nang.nguoi_dung.dang_nhap.schemas.auth import (
     AccessTokenResponse,
     LoginRequest,
@@ -55,16 +57,24 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 def register(request: Request, payload: RegisterRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     existing = db.scalar(select(User).where(User.email == payload.email))
     if existing:
-        raise HTTPException(status_code=400, detail="Email đã được sử dụng")
+        raise HTTPException(status_code=409, detail="Email đã được sử dụng")
 
     user = User(
         email=payload.email,
         password_hash=hash_password(payload.password),
         full_name=payload.full_name,
     )
-    db.add(user)
-    db.flush()
+    try:
+        with db.begin_nested():
+            db.add(user)
+            db.flush()
+    except IntegrityError as exc:
+        # The unique indexes arbitrate concurrent registrations, after the friendly precheck.
+        if 'UX_users_email' not in str(exc.orig):
+            raise
+        raise HTTPException(status_code=409, detail="Email đã được sử dụng") from None
     db.refresh(user)
+    ensure_default_wallet(db, user)
 
     enqueue_email(db,
         EmailService.send_welcome_email,
@@ -87,7 +97,7 @@ def register(request: Request, payload: RegisterRequest, background_tasks: Backg
 def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)):
     user = db.scalar(select(User).where(User.email == payload.email))
 
-    if not user:
+    if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Email hoặc mật khẩu không đúng")
 
     if user.is_deleted:
@@ -96,9 +106,7 @@ def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Tài khoản của bạn đã bị khóa bởi Quản trị viên. Vui lòng liên hệ hỗ trợ để được mở khóa.")
 
-    if not verify_password(payload.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Email hoặc mật khẩu không đúng")
-
+    ensure_default_wallet(db, user)
     now = datetime.now(timezone.utc)
     user.last_login_at = now
     user.last_active_at = now
@@ -133,7 +141,9 @@ def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)
 @limiter.limit("5/minute")
 def forgot_password(request: Request, payload: ForgotPasswordRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     user = _otp_user(db, payload.email)
-    if not user or user.is_deleted or not user.is_active:
+    if not user:
+        raise HTTPException(status_code=404, detail="Email không tồn tại")
+    if user.is_deleted or not user.is_active:
         return {"success": True, "message": "Nếu email tồn tại trên hệ thống, mã xác thực OTP sẽ được gửi về hộp thư của bạn."}
 
     recent = db.scalar(select(PasswordResetOTP).where(PasswordResetOTP.user_id==user.id).order_by(PasswordResetOTP.created_at.desc()))
@@ -143,6 +153,7 @@ def forgot_password(request: Request, payload: ForgotPasswordRequest, background
     # Vô hiệu hóa các OTP cũ
     db.query(PasswordResetOTP).filter(
         PasswordResetOTP.email == payload.email,
+        PasswordResetOTP.purpose == "RESET_PASSWORD",
         PasswordResetOTP.is_used == False
     ).update({"is_used": True})
 
@@ -193,6 +204,7 @@ def verify_otp(request: Request, payload: VerifyOTPRequest, db: Session = Depend
     latest_otp = db.scalar(
         select(PasswordResetOTP).where(
             PasswordResetOTP.email == payload.email,
+            PasswordResetOTP.purpose == "RESET_PASSWORD",
             PasswordResetOTP.is_used == False,
         ).order_by(PasswordResetOTP.created_at.desc())
     )
@@ -241,6 +253,7 @@ def reset_password(request: Request, payload: ResetPasswordRequest, db: Session 
     latest_otp = db.scalar(
         select(PasswordResetOTP).where(
             PasswordResetOTP.email == payload.email,
+            PasswordResetOTP.purpose == "RESET_PASSWORD",
             PasswordResetOTP.is_used == False,
         ).order_by(PasswordResetOTP.created_at.desc())
     )

@@ -4,7 +4,7 @@ Chỉ gọi từ phía máy chủ. KHÔNG bao giờ để lộ khóa API ra phí
 
 Tích hợp:
   - Tự động Fallback: Ưu tiên model chính, nếu quá tải tự động chuyển sang model dự phòng.
-  - Hỗ trợ cả 2 loại key: AIzaSy (API key cũ) và AQ. (OAuth-style key mới).
+  - Hỗ trợ API key tiêu chuẩn và authorization key qua header x-goog-api-key.
   - Xử lý JSON an toàn, dọn dẹp markdown code fence và encoding UTF-8.
 """
 import base64
@@ -68,13 +68,10 @@ Lưu ý quan trọng:
 
 
 def _build_auth_headers(api_key: str) -> dict:
+    """Both standard and AQ authorization keys are API keys, not OAuth tokens.
+
+    https://ai.google.dev/gemini-api/docs/api-key
     """
-    Xây dựng header xác thực dựa trên định dạng API key.
-    - Key dạng 'AIzaSy...' → header 'x-goog-api-key' (kiểu API key cũ)
-    - Key dạng 'AQ...'      → header 'Authorization: Bearer' (kiểu OAuth-style mới)
-    """
-    if api_key.startswith("AQ.") or api_key.startswith("AQ"):
-        return {"Authorization": f"Bearer {api_key}"}
     return {"x-goog-api-key": api_key}
 
 

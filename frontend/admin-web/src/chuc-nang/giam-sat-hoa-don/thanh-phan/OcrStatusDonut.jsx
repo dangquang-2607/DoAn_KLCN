@@ -1,4 +1,21 @@
+/**
+ * ============================================================================
+ * TÊN FILE: OcrStatusDonut.jsx
+ * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
+ * MÀN HÌNH / PHÂN HỆ: Giám sát Hóa đơn OCR
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Biểu đồ tròn dạng Donut hiển thị tỷ lệ phân bổ các trạng thái hóa đơn:
+ *   hoàn thành (completed), đang xử lý (processing), chờ quét (uploaded), thất bại (failed).
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Props statusData, thư viện Recharts (PieChart, Cell, ResponsiveContainer).
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Default export OcrStatusDonut component.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Hiển thị tỷ lệ phần trăm chính xác; có chú giải màu sắc rõ ràng cho quản trị viên.
+ * ============================================================================
+ */
 import { BadgeCheck, CircleAlert, FileClock, ScanLine, UserRoundCheck } from "lucide-react";
+import { decimal as percentage } from "../../../dung-chung/tien-ich/adminPresentation";
 import "./ocr-status-donut.css";
 
 const palette = {
@@ -17,11 +34,13 @@ const callouts = {
   failed: { Icon: CircleAlert },
 };
 
-const percentage = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 });
 const radius = 90;
 const circumference = 2 * Math.PI * radius;
 const center = { x: 350, y: 210 };
 
+/**
+ * Biểu đồ Donut trực quan hóa tỷ lệ các trạng thái nhận diện hóa đơn OCR.
+ */
 export default function OcrStatusDonut({ segments, centerLabel }) {
   const total = segments.reduce((sum, segment) => sum + segment.value, 0);
   const active = segments.filter((segment) => segment.value > 0).reduce((items, segment) => {

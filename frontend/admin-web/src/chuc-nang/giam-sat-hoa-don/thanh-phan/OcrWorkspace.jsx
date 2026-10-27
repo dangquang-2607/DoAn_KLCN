@@ -1,3 +1,19 @@
+/**
+ * ============================================================================
+ * TÊN FILE: OcrWorkspace.jsx
+ * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
+ * MÀN HÌNH / PHÂN HỆ: Giám sát Hóa đơn OCR
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Không gian làm việc giám sát toàn diện hệ thống xử lý hóa đơn tự động AI:
+ *   danh sách hóa đơn toàn hệ thống, tỷ lệ lỗi, thời gian phản hồi và thanh tra chi tiết.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   React Query, API endpoints giám sát OCR, OcrStatusDonut component.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Default export OcrWorkspace component.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Không lưu trữ hoặc tải trực tiếp ảnh hóa đơn nếu không có yêu cầu thanh tra rõ ràng.
+ * ============================================================================
+ */
 import { BadgeCheck, CircleAlert, Clock3, FileClock, ScanLine, UserRoundCheck } from "lucide-react";
 import OcrStatusDonut from "./OcrStatusDonut";
 import { decimal, number } from "../../../dung-chung/tien-ich/adminPresentation";
@@ -11,10 +27,15 @@ const stages = [
   { key: "failed", field: "failed", label: "Thất bại", hint: "Cần kiểm tra và xử lý lại", color: "coral", Icon: CircleAlert },
 ];
 
+/**
+ * Không gian làm việc giám sát quy trình nhận diện hóa đơn AI toàn hệ thống.
+ */
 export default function OcrWorkspace({ data, retrying, onRetry }) {
-  const { invoices, ocr_jobs: jobs, recent_failures: failures } = data;
+  const invoices = data?.invoices || {};
+  const jobs = data?.ocr_jobs || {};
+  const failures = data?.recent_failures || [];
   return <>
-    <div className={`adm-ocr-signal${invoices.failed ? " is-alert" : ""}`}><span className="adm-ocr-signal-icon">{invoices.failed ? <CircleAlert size={24} /> : <BadgeCheck size={24} />}</span><div><p>TÌNH HÌNH HIỆN TẠI</p><h2>{invoices.failed ? `${number.format(invoices.failed)} hóa đơn cần kiểm tra` : "Không ghi nhận hóa đơn thất bại"}</h2><span>{number.format(invoices.uploaded)} hóa đơn chưa quét · {number.format(invoices.review_required)} hóa đơn chờ người dùng xác nhận.</span></div><span className="adm-ocr-signal-badge">{number.format(jobs.failed)} lượt OCR lỗi / {number.format(jobs.total)} lượt</span></div>
+    <div className={`adm-ocr-signal${invoices.failed ? " is-alert" : ""}`}><span className="adm-ocr-signal-icon">{invoices.failed ? <CircleAlert size={24} /> : <BadgeCheck size={24} />}</span><div><p>TÌNH HÌNH HIỆN TẠI</p><h2>{invoices.failed ? `${number.format(invoices.failed)} hóa đơn cần kiểm tra` : "Không ghi nhận hóa đơn thất bại"}</h2><span>{number.format(invoices.uploaded || 0)} hóa đơn chưa quét · {number.format(invoices.review_required || 0)} hóa đơn chờ người dùng xác nhận.</span></div><span className="adm-ocr-signal-badge">{number.format(jobs.failed || 0)} lượt OCR lỗi / {number.format(jobs.total || 0)} lượt</span></div>
     <section className="adm-card adm-ocr-flow-card"><div className="adm-card-head"><div><p className="adm-eyebrow">LUỒNG XỬ LÝ</p><h2>Hóa đơn đang ở đâu?</h2><p>Tỷ trọng trực quan bên trái, chi tiết từng giai đoạn bên phải.</p></div><ScanLine size={21} /></div>
       <div className="adm-ocr-flow-layout"><div className="adm-ocr-chart adm-ocr-chart--orbit"><OcrStatusDonut segments={stages.map(({ key, field, label, color }) => ({ key, label, color, value: invoices[field] }))} centerLabel="hóa đơn" /></div>
         <div className="adm-ocr-stage-panel"><header className="adm-ocr-stage-panel-head"><div><span>CHI TIẾT TRẠNG THÁI</span><strong>5 giai đoạn xử lý</strong></div><small>{number.format(invoices.total)} hóa đơn</small></header><ol className="adm-ocr-stage-list">{stages.map(({ key, field, label, hint, color, Icon }, index) => <li key={key} className={`adm-ocr-stage-row adm-ocr-stage-row--${color}${invoices[field] === 0 ? " is-zero" : ""}`}><span className="adm-ocr-stage-number">{String(index + 1).padStart(2, "0")}</span><span className="adm-ocr-stage-icon"><Icon size={19} /></span><div><strong>{label}</strong><small>{hint}</small></div><b>{number.format(invoices[field])}</b></li>)}</ol></div>

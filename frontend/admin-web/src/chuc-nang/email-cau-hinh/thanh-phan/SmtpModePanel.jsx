@@ -1,6 +1,25 @@
+/**
+ * ============================================================================
+ * TÊN FILE: SmtpModePanel.jsx
+ * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
+ * MÀN HÌNH / PHÂN HỆ: Cấu hình Email & Nhật ký gửi
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Bảng điều khiển trạng thái cấu hình máy chủ gửi thư SMTP: chế độ hoạt động
+ *   (Mock / Production), host, port, mã hóa TLS, và nút gửi email thử nghiệm (Test Email).
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Props config, onTestSend callback, trạng thái loading.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Default export SmtpModePanel component.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Tuyệt đối không để lộ mật khẩu SMTP trong giao diện hoặc phản hồi API.
+ * ============================================================================
+ */
 import { CheckCircle2, ShieldCheck } from "lucide-react";
 import { ErrorState, Loading } from "../../../dung-chung/UI-chung/design";
 
+/**
+ * Bảng hiển thị thông số kết nối SMTP và công cụ gửi thử nghiệm email.
+ */
 export default function SmtpModePanel({ query }) {
   if (query.isPending) return <section className="adm-card"><Loading /></section>;
   if (query.isError) return <section className="adm-card"><ErrorState retry={() => query.refetch()} /></section>;

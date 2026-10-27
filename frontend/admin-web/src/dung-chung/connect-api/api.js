@@ -116,7 +116,7 @@ function _doLogout() {
   }
   sessionStorage.removeItem("admin_access_token");
   sessionStorage.removeItem("admin_refresh_token");
-  window.location.href = "/";
+  window.location.href = "/login";
 }
 
 export default api;

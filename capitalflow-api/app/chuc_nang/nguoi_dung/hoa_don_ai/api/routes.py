@@ -1,7 +1,7 @@
 """
 Các route tải lên, OCR bằng Gemini AI, xác nhận và xóa hóa đơn an toàn.
 Tính năng:
-  - Upload hóa đơn → trạng thái UPLOADED (Chờ quét), người dùng tự bấm Quét AI.
+  - Upload → kiểm tra tạm SHA/OCR/trùng → bản mới REVIEW_REQUIRED hoặc trả bản cũ.
   - Quét đơn lẻ / hàng loạt (tối đa 5/lần) với Rate Limiter 15/phút.
   - Phát hiện hóa đơn trùng lặp (Duplicate Detection).
   - Xóa đơn lẻ & xóa hàng loạt (không giới hạn) — an toàn tuyệt đối với SQL Server FK.
@@ -49,6 +49,7 @@ from app.chuc_nang.nguoi_dung.hoa_don_ai.nghiep_vu.phan_tich_du_lieu import pars
 from app.chuc_nang.nguoi_dung.hoa_don_ai.ha_tang.invoice_xml import parse_invoice_xml
 
 from .telemetry import InvoiceMetricsRoute
+from ..nghiep_vu.deletion import trash_expired, trash_expires_at, purge_invoice
 
 router = APIRouter(prefix="/invoices", tags=["Invoices"], route_class=InvoiceMetricsRoute)
 
@@ -64,13 +65,15 @@ MAX_BATCH_OCR = 5  # Tối đa 5 hóa đơn / lần quét hàng loạt
     "",
     status_code=201,
     summary="Tải lên hóa đơn (Upload Invoice)",
-    description="Tải lên tệp hóa đơn (JPG, PNG, WEBP, PDF, XML — tối đa 10MB). XML được đọc trực tiếp; ảnh/PDF chờ người dùng bấm Quét AI.",
+    description="Kiểm tra SHA-256, nhận diện và đối chiếu trước khi tạo hóa đơn. XML đọc trực tiếp; ảnh/PDF tự OCR. Bản mới ở trạng thái chờ kiểm tra.",
 )
 def upload_invoice(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
     source: Annotated[Literal["UPLOAD", "CAMERA"], Form()] = "UPLOAD",
+    upload_ticket: Annotated[str | None, Form(max_length=2000000)] = None,
+    accept_distinct: Annotated[bool, Form()] = False,
     response: Response = None,
 ):
     ext = Path(file.filename or "").suffix.lower()
@@ -98,7 +101,7 @@ def upload_invoice(
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
     from app.chuc_nang.nguoi_dung.hoa_don_ai.nghiep_vu.tai_len import upload
-    result, created = upload(db, user, contents, file.filename, ext, actual_mime, source, xml_data)
+    result, created = upload(db, user, contents, file.filename, ext, actual_mime, source, xml_data, upload_ticket, accept_distinct)
     if response is not None:
         response.status_code = 201 if created else 200
     return result
@@ -114,12 +117,12 @@ def list_invoices(
     page: int = Query(1, ge=1, description="Số trang"),
     page_size: int = Query(50, ge=1, le=100, description="Số bản ghi mỗi trang"),
     status: str | None = Query(None, description="Trạng thái lọc"),
-    visibility: Literal["active", "hidden"] = "active",
+    visibility: Literal["active", "hidden", "trash"] = "active",
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     q = select(Invoice).where(Invoice.user_id == user.id,
-        Invoice.deleted_at.is_not(None) if visibility == "hidden" else Invoice.deleted_at.is_(None))
+        Invoice.deleted_at.is_not(None) if visibility in {"hidden", "trash"} else Invoice.deleted_at.is_(None))
     if status:
         q = q.where(Invoice.status == status.upper())
     q = q.order_by(Invoice.created_at.desc())
@@ -132,8 +135,12 @@ def list_invoices(
     summaries = []
     for item in items:
         summary = InvoiceListOut.model_validate(item)
+        summary.trash_expires_at = trash_expires_at(item)
+        summary.can_restore = bool(item.deleted_at and not trash_expired(item))
         summary.duplicate_level = checks[item.id]["level"]
         summary.duplicate_candidate_count = checks[item.id]["candidate_count"]
+        summary.duplicate_similarity_percent = checks[item.id]["similarity_percent"]
+        summary.duplicate_match_id = checks[item.id]["candidates"][0]["invoice_id"] if checks[item.id]["candidates"] else None
         summaries.append(summary)
     return InvoicePage(items=summaries, total=total, page=page, page_size=page_size)
 
@@ -164,6 +171,8 @@ def get_invoice(
     is_dup, dup_reason = _check_duplicate(db, user.id, invoice)
 
     result = InvoiceOut.model_validate(invoice)
+    result.trash_expires_at = trash_expires_at(invoice)
+    result.can_restore = bool(invoice.deleted_at and not trash_expired(invoice))
     result.items = [InvoiceItemOut.model_validate(it) for it in items]
     result.is_duplicate = is_dup
     result.duplicate_reason = dup_reason
@@ -187,6 +196,8 @@ def get_invoice_file(
     )
     if not invoice or not invoice.storage_key:
         raise HTTPException(status_code=404, detail="Không tìm thấy hóa đơn")
+    if trash_expired(invoice):
+        raise HTTPException(410, detail="Hóa đơn đã hết thời hạn lưu trong Thùng rác.")
 
     file_path = Path(settings.upload_dir) / invoice.storage_key
     if not file_path.exists():
@@ -322,6 +333,8 @@ def confirm_invoice(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    if settings.independent_wallets_enabled:
+        raise HTTPException(409, "Luồng ghi sổ đã thay đổi. Dùng /bookkeeping/invoices/{id}/confirm, không chọn ví.")
     from app.chuc_nang.nguoi_dung.hoa_don_ai.nghiep_vu.xac_nhan_hoa_don import confirm
     return confirm(db, user, invoice_id, payload)
 
@@ -336,7 +349,8 @@ def preview_duplicates(invoice_id: uuid.UUID, payload: InvoiceDuplicateCheck,
     # Evaluate edited values without mutating a tracked ORM instance.
     preview = SimpleNamespace(**{column.name: getattr(invoice, column.name) for column in Invoice.__table__.columns})
     for name, value in payload.model_dump(exclude_unset=True).items():
-        setattr(preview, name, parse_invoice_time(value) if name == "invoice_time" else value)
+        setattr(preview, '_duplicate_items' if name == 'items' else name,
+                parse_invoice_time(value) if name == "invoice_time" else value)
     return inspect_duplicates(db, user.id, preview)
 
 
@@ -380,6 +394,8 @@ def restore_invoice(invoice_id: uuid.UUID, payload: InvoiceRestore,
     invoice = lock_invoice(db, user, invoice_id)
     check_revision(invoice, payload.expected_revision)
     if invoice.deleted_at:
+        if trash_expired(invoice):
+            raise HTTPException(410, detail={"code": "INVOICE_TRASH_EXPIRED", "message": "Đã hết 30 ngày lưu trong Thùng rác; không thể khôi phục hóa đơn."})
         invoice.deleted_at = None
         invoice.revision += 1
         invoice.confirmation_generation += 1
@@ -392,7 +408,7 @@ def restore_invoice(invoice_id: uuid.UUID, payload: InvoiceRestore,
     "/{invoice_id}",
     status_code=204,
     summary="Xóa hóa đơn đơn lẻ (Delete Invoice)",
-    description="Ẩn hóa đơn và xóa ảnh sau commit; giữ thông tin chống trùng và khoản chi đã ghi sổ.",
+    description="Chuyển hóa đơn vào Thùng rác, giữ ảnh và thông tin 30 ngày. Hết hạn xóa vĩnh viễn hóa đơn; giữ khoản chi đã ghi sổ.",
 )
 def delete_invoice(
     invoice_id: uuid.UUID,
@@ -437,3 +453,26 @@ def batch_delete_invoices(
         "deleted": deleted,
         "not_found": not_found,
     }
+
+
+@router.post("/batch-purge", summary="Xóa vĩnh viễn hóa đơn trong Thùng rác")
+def permanently_delete_invoices(payload: InvoiceBatchDelete,
+                               db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    ids = sorted(set(payload.invoice_ids), key=str)
+    if not ids or len(ids) > 100:
+        raise HTTPException(422, detail="Chọn từ 1 đến 100 hóa đơn trong Thùng rác.")
+    locked_user(db, user.id, user.token_version)
+    invoices = db.scalars(select(Invoice).where(Invoice.user_id == user.id, Invoice.id.in_(ids))
+        .order_by(Invoice.id).with_hint(Invoice, "WITH (UPDLOCK, ROWLOCK)", dialect_name="mssql")
+        .execution_options(populate_existing=True)).all()
+    # Validate the complete batch first. A restored invoice must never be purged
+    # by an old browser selection; serialize with restore and the retention worker.
+    if any(not invoice.deleted_at for invoice in invoices):
+        raise HTTPException(409, detail={"code": "INVOICE_NOT_IN_TRASH",
+            "message": "Có hóa đơn không còn trong Thùng rác. Hãy làm mới danh sách; chưa xóa hóa đơn nào."})
+    found = {invoice.id for invoice in invoices}
+    for invoice in invoices:
+        purge_invoice(db, invoice)
+    db.commit()
+    return {"success": True, "deleted": len(invoices),
+            "not_found": [str(i) for i in ids if i not in found]}

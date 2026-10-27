@@ -23,13 +23,11 @@ import PageHead from "../../dung-chung/UI-chung/WorkspaceHead";
 import { errorMessage } from "../../dung-chung/tien-ich/format";
 import useDebouncedValue from "../../dung-chung/tien-ich/useDebouncedValue";
 import UserInspector from "./thanh-phan/UserInspector";
-import {
-  UserFilters,
-  UserBulkBar,
-  UserTable,
-  UserActionModal,
-  protectedAccount,
-} from "./thanh-phan/index";
+import UserFilters from "./thanh-phan/UserFilters";
+import UserBulkBar from "./thanh-phan/UserBulkBar";
+import UserTable from "./thanh-phan/UserTable";
+import UserActionModal from "./thanh-phan/UserActionModal";
+import { protectedAccount } from "./xu-ly/utils";
 
 export default function Users() {
   const [params] = useSearchParams();
@@ -165,6 +163,7 @@ function UsersContent({ initialSearch, initialStatus }) {
         });
         message = "Đã khôi phục tài khoản. Người dùng cần đăng nhập lại.";
       } else if (action === "retry-delete") {
+        if (!target?.deletion?.id) return;
         const filePhase = target.deletion?.checkpoint === "DB_PURGED";
         await api.post(
           `/admin/user-deletions/${target.deletion.id}/${filePhase ? "retry-files" : "retry-purge"}`,

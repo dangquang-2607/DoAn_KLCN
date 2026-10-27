@@ -1,9 +1,28 @@
+/**
+ * ============================================================================
+ * TÊN FILE: EmailInspector.jsx
+ * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
+ * MÀN HÌNH / PHÂN HỆ: Cấu hình Email & Nhật ký gửi
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Ngăn kéo (Drawer) thanh tra chi tiết một lượt gửi email: người nhận, tiêu đề,
+ *   thời gian, mã trạng thái phản hồi SMTP, và thông điệp lỗi (nếu có).
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Props item (bản ghi email log được chọn), onClose callback.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Default export EmailInspector component.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Che giấu nội dung mã nhạy cảm như OTP hoặc token đặt lại mật khẩu trong log xem.
+ * ============================================================================
+ */
 import { Eye, Mail } from "lucide-react";
 import Inspector from "../../../dung-chung/UI-chung/Inspector";
 import { Alert } from "../../../dung-chung/UI-chung/design";
 import { emailStatus } from "../xu-ly/emailStatus";
 import { timestamp } from "../../../dung-chung/tien-ich/adminPresentation";
 
+/**
+ * Bảng thanh tra chi tiết thông tin và kết quả gửi của một email hệ thống.
+ */
 export default function EmailInspector({ detail, types, onClose }) {
   const status = emailStatus(detail?.status);
   return <Inspector selectedId={detail?.id} title={detail?.subject || "Chi tiết chuyển phát"} eyebrow="LẦN GỬI ĐANG XEM" className="adm-email-inspector" icon={Mail} onClose={onClose}>{detail && <>

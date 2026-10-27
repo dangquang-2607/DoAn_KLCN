@@ -48,11 +48,9 @@ def _verify_account_ownership(db: Session, account_id: uuid.UUID, user_id: uuid.
             status_code=400,
             detail="Tài khoản ví không hợp lệ hoặc không thuộc quyền sở hữu của bạn"
         )
-    # ── ĐÃ BỎ CHECK: Cho phép tạo giao dịch thủ công trên ví ngân hàng mô phỏng ──
-    # if acc.bank_state:
-    #     import json
-    #     if json.loads(acc.bank_state).get("external_account"):
-    #         raise HTTPException(409, "Ví ngân hàng mô phỏng chỉ nhận giao dịch đồng bộ")
+    if json.loads(acc.bank_state or "{}").get("version") == 2:
+        raise HTTPException(409, "Ví liên kết chỉ đọc dữ liệu ngân hàng. Hãy dùng ví cơ bản để ghi giao dịch thủ công.")
+    # Legacy wallets keep their previous behaviour until explicitly relinked.
     return acc
 
 
@@ -86,10 +84,8 @@ def _adjust_balance(
     acc = db.scalar(select(Account).where(Account.id == account_id).with_hint(Account, "WITH (UPDLOCK, ROWLOCK)", dialect_name="mssql").execution_options(populate_existing=True))
     if not acc:
         raise HTTPException(status_code=404, detail="Tài khoản không tồn tại")
-    # ── ĐÃ BỎ CHECK: Cho phép cập nhật số dư ví ngân hàng mô phỏng ──
-    # if acc.bank_managed:
-    #     raise HTTPException(409, "Ví ngân hàng chỉ cập nhật số dư qua đồng bộ")
-
+    if json.loads(acc.bank_state or "{}").get("version") == 2:
+        raise HTTPException(409, "Số dư ví liên kết chỉ cập nhật từ ngân hàng mô phỏng.")
     # Rule CSDL: INCOME >= 0, EXPENSE <= 0
     actual_amount = abs(amount) if tx_type == TransactionType.INCOME else -abs(amount)
 
@@ -244,8 +240,27 @@ def update_transaction(
     if not txn:
         raise HTTPException(status_code=404, detail="Không tìm thấy giao dịch")
 
-    # ── ĐÃ BỎ CHECK bank_reference: Cho phép sửa mọi giao dịch ──
     _require_editable(txn)
+    account = db.scalar(select(Account).where(Account.id == txn.account_id, Account.user_id == user_id)
+                        .with_hint(Account, "WITH (UPDLOCK, ROWLOCK)", dialect_name="mssql"))
+    if account and account.bank_read_only:
+        if not payload.model_fields_set <= {"category_id", "note"}:
+            raise HTTPException(409, "Giao dịch ngân hàng chỉ cho sửa danh mục và ghi chú.")
+        if payload.category_id:
+            _verify_category_ownership(db, payload.category_id, user_id, txn.type,
+                                       allow_inactive=payload.category_id == txn.category_id)
+        for key, value in payload.model_dump(exclude_unset=True).items():
+            setattr(txn, key, value)
+        if "category_id" in payload.model_fields_set:
+            txn.category_confidence = Decimal("1.0000") if txn.category_id else None
+            txn.category_source = "MANUAL" if txn.category_id else None
+            txn.category_was_auto = False
+        if commit:
+            db.commit()
+        else:
+            db.flush()
+        db.refresh(txn)
+        return txn
 
     # IDOR Guard: kiểm tra quyền sở hữu ví mới (nếu thay đổi)
     new_account_id = payload.account_id or txn.account_id
@@ -320,6 +335,8 @@ def delete_transactions(db: Session, tx_ids: list[uuid.UUID], user_id: uuid.UUID
         .execution_options(populate_existing=True)).all()}
     if len(accounts) != len(account_ids):
         raise HTTPException(status_code=409, detail="Tài khoản của giao dịch không còn hợp lệ")
+    if any(json.loads(account.bank_state or "{}").get("version") == 2 for account in accounts.values()):
+        raise HTTPException(409, "Không xóa giao dịch nguồn của ví liên kết. Lịch sử được cập nhật qua đồng bộ.")
 
     invoice_ids = sorted({txn.invoice_id for txn in transactions.values() if txn.invoice_id}, key=str)
     invoices = {invoice.id: invoice for invoice in db.scalars(select(Invoice).where(

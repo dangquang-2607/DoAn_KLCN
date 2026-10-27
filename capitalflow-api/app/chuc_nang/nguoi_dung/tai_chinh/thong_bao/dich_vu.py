@@ -51,12 +51,12 @@ def maybe_emit_unusual_transaction(db: Session, transaction) -> None:
     """Cảnh báo khoản chi >= 5 triệu hoặc >= 3 lần mức chi gần đây (tối thiểu 1 triệu)."""
     from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.luu_tru.giao_dich import Transaction
 
-    if transaction.kind != "NORMAL" or transaction.type != "EXPENSE":
+    if transaction.kind != "NORMAL" or transaction.type != "EXPENSE" or not transaction.include_in_reports:
         return
     amount = abs(Decimal(str(transaction.amount)))
     prior = db.scalars(select(Transaction.amount).where(
         Transaction.user_id == transaction.user_id,
-        Transaction.type == "EXPENSE", Transaction.kind == "NORMAL",
+        Transaction.type == "EXPENSE", Transaction.kind == "NORMAL", Transaction.include_in_reports == True,
         Transaction.id != transaction.id,
     ).order_by(Transaction.created_at.desc()).limit(20)).all()
     average = sum((abs(Decimal(str(value))) for value in prior), Decimal("0")) / len(prior) if prior else Decimal("0")
@@ -67,7 +67,7 @@ def maybe_emit_unusual_transaction(db: Session, transaction) -> None:
         title="Khoản chi bất thường",
         message=f"Khoản chi {amount} VND: {transaction.description or 'Giao dịch không có mô tả'}.",
         source_type="TRANSACTION", source_id=transaction.id,
-        action_url=f"/transactions?account_id={transaction.account_id}",
+        action_url=f"/transactions?account_id={transaction.account_id}" if transaction.account_id else "/transactions",
         metadata={"amount": str(amount), "rule": "large_or_3x_recent_average"},
         dedupe_key=f"transaction:unusual:{transaction.id}",
     )

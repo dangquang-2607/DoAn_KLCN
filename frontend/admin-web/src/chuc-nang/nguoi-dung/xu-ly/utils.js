@@ -57,3 +57,11 @@ export const actionTitles = {
   "bulk-delete": "Xóa mềm tài khoản đã chọn",
   "retry-delete": "Thử lại tác vụ xóa",
 };
+
+/** Tạo chữ cái viết tắt đại diện an toàn cho avatar người dùng. */
+export function userInitials(user) {
+  const name = (user?.full_name || user?.email || "?").trim();
+  const parts = name.split(/\s+/).filter(Boolean);
+  if (!parts.length) return "?";
+  return parts.slice(-2).map((part) => part[0] || "").join("").toUpperCase();
+}

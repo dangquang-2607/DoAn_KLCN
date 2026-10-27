@@ -95,9 +95,10 @@ def _export_rows(
         raise HTTPException(status_code=422, detail="Khoảng báo cáo không hợp lệ hoặc vượt quá 367 ngày")
     rows = db.execute(
         select(Transaction, Account.name, Category.name, Account.currency)
-        .join(Account, Account.id == Transaction.account_id)
+        .outerjoin(Account, Account.id == Transaction.account_id)
         .outerjoin(Category, Category.id == Transaction.category_id)
-        .where(Transaction.user_id == user.id, Transaction.transaction_date.between(start_date, end_date))
+        .where(Transaction.user_id == user.id, Transaction.transaction_date.between(start_date, end_date),
+               Transaction.kind == 'NORMAL', Transaction.include_in_reports == True)
         .order_by(Transaction.transaction_date.desc(), Transaction.created_at.desc(), Transaction.id)
     ).all()
     return start_date, end_date, rows
@@ -119,9 +120,9 @@ def export_analytics_data(
             {
                 "transaction_date": transaction.transaction_date,
                 "type": transaction.type, "kind": transaction.kind,
-                "account_name": account_name,
+                "account_name": account_name or "Sổ thu chi",
                 "category_name": category_name or "Không phân loại",
-                "amount": str(transaction.amount), "currency": currency,
+                "amount": str(transaction.amount), "currency": currency or "VND",
                 "description": transaction.description or "", "source": transaction.source,
             }
             for transaction, account_name, category_name, currency in rows

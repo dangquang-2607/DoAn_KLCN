@@ -18,15 +18,15 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import ProtectedRoute from './dung-chung/xac-thuc/ProtectedRoute';
 
 const DashboardLayout = lazy(() => import('./dung-chung/layouts/DashboardLayout'));
-const Login = lazy(() => import('./chuc-nang/dang-nhap'));
-const Dashboard = lazy(() => import('./chuc-nang/bang-dieu-khien'));
-const Users = lazy(() => import('./chuc-nang/nguoi-dung'));
-const Categories = lazy(() => import('./chuc-nang/danh-muc-he-thong'));
-const Settings = lazy(() => import('./chuc-nang/cai-dat-bao-mat'));
-const AuditLogs = lazy(() => import('./chuc-nang/nhat-ky-quan-tri'));
-const SystemAnalytics = lazy(() => import('./chuc-nang/phan-tich-van-hanh'));
-const OcrMonitor = lazy(() => import('./chuc-nang/giam-sat-hoa-don'));
-const EmailLogs = lazy(() => import('./chuc-nang/email-cau-hinh'));
+const Login = lazy(() => import('./chuc-nang/dang-nhap/Login'));
+const Dashboard = lazy(() => import('./chuc-nang/bang-dieu-khien/Dashboard'));
+const Users = lazy(() => import('./chuc-nang/nguoi-dung/Users'));
+const Categories = lazy(() => import('./chuc-nang/danh-muc-he-thong/Categories'));
+const Settings = lazy(() => import('./chuc-nang/cai-dat-bao-mat/Settings'));
+const AuditLogs = lazy(() => import('./chuc-nang/nhat-ky-quan-tri/AuditLogs'));
+const SystemAnalytics = lazy(() => import('./chuc-nang/phan-tich-van-hanh/SystemAnalytics'));
+const OcrMonitor = lazy(() => import('./chuc-nang/giam-sat-hoa-don/OcrMonitor'));
+const EmailLogs = lazy(() => import('./chuc-nang/email-cau-hinh/EmailLogs'));
 
 // Fallback gọn nhẹ được hiển thị trong lúc tải chunk của từng route.
 const PageLoader = () => (
@@ -37,9 +37,8 @@ const PageLoader = () => (
       border: '2.5px solid rgba(0,0,0,0.1)',
       borderTopColor: 'var(--brand-primary, #000)',
       borderRadius: '50%',
-      animation: 'spin 0.7s linear infinite'
+      animation: 'cf-spin 0.7s linear infinite'
     }} />
-    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
   </div>
 );
 

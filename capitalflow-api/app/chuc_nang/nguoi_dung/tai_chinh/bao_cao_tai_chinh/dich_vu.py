@@ -17,7 +17,7 @@ def monthly_cashflow(db: Session, user_id: UUID, month: int | None = None, year:
         y.label("year"), m.label("month"),
         func.sum(case((T.type == "INCOME", T.amount), else_=0)).label("income"),
         func.sum(case((T.type == "EXPENSE", -T.amount), else_=0)).label("expense"),
-    ).where(T.user_id == user_id, T.kind == "NORMAL")
+    ).where(T.user_id == user_id, T.kind == "NORMAL", T.include_in_reports == True)
     if month is not None:
         if year is None:
             raise ValueError("year is required when month is provided")
@@ -36,7 +36,7 @@ def category_spending(db: Session, user_id: UUID, month: int, year: int) -> dict
     end=date(year+1,1,1) if month==12 and year<9999 else date(year,month+1,1) if month<12 else date.max
     rows = db.execute(select(Category.name, func.sum(-T.amount)).outerjoin(
         Category, Category.id == T.category_id
-    ).where(T.user_id == user_id, T.kind == "NORMAL", T.type == "EXPENSE",
+    ).where(T.user_id == user_id, T.kind == "NORMAL", T.include_in_reports == True, T.type == "EXPENSE",
             T.transaction_date >= start, T.transaction_date < end).group_by(Category.name)).all()
     return {name or "Khác": float(amount) for name, amount in rows}
 
@@ -48,7 +48,7 @@ def cashflow_range(db: Session, user_id: UUID, start: date, end: date) -> dict[s
             func.coalesce(func.sum(case((T.type == "EXPENSE", -T.amount), else_=0)), 0),
         ).where(
             T.user_id == user_id,
-            T.kind == "NORMAL",
+            T.kind == "NORMAL", T.include_in_reports == True,
             T.transaction_date.between(start, end),
         )
     ).one()
@@ -61,7 +61,7 @@ def category_spending_range(db: Session, user_id: UUID, start: date, end: date) 
         select(Category.name, func.sum(-T.amount))
         .outerjoin(Category, Category.id == T.category_id)
         .where(
-            T.user_id == user_id, T.kind == "NORMAL", T.type == "EXPENSE",
+            T.user_id == user_id, T.kind == "NORMAL", T.include_in_reports == True, T.type == "EXPENSE",
             T.transaction_date.between(start, end),
         )
         .group_by(Category.name)
@@ -77,7 +77,7 @@ def cashflow_trend_range(db: Session, user_id: UUID, start: date, end: date) -> 
             func.coalesce(func.sum(case((T.type == "INCOME", T.amount), else_=0)), 0),
             func.coalesce(func.sum(case((T.type == "EXPENSE", -T.amount), else_=0)), 0),
         ).where(
-            T.user_id == user_id, T.kind == "NORMAL",
+            T.user_id == user_id, T.kind == "NORMAL", T.include_in_reports == True,
             T.transaction_date.between(start, end),
         ).group_by(T.transaction_date).order_by(T.transaction_date)
     ).all()

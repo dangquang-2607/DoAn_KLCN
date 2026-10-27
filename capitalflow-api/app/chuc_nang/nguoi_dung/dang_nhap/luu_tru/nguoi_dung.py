@@ -9,7 +9,7 @@ Ràng buộc: password hash, trạng thái khóa và vòng đời xóa phải đ
 import enum
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Boolean, DateTime, func, Uuid, Unicode, UnicodeText, Integer, Index, CheckConstraint
+from sqlalchemy import String, Boolean, DateTime, func, Uuid, Unicode, UnicodeText, Integer, Index, CheckConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 from app.dung_chung.database.nen_tang import Base
 

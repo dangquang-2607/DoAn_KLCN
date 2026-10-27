@@ -1,3 +1,20 @@
+/**
+ * ============================================================================
+ * TÊN FILE: sessionPresentation.js
+ * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
+ * MÀN HÌNH / PHÂN HỆ: Quản lý Phiên đăng nhập & Bảo mật
+ * NHÓM VỆ TINH: dung-chung (Định dạng hiển thị thiết bị)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Phân tích chuỗi User-Agent để xác định tên thiết bị (Windows, macOS, Linux, iOS, Android),
+ *   trình duyệt (Chrome, Safari, Firefox, Edge) và gắn biểu tượng tương ứng.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Chuỗi user-agent thô từ HTTP header.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Các hàm resolveDeviceType, resolveBrowserName, formatSessionSubtitle.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Tránh regex ReDoS khi phân tích chuỗi User-Agent độ dài lớn.
+ * ============================================================================
+ */
 import { timestamp } from "../tien-ich/adminPresentation";
 
 export const SESSION_PAGE_SIZE = 4;

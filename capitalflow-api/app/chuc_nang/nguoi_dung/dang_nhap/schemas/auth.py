@@ -6,18 +6,29 @@ Vai trò: kiểm tra payload đăng ký, đăng nhập, refresh, OTP và đổi 
 Ràng buộc: không đưa mật khẩu, OTP hoặc refresh token vào log/chuỗi biểu diễn tùy chỉnh.
 """
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class RegisterRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
     email: EmailStr
     password: str = Field(min_length=6, max_length=128)
     full_name: str = Field(default="", max_length=150)
 
+    @field_validator('email')
+    @classmethod
+    def canonical_email(cls, value):
+        return str(value).lower()
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    model_config = ConfigDict(extra='forbid')
+    email: EmailStr = Field(validation_alias=AliasChoices('email', 'identifier'))
     password: str
+
+    @field_validator('email')
+    @classmethod
+    def canonical_identifier(cls, value):
+        return str(value).lower()
 
 
 class TokenResponse(BaseModel):

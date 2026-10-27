@@ -32,16 +32,16 @@ export default function SystemAnalytics() {
   const [anchor, setAnchor] = useState(todayInVietnam);
   const query = useQuery({ queryKey: ["admin-analytics", unit, anchor], queryFn: async ({ signal }) => (await api.get("/admin/system/analytics", { params: { unit, anchor, periods: 12 }, signal })).data });
   const data = query.data;
-  const comparisonNote = data ? `${dateLabel(data.comparison.current_start)}–${dateLabel(data.comparison.current_end)} đối chiếu ${dateLabel(data.comparison.previous_start)}–${dateLabel(data.comparison.previous_end)}. ${data.period.partial ? "Kỳ hiện tại chưa kết thúc; đối chiếu cùng số ngày lịch." : "So sánh hai kỳ trọn vẹn."}` : "";
+  const comparisonNote = (data?.comparison && data?.period) ? `${dateLabel(data.comparison.current_start)}–${dateLabel(data.comparison.current_end)} đối chiếu ${dateLabel(data.comparison.previous_start)}–${dateLabel(data.comparison.previous_end)}. ${data.period.partial ? "Kỳ hiện tại chưa kết thúc; đối chiếu cùng số ngày lịch." : "So sánh hai kỳ trọn vẹn."}` : "";
 
   return (
     <div className="adm-surface sa-demo adm-live">
       <PageHead eyebrow="VẬN HÀNH" title="Phân tích hệ thống" description="Số liệu sử dụng tổng hợp, không hiển thị nội dung giao dịch cá nhân." actions={<button className="cf-btn" onClick={() => query.refetch()} disabled={query.isFetching}><RefreshCw />Làm mới</button>} />
-      <AnalyticsPeriodFilter unit={unit} anchor={anchor} period={data?.period} today={data?.period.today || todayInVietnam()} onUnit={setUnit} onAnchor={setAnchor} />
+      <AnalyticsPeriodFilter unit={unit} anchor={anchor} period={data?.period} today={data?.period?.today || todayInVietnam()} onUnit={setUnit} onAnchor={setAnchor} />
       {query.isPending ? <Loading /> : query.isError ? <ErrorState retry={() => query.refetch()} /> : (
         <>
           <SystemMetricCards data={data} />
-          <AnalyticsVolumeChart view={{ label: units[unit], trend: data.trend.map((item) => ({ ...item, label: periodLabel({ ...item, unit }, true) })) }} period={{ id: data.period.start, total: data.metrics.total, comparableTotal: data.comparison.current, previous: data.comparison.previous, previousLabel: dateLabel(data.comparison.previous_start), comparisonNote }} />
+          <AnalyticsVolumeChart view={{ label: units[unit], trend: (data.trend || []).map((item) => ({ ...item, label: periodLabel({ ...item, unit }, true) })) }} period={{ id: data.period?.start, total: data.metrics?.total, comparableTotal: data.comparison?.current, previous: data.comparison?.previous, previousLabel: dateLabel(data.comparison?.previous_start), comparisonNote }} />
           <div className="sa-demo__charts">
             <TopCategoriesChart data={data.top_categories} total={data.metrics.total} context={periodLabel(data.period)} />
             <TransactionCompositionWidget transactions={data.metrics} />

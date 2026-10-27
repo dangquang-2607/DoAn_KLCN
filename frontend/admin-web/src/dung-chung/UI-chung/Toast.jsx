@@ -13,7 +13,6 @@
  *   Không chứa secret hoặc tự thay đổi dữ liệu nghiệp vụ; luôn tôn trọng khả năng truy cập.
  * ============================================================================
  */
-"use client";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, AlertTriangle, Info, X } from "lucide-react";

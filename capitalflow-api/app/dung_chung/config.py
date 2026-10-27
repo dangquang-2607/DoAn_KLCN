@@ -17,6 +17,7 @@ API_ROOT = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
+    independent_wallets_enabled: bool = False
     app_name: str = "CapitalFlow API"
     app_env: str = "development"
     debug: bool = True

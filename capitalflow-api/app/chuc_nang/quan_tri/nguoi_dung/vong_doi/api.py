@@ -19,7 +19,7 @@ from app.chuc_nang.nguoi_dung.dang_nhap.luu_tru.nguoi_dung import User
 from app.chuc_nang.quan_tri.nguoi_dung.luu_tru.xoa_nguoi_dung import UserDeletionFile, UserDeletionRequest
 from app.dung_chung.email.dich_vu import EmailService
 from app.dung_chung.tac_vu_nen.hang_doi import enqueue, enqueue_email
-from app.chuc_nang.quan_tri.nguoi_dung.vong_doi.dich_vu import deleted_email_alias, email_fingerprint, original_email
+from app.chuc_nang.quan_tri.nguoi_dung.vong_doi.dich_vu import deleted_email_alias, email_fingerprint, original_email, has_wallets
 
 from app.chuc_nang.quan_tri.dung_chung.tien_ich import (
     BulkDeleteRequest,
@@ -113,6 +113,8 @@ def delete_user(
             "deletion": _deletion_request_out(request),
         }
 
+    if has_wallets(db, target.id):
+        raise HTTPException(status_code=409, detail="Không thể xóa vĩnh viễn tài khoản đã có ví, kể cả ví đã đóng. Có thể khóa tài khoản.")
     if target.deletion_status == "PURGE_PENDING":
         raise HTTPException(status_code=409, detail="Yêu cầu xóa vĩnh viễn đang được xử lý")
     try:
@@ -314,6 +316,8 @@ def retry_user_deletion_purge(
     target = _locked_user(db, request.target_user_id)
     if not target or target.deletion_status != "PURGE_PENDING":
         raise HTTPException(status_code=409, detail="Tài khoản đích không còn ở trạng thái chờ xóa")
+    if has_wallets(db, target.id):
+        raise HTTPException(status_code=409, detail="Không thể xóa vĩnh viễn tài khoản đã có ví, kể cả ví đã đóng. Có thể khóa tài khoản.")
     request.status = "PENDING"
     request.purge_checkpoint = "REQUESTED"
     request.error_code = None

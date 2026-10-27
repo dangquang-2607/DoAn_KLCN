@@ -13,10 +13,9 @@
  *   Primitive chỉ trình bày; không tự gọi API hoặc quyết định quyền truy cập.
  * ============================================================================
  */
-"use client";
+import { useEffect, useId, useRef, cloneElement, isValidElement, useState } from "react";
+import { createPortal } from "react-dom";
 import Toast from "./Toast";
-import { MotionValue } from "./Motion";
-import { useEffect, useId, useRef, cloneElement, isValidElement } from "react";
 import {
   AlertCircle,
   Inbox,
@@ -27,19 +26,7 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-import { useState } from "react";
-export function PageHead({ title, description, actions, eyebrow }) {
-  return (
-    <div className="cf-page-head">
-      <div>
-        {eyebrow && <div className="cf-eyebrow">{eyebrow}</div>}
-        <h1>{title}</h1>
-        {description && <p>{description}</p>}
-      </div>
-      {actions && <div className="cf-row">{actions}</div>}
-    </div>
-  );
-}
+
 export function Panel({
   title,
   description,
@@ -60,18 +47,6 @@ export function Panel({
       )}
       {children}
     </section>
-  );
-}
-export function Stat({ label, value, note, icon, tone = "blue" }) {
-  return (
-    <div className={`cf-panel cf-stat cf-stat--${tone}`}>
-      <div className="cf-stat-label">
-        {label}
-        {icon}
-      </div>
-      <div className="cf-stat-value cf-number"><MotionValue>{value}</MotionValue></div>
-      {note && <p className="cf-stat-note">{note}</p>}
-    </div>
   );
 }
 export function Alert({ children, kind = "error", persistent = false, onDismiss }) {
@@ -231,7 +206,7 @@ export function Modal({ title, children, onClose, busy = false }) {
       prior?.focus();
     };
   }, [busy]);
-  return (
+  return createPortal(
     <div
       className="cf-dialog"
       onMouseDown={(e) => {
@@ -258,7 +233,8 @@ export function Modal({ title, children, onClose, busy = false }) {
         </div>
         <div className="cf-dialog-body">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 export function Password({
@@ -293,3 +269,4 @@ export function Password({
     </div>
   );
 }
+

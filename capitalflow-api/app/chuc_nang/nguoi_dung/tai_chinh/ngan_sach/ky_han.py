@@ -86,6 +86,7 @@ def progress_for_period(db: Session, budget: Budget, start: date, end: date, tod
         query = select(func.coalesce(func.sum(-Transaction.amount), 0)).where(
             Transaction.user_id == budget.user_id,
             Transaction.kind == "NORMAL",
+            Transaction.include_in_reports == True,
             Transaction.type == "EXPENSE",
             or_(*conditions),
         )

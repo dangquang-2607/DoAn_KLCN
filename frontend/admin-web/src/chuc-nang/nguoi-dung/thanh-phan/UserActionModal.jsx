@@ -56,7 +56,7 @@ export default function UserActionModal({
               />
             </Field>
             <Alert kind="info">
-              Hệ thống tao mật khẩu tạm thời va gửi thông tin kích hoạt qua
+              Hệ thống tạo mật khẩu tạm thời và gửi thông tin kích hoạt qua
               email. Người dùng cần đổi mật khẩu khi đăng nhập.
             </Alert>
           </>
@@ -232,7 +232,7 @@ export default function UserActionModal({
             disabled={
               busy ||
               !hardConfirmed ||
-              (deletionReasonRequired && form.reason.trim().length < 3)
+              (deletionReasonRequired && (form.reason?.trim() || "").length < 3)
             }
           >
             {busy ? "Đang xử lý..." : "Xác nhận"}

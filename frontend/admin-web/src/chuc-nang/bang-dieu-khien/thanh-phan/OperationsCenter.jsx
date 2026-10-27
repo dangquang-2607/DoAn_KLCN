@@ -1,14 +1,35 @@
+/**
+ * ============================================================================
+ * TÊN FILE: OperationsCenter.jsx
+ * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
+ * MÀN HÌNH / PHÂN HỆ: Bảng điều khiển quản trị (Dashboard)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Cung cấp trung tâm thao tác điều hành nhanh cho quản trị viên: lối tắt đến
+ *   quản lý người dùng, giám sát hóa đơn OCR, cấu hình SMTP và nhật ký kiểm toán.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   React Router (Link, useNavigate), Lucide icons.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Default export OperationsCenter component.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Các liên kết được phân quyền chặt chẽ theo vai trò quản trị viên.
+ * ============================================================================
+ */
 import { Activity, ArrowRight, CheckCircle2, CircleAlert, Clock3, FileClock, LockKeyhole, ScanLine, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import { decimal, number } from "../../../dung-chung/tien-ich/adminPresentation";
 
+/**
+ * Trung tâm điều hướng nhanh các tác vụ vận hành cốt lõi.
+ */
 export default function OperationsCenter({ users, data }) {
-  const { invoices, ocr_jobs: jobs } = data;
-  const needsAttention = invoices.failed > 0;
+  const invoices = data?.invoices || {};
+  const jobs = data?.ocr_jobs || {};
+  const safeUsers = users || {};
+  const needsAttention = (invoices.failed || 0) > 0;
   const rows = [
-    { Icon: FileClock, tone: "slate", label: "Hàng đợi đầu vào", value: invoices.uploaded, noun: "hóa đơn chưa quét", note: "Chưa đồng nghĩa với lỗi; theo dõi tốc độ xử lý", status: "THEO DÕI", to: "/ocr-monitor", link: "Xem hàng đợi" },
-    { Icon: ShieldCheck, tone: "teal", label: "Chờ người dùng", value: invoices.review_required, noun: "hóa đơn chờ xác nhận", note: "Người dùng kiểm tra kết quả OCR", status: "CHỜ PHẢN HỒI", to: "/ocr-monitor", link: "Xem trạng thái" },
-    { Icon: LockKeyhole, tone: "violet", label: "Quyền truy cập", value: users.banned, noun: "tài khoản bị khóa", note: "Rà soát khi có yêu cầu hỗ trợ mở khóa", status: "THEO DÕI", to: "/users?status=banned", link: "Quản lý người dùng" },
+    { Icon: FileClock, tone: "slate", label: "Hàng đợi đầu vào", value: invoices.uploaded || 0, noun: "hóa đơn chưa quét", note: "Chưa đồng nghĩa với lỗi; theo dõi tốc độ xử lý", status: "THEO DÕI", to: "/ocr-monitor", link: "Xem hàng đợi" },
+    { Icon: ShieldCheck, tone: "teal", label: "Chờ người dùng", value: invoices.review_required || 0, noun: "hóa đơn chờ xác nhận", note: "Người dùng kiểm tra kết quả OCR", status: "CHỜ PHẢN HỒI", to: "/ocr-monitor", link: "Xem trạng thái" },
+    { Icon: LockKeyhole, tone: "violet", label: "Quyền truy cập", value: safeUsers.banned || 0, noun: "tài khoản bị khóa", note: "Rà soát khi có yêu cầu hỗ trợ mở khóa", status: "THEO DÕI", to: "/users?status=banned", link: "Quản lý người dùng" },
   ];
   return <section className="adm-ops" aria-labelledby="adm-ops-title">
     <header className="adm-ops-head"><div><p className="adm-eyebrow">ƯU TIÊN HIỆN TẠI</p><h2 id="adm-ops-title">Trung tâm xử lý</h2><span>Sự cố cần can thiệp tách khỏi các trạng thái chỉ cần theo dõi.</span></div><span className={`adm-ops-count ${needsAttention ? "is-warning" : "is-healthy"}`}><Activity size={14} aria-hidden="true" />{number.format(invoices.failed)} hóa đơn cần admin</span></header>

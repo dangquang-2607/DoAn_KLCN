@@ -1,9 +1,29 @@
+/**
+ * ============================================================================
+ * TÊN FILE: ActionMenu.jsx
+ * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
+ * MÀN HÌNH / PHÂN HỆ: Thành phần giao diện dùng chung (UI Primitives)
+ * NHÓM VỆ TINH: dung-chung (Menu ngữ cảnh)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Hiển thị nút menu ba chấm (...) và danh sách tùy chọn thả xuống (Dropdown)
+ *   cho từng dòng bản ghi; tự động đóng khi nhấp ra ngoài hoặc bấm Escape.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Props items, triggerAriaLabel, callback thực thi thao tác.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Default export ActionMenu component.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Hỗ trợ điều hướng bằng bàn phím (ArrowUp, ArrowDown, Enter) chuẩn W3C a11y.
+ * ============================================================================
+ */
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { MoreHorizontal } from "lucide-react";
 
 // Portal prevents menus from being clipped by horizontally scrollable tables.
 // Standard buttons support Tab navigation; Escape/outside click closes safely.
+/**
+ * Menu tùy chọn thả xuống cho các thao tác trên dòng dữ liệu.
+ */
 export default function ActionMenu({ label, actions }) {
   const [position, setPosition] = useState(null);
   const trigger = useRef(null);

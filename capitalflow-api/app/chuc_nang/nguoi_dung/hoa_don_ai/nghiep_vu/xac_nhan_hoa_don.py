@@ -16,10 +16,10 @@ from .vong_doi import lock_invoice, require_visible, check_revision, record_even
 from .luy_dang import begin_operation, finish_operation
 
 
-def confirm(db, user, invoice_id, payload):
+def confirm(db, user, invoice_id, payload, *, record_only=False):
     for attempt in range(3):
         try:
-            return _confirm(db, user, invoice_id, payload)
+            return _confirm(db, user, invoice_id, payload, record_only=record_only)
         except IntegrityError:
             db.rollback()
             conflict("INVOICE_WRITE_CONFLICT", "Dữ liệu hóa đơn vừa thay đổi. Hãy tải lại trước khi thử lại.")
@@ -35,12 +35,14 @@ def confirm(db, user, invoice_id, payload):
             raise
 
 
-def _confirm(db, user, invoice_id, payload):
-    pending, replay = begin_operation(db, user, "invoice-confirm", {"invoice_id": str(invoice_id), "payload": payload.model_dump(mode="json")})
+def _confirm(db, user, invoice_id, payload, *, record_only=False):
+    pending, replay = begin_operation(db, user, "invoice-record" if record_only else "invoice-confirm", {"invoice_id": str(invoice_id), "payload": payload.model_dump(mode="json")})
     if replay is not None:
         db.rollback()
         return replay
     invoice = lock_invoice(db, user, invoice_id)
+    if record_only and invoice.currency != 'VND':
+        raise HTTPException(422, "Sổ thu chi hiện chỉ hỗ trợ hóa đơn bằng VND")
     existing = db.scalar(select(Transaction).where(Transaction.invoice_id == invoice.id, Transaction.user_id == user.id))
     if existing:
         return finish_operation(db, pending, {"success": True, "transaction_id": str(existing.id),
@@ -89,6 +91,9 @@ def _confirm(db, user, invoice_id, payload):
     if "invoice_time" in payload.model_fields_set:
         invoice.invoice_time = parse_invoice_time(payload.invoice_time)
     refresh_identity(invoice)
+    # SessionLocal disables autoflush: compare the actual edited item rows,
+    # not a stale basket from before this confirmation request.
+    db.flush()
     check = inspect_duplicates(db, user.id, invoice)
     if check["level"] == "EXACT":
         conflict("INVOICE_DUPLICATE_EXACT", "Hóa đơn này đã tồn tại. Vui lòng mở bản gốc.", duplicate_check=check)
@@ -132,7 +137,24 @@ def _confirm(db, user, invoice_id, payload):
                 "category_was_auto": True,
             }
 
-    txn = create_transaction(
+    creator = create_transaction
+    if record_only:
+        from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.bookkeeping import create_record
+        creator = create_record
+    linked_txn = None
+    if record_only:
+        from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.payment_records import linked_record, check_possible_payment
+        if payload.wallet_entry_id:
+            linked_txn,evidence=linked_record(db,user.id,payload.wallet_entry_id)
+            if linked_txn.invoice_id:
+                raise HTTPException(409,'Khoản thanh toán đã gắn hóa đơn khác. Hãy mở hóa đơn đã có.')
+            if final_amount != -evidence.amount:
+                raise HTTPException(422,'Tổng hóa đơn phải khớp số tiền thanh toán khi liên kết')
+            linked_txn.invoice_id=invoice.id
+        else:
+            from app.chuc_nang.nguoi_dung.tai_chinh.ngan_sach.ky_han import today_vn
+            check_possible_payment(db,user.id,final_amount,invoice.invoice_date or today_vn(),payload.accept_separate_record)
+    txn = linked_txn if linked_txn is not None else creator(
         db=db,
         user_id=user.id,
         source=TransactionSource.OCR,
@@ -145,16 +167,17 @@ def _confirm(db, user, invoice_id, payload):
         transaction_date=invoice.invoice_date or datetime.now().date(),
         note=payload.note,
         invoice_id=invoice.id,
+        **({'include_in_reports':payload.include_in_reports} if record_only else {}),
         **category_metadata,
     )
 
     invoice.status = "CONFIRMED"
     invoice.confirmed_at = datetime.now(timezone.utc)
     invoice.account_id = payload.account_id
-    invoice.category_id = category_id
+    invoice.category_id = txn.category_id
     enqueue(db, "BUDGET", {"user_id": str(user.id), "transaction_id": str(txn.id)}, "budget-check:" + str(txn.id))
     invoice.revision += 1
     record_event(db, invoice, "RECONFIRM" if invoice.confirmation_generation else "CONFIRM", transaction_id=str(txn.id))
     return finish_operation(db, pending, {"success": True, "transaction_id": str(txn.id),
-                                         "outcome": "CREATED", "revision": invoice.revision})
+                                         "outcome": "LINKED_PAYMENT" if linked_txn is not None else "CREATED", "revision": invoice.revision})
 

@@ -7,12 +7,13 @@ import json
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import delete, func, or_, select, update
+from sqlalchemy import delete, func, inspect, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.dung_chung.config import settings
 from app.dung_chung.security.secrets import unseal
 from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan.luu_tru.account import Account
+from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan.luu_tru.wallet import Wallet
 from app.chuc_nang.quan_tri.nhat_ky_quan_tri.luu_tru.nhat_ky import AuditLog
 from app.dung_chung.tac_vu_nen.luu_tru.tac_vu_nen import BackgroundJob
 from app.chuc_nang.nguoi_dung.tai_chinh.ngan_sach.luu_tru.ngan_sach import Budget
@@ -30,6 +31,14 @@ from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.luu_tru.giao_dich import Trans
 from app.chuc_nang.nguoi_dung.dang_nhap.luu_tru.nguoi_dung import User
 from app.chuc_nang.quan_tri.nguoi_dung.luu_tru.xoa_nguoi_dung import UserDeletionFile, UserDeletionRequest
 from app.dung_chung.tac_vu_nen.hang_doi import decode, enqueue, now
+
+
+def has_wallets(db: Session, user_id: uuid.UUID) -> bool:
+    # Applies even after disabling the feature flag, and includes closed/empty wallets.
+    # Pre-migration deployments do not yet have this additive table.
+    if not inspect(db.connection()).has_table(Wallet.__tablename__):
+        return False
+    return db.scalar(select(Wallet.id).where(Wallet.user_id == user_id).limit(1)) is not None
 
 
 def email_fingerprint(email: str) -> str:
@@ -131,6 +140,12 @@ def purge_user_database(
     if user.deletion_status != "PURGE_PENDING":
         raise ValueError("User is not pending purge")
 
+    if has_wallets(db, user.id):
+        request.status = "FAILED"
+        request.error_code = "USER_HAS_WALLETS"
+        request.updated_at = now()
+        return "FAILED"
+
     request.status = "RUNNING"
     request.purge_checkpoint = "DB_PURGE"
     request.error_code = None
@@ -214,6 +229,10 @@ def purge_user_database(
     db.execute(delete(Invoice).where(Invoice.user_id == user_id))
     db.execute(delete(Budget).where(Budget.user_id == user_id))
     db.execute(delete(Notification).where(Notification.user_id == user_id))
+    # A user may have provisioned demo banks without ever creating a wallet.
+    from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan.luu_tru.wallet import UserBankLink, DemoBankBalance
+    db.execute(delete(UserBankLink).where(UserBankLink.user_id == user_id))
+    db.execute(delete(DemoBankBalance).where(DemoBankBalance.user_id == user_id))
     db.execute(delete(Account).where(Account.user_id == user_id))
     db.execute(delete(Category).where(Category.owner_user_id == user_id))
 

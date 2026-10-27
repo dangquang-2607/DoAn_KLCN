@@ -1,8 +1,27 @@
+/**
+ * ============================================================================
+ * TÊN FILE: LoginSessions.jsx
+ * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
+ * MÀN HÌNH / PHÂN HỆ: Quản lý Phiên đăng nhập & Bảo mật
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Hiển thị danh sách các phiên đăng nhập quản trị đang hoạt động: thiết bị,
+ *   trình duyệt, địa chỉ IP, thời điểm đăng nhập, và cung cấp nút hủy phiên từ xa.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   React Query, API endpoints quản lý phiên (/auth/sessions), sessionPresentation.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Default export LoginSessions component.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Đánh dấu rõ phiên hiện tại của chính quản trị viên để tránh vô tình tự hủy.
+ * ============================================================================
+ */
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Laptop } from "lucide-react";
 import { Empty, ErrorState, Loading } from "../UI-chung/design";
 import { sessionDeviceName, sessionPage, sessionTimestamp } from "./sessionPresentation";
 
+/**
+ * Bảng quản lý và giám sát các phiên làm việc của quản trị viên.
+ */
 export default function LoginSessions({ query }) {
   const [requestedPage, setPage] = useState(1);
   const { page, pages, items, start, end, total } = sessionPage(query.data || [], requestedPage);

@@ -1,3 +1,19 @@
+/**
+ * ============================================================================
+ * TÊN FILE: AuditInspector.jsx
+ * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
+ * MÀN HÌNH / PHÂN HỆ: Nhật ký kiểm toán (Audit Logs)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Ngăn kéo (Drawer) hiển thị đầy đủ thông tin chi tiết của một bản ghi kiểm toán:
+ *   quản trị viên thực hiện, loại hành động, địa chỉ IP, User-Agent, payload thay đổi (diff).
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Props log (bản ghi nhật ký được chọn), onClose callback.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Default export AuditInspector component.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Dữ liệu kiểm toán chỉ đọc (read-only), bất biến và không thể chỉnh sửa hay xóa.
+ * ============================================================================
+ */
 import { Globe2, Network, ShieldCheck, UserRound } from "lucide-react";
 import Inspector from "../../../dung-chung/UI-chung/Inspector";
 import { ErrorState, Loading } from "../../../dung-chung/UI-chung/design";
@@ -8,6 +24,9 @@ function Context({ title, icon: Icon, rows }) {
   return <section className="adm-audit-context"><h3><Icon size={15} />{title}</h3><dl>{rows.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value ?? "Chưa ghi nhận"}</dd></div>)}</dl></section>;
 }
 
+/**
+ * Bảng thanh tra chi tiết sự kiện nhật ký kiểm toán quản trị viên.
+ */
 export default function AuditInspector({ selectedId, query, onClose }) {
   const log = query.data;
   return <Inspector selectedId={selectedId} ready={!query.isPending} title={log ? actionLabel(log.action) : "Bản ghi chi tiết"} eyebrow="BẢN GHI CHI TIẾT" className="adm-audit-detail" icon={ShieldCheck} onClose={onClose}>

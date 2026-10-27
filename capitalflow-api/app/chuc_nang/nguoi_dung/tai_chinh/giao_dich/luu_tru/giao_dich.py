@@ -22,6 +22,7 @@ class TransactionSource(str, enum.Enum):
     OCR = "OCR"          # Tự động tạo từ quét hóa đơn
     IMPORT = "IMPORT"    # Import từ file CSV/Excel
     SYSTEM = "SYSTEM"    # Hệ thống tự sinh (VD: định kỳ)
+    WALLET = "WALLET"    # Ghi nhận từ khoản thanh toán ví, không ghi tiền lần hai.
 
 
 class Transaction(Base):
@@ -29,9 +30,11 @@ class Transaction(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
-    account_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("accounts.id"))
+    account_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("accounts.id"), nullable=True)
     category_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("categories.id"), nullable=True)
     invoice_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("invoices.id"), nullable=True)
+    wallet_entry_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('wallet_entries.id', name='FK_transactions_wallet_entry'), nullable=True)
+    include_in_reports: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default='1')
 
     description: Mapped[str] = mapped_column(Unicode(255), nullable=False, default="")
     amount: Mapped[Decimal] = mapped_column(Numeric(19, 2), nullable=False)
@@ -54,6 +57,7 @@ class Transaction(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.sysutcdatetime(), onupdate=func.sysutcdatetime())
 
     __table_args__ = (
+        Index('UX_transactions_wallet_entry', 'wallet_entry_id', unique=True, mssql_where=text('wallet_entry_id IS NOT NULL'), sqlite_where=text('wallet_entry_id IS NOT NULL')),
         Index("UX_transactions_bank_reference", "account_id", "bank_reference", unique=True,
               mssql_where=text("bank_reference IS NOT NULL"), sqlite_where=text("bank_reference IS NOT NULL")),
         CheckConstraint("(type = 'INCOME' AND amount > 0) OR (type = 'EXPENSE' AND amount < 0)", name="CK_transactions_amount_sign"),

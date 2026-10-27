@@ -312,13 +312,21 @@ def main(argv=None):
 
     try:
         if args.once:
+            if not kinds or 'FILE_DELETE' in kinds:
+                from app.chuc_nang.nguoi_dung.hoa_don_ai.nghiep_vu.deletion import purge_expired_invoices
+                purge_expired_invoices(SessionLocal)
             run_once() if not kinds else run_once(kinds=kinds)
             return
 
         lane = ",".join(sorted(kinds)) if kinds else "ALL"
         print(f"Worker started for {lane}. Waiting for jobs; press Ctrl+C to stop.", flush=True)
+        next_trash_sweep = 0
         while True:
             try:
+                if (not kinds or 'FILE_DELETE' in kinds) and time.monotonic() >= next_trash_sweep:
+                    from app.chuc_nang.nguoi_dung.hoa_don_ai.nghiep_vu.deletion import purge_expired_invoices
+                    purge_expired_invoices(SessionLocal)
+                    next_trash_sweep = time.monotonic() + 60
                 processed = run_once() if not kinds else run_once(kinds=kinds)
                 if not processed:
                     time.sleep(1)

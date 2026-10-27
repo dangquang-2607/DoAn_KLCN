@@ -20,6 +20,7 @@ import { Alert, ErrorState, Loading } from "../../dung-chung/UI-chung/design";
 import PageHead from "../../dung-chung/UI-chung/WorkspaceHead";
 import OcrWorkspace from "./thanh-phan/OcrWorkspace";
 import api from "../../dung-chung/connect-api/api";
+import { errorMessage } from "../../dung-chung/tien-ich/format";
 
 export default function OcrMonitor() {
   const [retrying, setRetrying] = useState("");
@@ -34,7 +35,7 @@ export default function OcrMonitor() {
       await api.post(`/admin/system/ocr-jobs/${jobId}/retry`);
       await query.refetch();
     } catch (error) {
-      setRetryError(error?.response?.data?.detail || "Không thể gửi lại tác vụ OCR.");
+      setRetryError(errorMessage(error));
     } finally { setRetrying(""); }
   };
 

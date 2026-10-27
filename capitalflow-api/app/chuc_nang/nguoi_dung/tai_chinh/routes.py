@@ -8,7 +8,6 @@ Ràng buộc: không thêm prefix mới hoặc thay đổi URL công khai.
 
 from fastapi import APIRouter
 
-from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan import api as accounts
 from app.chuc_nang.nguoi_dung.tai_chinh.ngan_sach import api as budgets
 from app.chuc_nang.nguoi_dung.tai_chinh.bao_cao_tai_chinh import (
     dashboard,
@@ -19,11 +18,19 @@ from app.chuc_nang.nguoi_dung.tai_chinh.thong_bao import api as notifications
 
 
 router = APIRouter()
-router.include_router(accounts.router)
+from app.dung_chung.config import settings
+from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan.wallet_api import router as wallet_router
+from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.bookkeeping import router as bookkeeping_router
+if settings.independent_wallets_enabled:
+    router.include_router(wallet_router)
+    router.include_router(bookkeeping_router)
+else:
+    from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan import api as accounts
+    from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan.legacy_bank_sync.bank import router as bank_router
+    router.include_router(accounts.router)
+    router.include_router(bank_router)
+    router.include_router(transactions.router)
+    router.include_router(dashboard.router)
 router.include_router(notifications.router)
-router.include_router(transactions.router)
 router.include_router(budgets.router)
-router.include_router(dashboard.router)
 router.include_router(phan_tich.router)
-from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan.bank import router as bank_router
-router.include_router(bank_router)
