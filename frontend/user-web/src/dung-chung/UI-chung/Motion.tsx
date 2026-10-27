@@ -1,12 +1,34 @@
+/**
+ * ============================================================================
+ * TÊN FILE: Motion.tsx
+ * MÀN HÌNH / PHÂN HỆ: Hiệu ứng chuyển động trực quan (Micro-Interactions)
+ * NHÓM VỆ TINH: dung-chung (Thành phần giao diện dùng chung)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Cung cấp các hiệu ứng chuyển động sống động: MotionValue làm nổi bật giá trị thay đổi,
+ *   TransferFlow minh họa dòng tiền chuyển khoản giữa hai ví, InvoiceFlow minh họa quét OCR.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Biểu tượng Lucide (ArrowRight, Check, Wallet, ScanLine, v.v.), CSS animation.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Các component MotionValue, TransferFlow, InvoiceFlow.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Đảm bảo hiệu ứng nhẹ nhàng, không gây ảnh hưởng đến hiệu năng render chính.
+ * ============================================================================
+ */
 "use client";
 
 import { ReactNode } from "react";
 import { ArrowRight, Check, FileText, ScanLine, Wallet, X } from "lucide-react";
 
+/**
+ * Làm nổi bật sự thay đổi của giá trị số hoặc văn bản bằng animation nhẹ.
+ */
 export function MotionValue({ children }: { children: ReactNode }) {
   return <span key={String(children)} className="cf-value-reveal">{children}</span>;
 }
 
+/**
+ * Minh họa đồ họa dòng tiền chuyển giao dịch giữa ví nguồn và ví đích.
+ */
 export function TransferFlow({
   from,
   to,

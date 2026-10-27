@@ -1,3 +1,19 @@
+/**
+ * ============================================================================
+ * TÊN FILE: BudgetWorkspace.tsx
+ * MÀN HÌNH / PHÂN HỆ: Quản lý Ngân sách chi tiêu
+ * NHÓM VỆ TINH: thanh-phan (Không gian làm việc giao diện)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Hiển thị không gian làm việc quản lý ngân sách danh mục: danh sách ngân sách đang chạy,
+ *   lịch sử các kỳ trước, chi tiết định mức chi tiêu, thanh tiến độ và các tác vụ quản trị.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Danh sách Budget[], Category[], cờ history, các callback (onEdit, onDelete, onToggle, onEnd, onReuse).
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Default export BudgetWorkspace component.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Tính toán tỷ lệ chi tiêu chính xác; cảnh báo khi mức chi vượt quá 100% ngân sách.
+ * ============================================================================
+ */
 import { useState } from "react";
 import { CategoryIcon } from "@/dung-chung/UI-chung/CategoryIcon";
 import ListDetailLayout, { RecordRow } from "@/dung-chung/UI-chung/ListDetailLayout";
@@ -9,6 +25,9 @@ import styles from "../CSS/budget-workspace.module.css";
 // Một ngân sách có nhiều kỳ lịch sử; mỗi dòng phải có khóa riêng theo kỳ.
 const recordKey = (budget: Budget) => `${budget.budget_id}:${budget.start_date}:${budget.end_date}`;
 
+/**
+ * Không gian quản lý và theo dõi tiến độ ngân sách chi tiêu trực quan.
+ */
 export default function BudgetWorkspace({ budgets, categories, history = false, onEdit, onDelete, onToggle, onEnd, onReuse }: {
   budgets: Budget[]; categories: Category[]; history?: boolean;
   onEdit?: (budget: Budget) => void; onDelete?: (budget: Budget) => void;

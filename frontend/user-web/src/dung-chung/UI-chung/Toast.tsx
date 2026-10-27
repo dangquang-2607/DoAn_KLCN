@@ -1,3 +1,19 @@
+/**
+ * ============================================================================
+ * TÊN FILE: Toast.tsx
+ * MÀN HÌNH / PHÂN HỆ: Thông báo nổi (Toast Notification)
+ * NHÓM VỆ TINH: dung-chung (Thành phần thông báo)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Hiển thị thông báo nổi nhanh gọn góc màn hình (Thành công, Lỗi, Thông tin)
+ *   với cơ chế tự động biến mất sau khoảng thời gian chỉ định (mặc định 4000ms).
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   React Portal (tạo container #toast-portal nếu chưa có), Biểu tượng Lucide.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Default export Toast component và interface ToastProps.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Hỗ trợ đóng thông báo thủ công bằng phím Escape hoặc nút đóng có aria-label.
+ * ============================================================================
+ */
 "use client";
 
 import { useEffect, useState, ReactNode } from "react";
@@ -11,6 +27,9 @@ export interface ToastProps {
   onDismiss?: () => void;
 }
 
+/**
+ * Component thông báo nổi góc màn hình kèm thanh tiến trình tự tắt.
+ */
 export default function Toast({
   children,
   kind = "info",

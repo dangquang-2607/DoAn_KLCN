@@ -1,3 +1,19 @@
+/**
+ * ============================================================================
+ * TÊN FILE: WalletWorkspace.tsx
+ * MÀN HÌNH / PHÂN HỆ: Quản lý Ví & Tài khoản
+ * NHÓM VỆ TINH: thanh-phan (Không gian làm việc chính)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Không gian làm việc quản trị ví tài chính độc lập: tạo/sửa ví, chuyển tiền nội bộ
+ *   giữa các ví, tạo mã QR nhận tiền VietQR, xem sao kê biến động số dư và liên kết ví.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Các API endpoints (/accounts/wallets, /accounts/wallets/transfer, v.v.), React Query.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Default export WalletWorkspace component.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Đảm bảo tính nhất quán số dư kép (khi chuyển tiền thì ví nguồn trừ tiền, ví đích cộng tiền).
+ * ============================================================================
+ */
 "use client";
 import { useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -20,6 +36,9 @@ type Recipient = { id: string; name: string; recipient_name: string; is_own: boo
 type Entry = { id: string; operation_id: string; kind: string; amount: string; balance_after: string; created_at: string; merchant_name?: string; bill_reference?: string; bookkeeping_id?: string; recorded_amount?: string; include_in_reports?: boolean; category_id?: string; category_name?: string };
 const labels: Record<string, string> = { TOPUP: "Nạp từ ngân hàng", WITHDRAW: "Rút về ngân hàng", TRANSFER_IN: "Nhận chuyển tiền", TRANSFER_OUT: "Chuyển tiền", PAYMENT: "Thanh toán hóa đơn" };
 
+/**
+ * Không gian quản trị tổng thể hệ thống ví tài chính độc lập và giao dịch chuyển khoản.
+ */
 export default function WalletWorkspace() {
   const cache = useQueryClient();
   const [showClosed, setShowClosed] = useState(false);

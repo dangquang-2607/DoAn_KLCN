@@ -1,3 +1,19 @@
+/**
+ * ============================================================================
+ * TÊN FILE: ReportCharts.tsx
+ * MÀN HÌNH / PHÂN HỆ: Báo cáo & Phân tích tài chính
+ * NHÓM VỆ TINH: thanh-phan (Thành phần giao diện con)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Hiển thị tập hợp biểu đồ phân tích trực quan: Biểu đồ diện tích xu hướng thu chi,
+ *   biểu đồ tròn cơ cấu danh mục chi tiêu và biểu đồ cột so sánh với kỳ trước.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Thư viện Recharts (AreaChart, BarChart, PieChart), dữ liệu phân tích AnalyticsData.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Default export ReportCharts component.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Chuẩn hóa nhãn trục, hiển thị số tiền rút gọn (k, tr) để chống tràn layout biểu đồ.
+ * ============================================================================
+ */
 "use client";
 
 import { Area, AreaChart, Bar, CartesianGrid, Cell, ComposedChart, Line, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -13,6 +29,12 @@ function Header({ eyebrow, title, description }: { eyebrow: string; title: strin
   return <header className={styles.sectionHead}><span className={styles.overline}>{eyebrow}</span><h2>{title}</h2><p>{description}</p></header>;
 }
 
+/**
+ * Component kết xuất hệ thống biểu đồ báo cáo tài chính đa chiều.
+ * 
+ * @param data - Dữ liệu thống kê kỳ phân tích, danh mục và chuỗi thời gian.
+ * @param mode - Chế độ xem kỳ báo cáo (ngày, tháng, quý, năm, tùy chỉnh).
+ */
 export default function ReportCharts({ trend, categories, previousCategories, totalExpense, net, showComparison }: {
   trend: ReportTrendPoint[];
   categories: Record<string, number>;

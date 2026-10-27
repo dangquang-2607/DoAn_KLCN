@@ -1,6 +1,25 @@
+/**
+ * ============================================================================
+ * TÊN FILE: InvoiceTrashNotice.tsx
+ * MÀN HÌNH / PHÂN HỆ: Nhận diện hóa đơn AI (OCR)
+ * NHÓM VỆ TINH: thanh-phan (Thành phần giao diện con)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Hiển thị banner thông báo cảnh báo khi hóa đơn đang nằm trong Thùng rác,
+ *   thời hạn hết hạn khôi phục (30 ngày) và nút khôi phục hóa đơn về danh sách hoạt động.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Thông tin hóa đơn Invoice (chứa deleted_at, trash_expires_at, can_restore).
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Default export InvoiceTrashNotice component.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Khóa nút khôi phục nếu hóa đơn đã vượt quá thời hạn cho phép trong Thùng rác.
+ * ============================================================================
+ */
 import { RotateCcw, Trash2 } from "lucide-react";
 import type { Invoice } from "../xu-ly/InvoiceTypes";
 
+/**
+ * Banner cảnh báo hóa đơn đã bị xóa mềm và cung cấp tùy chọn khôi phục.
+ */
 export default function InvoiceTrashNotice({
   invoice,
   busy,

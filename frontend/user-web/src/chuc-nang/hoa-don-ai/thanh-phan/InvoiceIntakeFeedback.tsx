@@ -1,7 +1,26 @@
+/**
+ * ============================================================================
+ * TÊN FILE: InvoiceIntakeFeedback.tsx
+ * MÀN HÌNH / PHÂN HỆ: Nhận diện hóa đơn AI (OCR)
+ * NHÓM VỆ TINH: thanh-phan (Thành phần giao diện con)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Hiển thị phản hồi tức thì về tiến trình tiếp nhận hóa đơn tải lên, bao gồm
+ *   trạng thái xử lý OCR, cảnh báo trùng lặp tệp và các nút hành động (thử lại, mở xem).
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Danh sách UploadEntry, kết quả UploadResult, trạng thái busy/checking.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Default export InvoiceIntakeFeedback component.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Giải phóng bộ nhớ URL đối tượng xem trước (revokeObjectURL) khi unmount.
+ * ============================================================================
+ */
 import { Modal } from "@/dung-chung/UI-chung/ui";
 import { useEffect, useState } from "react";
 import type { UploadEntry, UploadResult } from "../xu-ly/InvoiceTypes";
 
+/**
+ * Tạo và dọn dẹp URL cục bộ để người dùng xem nhanh ảnh hóa đơn đối chiếu.
+ */
 function LocalPreview({ file }: { file: File }) {
   const [url, setUrl] = useState("");
   useEffect(() => {
@@ -12,6 +31,9 @@ function LocalPreview({ file }: { file: File }) {
   return url ? <a className="cf-inline-link" href={url} target="_blank" rel="noreferrer">Xem tệp mới để đối chiếu</a> : null;
 }
 
+/**
+ * Hộp phản hồi trạng thái tiếp nhận và xử lý hóa đơn tải lên.
+ */
 export default function InvoiceIntakeFeedback({ entries, match, busy, checking, onRetry, onOpen, onRemove, onDismiss }: {
   entries: UploadEntry[]; match: UploadResult | null; busy: boolean; checking: boolean;
   onRetry: (file: File, ticket?: string) => void; onOpen: (id: string) => void;

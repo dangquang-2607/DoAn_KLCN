@@ -1,3 +1,19 @@
+/**
+ * ============================================================================
+ * TÊN FILE: TopupWithdrawModal.tsx
+ * MÀN HÌNH / PHÂN HỆ: Quản lý Ví & Tài khoản
+ * NHÓM VỆ TINH: thanh-phan (Hộp thoại thao tác nghiệp vụ)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Cung cấp hộp thoại modal toàn diện để thực hiện nạp tiền vào ví hoặc rút tiền về
+ *   tài khoản ngân hàng liên kết, đồng thời hỗ trợ quản lý danh sách tài khoản ngân hàng.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Ví hiện tại (currentWallet), danh sách ngân hàng liên kết, chế độ thao tác (TOPUP / WITHDRAW).
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Default export TopupWithdrawModal component.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Kiểm tra số dư trước khi rút tiền; xác thực số tài khoản ngân hàng trước khi lưu liên kết.
+ * ============================================================================
+ */
 "use client";
 
 import { useEffect, useRef, useId, type FormEvent } from "react";
@@ -38,6 +54,9 @@ const WITHDRAW_CHIPS = [
   { label: "500.000đ", value: "500000" },
 ];
 
+/**
+ * Hộp thoại modal xử lý quy trình nạp tiền, rút tiền và liên kết tài khoản ngân hàng.
+ */
 export default function TopupWithdrawModal({
   activeTab,
   onTabChange,

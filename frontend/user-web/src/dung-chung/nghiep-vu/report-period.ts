@@ -1,3 +1,19 @@
+/**
+ * ============================================================================
+ * TÊN FILE: report-period.ts
+ * MÀN HÌNH / PHÂN HỆ: Báo cáo & Phân tích tài chính
+ * NHÓM VỆ TINH: dung-chung (Tiện ích tính toán thời gian)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Cung cấp các hàm phân giải khoảng ngày bắt đầu - kết thúc cho các chế độ xem
+ *   kỳ báo cáo tài chính (ngày, tuần, tháng, quý, năm, tùy chỉnh) và dịch chuyển kỳ.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Chuỗi ngày định dạng ISO (YYYY-MM-DD), giá trị bước nhảy delta, chế độ ReportMode.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Các hàm resolveReportPeriod, shiftReportPeriod, shiftReportDay, compactReportLabel.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Tính toán chuẩn xác ranh giới tháng 28/29/30/31 ngày theo giờ địa phương Việt Nam.
+ * ============================================================================
+ */
 import { localDate } from "@/dung-chung/tien-ich/finance";
 
 export type ReportMode = "day" | "week" | "month" | "quarter" | "year" | "all" | "custom";
@@ -9,8 +25,14 @@ const parse = (iso: string) => new Date(`${iso}T12:00:00Z`);
 const iso = (date: Date) => date.toISOString().slice(0, 10);
 const short = (value: string) => { const date = parse(value); return `${pad(date.getUTCDate())}/${pad(date.getUTCMonth() + 1)}/${date.getUTCFullYear()}`; };
 
+/**
+ * Dịch chuyển ngày chỉ định thêm hoặc bớt một số ngày delta.
+ */
 export function shiftReportDay(value: string, delta: number) { return iso(new Date(parse(value).getTime() + delta * DAY)); }
 
+/**
+ * Dịch chuyển mốc thời gian báo cáo theo chế độ xem (tuần, tháng, quý, năm).
+ */
 export function shiftReportPeriod(mode: ReportMode, anchor: string, delta: number) {
   if (mode === "day") return shiftReportDay(anchor, delta);
   if (mode === "week") return shiftReportDay(anchor, delta * 7);

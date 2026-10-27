@@ -1,3 +1,19 @@
+/**
+ * ============================================================================
+ * TÊN FILE: NotificationCenter.tsx
+ * MÀN HÌNH / PHÂN HỆ: Trung tâm Thông báo hệ thống
+ * NHÓM VỆ TINH: dung-chung (Thành phần thông báo)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Hiển thị menu chuông thông báo, tải dữ liệu thông báo phân trang vô hạn (Infinite Scroll),
+ *   đếm số lượng chưa đọc, đánh dấu đã đọc hoặc xóa thông báo riêng lẻ.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   userId, React Query useInfiniteQuery, API client, notificationText helper.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Default export NotificationCenter component.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Cập nhật lạc quan (optimistic update) khi đánh dấu đọc để mang lại trải nghiệm mượt mà.
+ * ============================================================================
+ */
 /** Trung tâm thông báo chung: tải phân trang và xác nhận riêng từng mục. */
 "use client";
 
@@ -12,6 +28,9 @@ import styles from "./NotificationCenter.module.css";
 
 const PAGE_SIZE = 30;
 
+/**
+ * Trung tâm quản lý và hiển thị thông báo thời gian thực của người dùng.
+ */
 export default function NotificationCenter({ userId }: { userId: string }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");

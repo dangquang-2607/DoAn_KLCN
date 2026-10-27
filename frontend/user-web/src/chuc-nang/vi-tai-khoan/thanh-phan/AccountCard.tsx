@@ -1,3 +1,19 @@
+/**
+ * ============================================================================
+ * TÊN FILE: AccountCard.tsx
+ * MÀN HÌNH / PHÂN HỆ: Quản lý Ví & Tài khoản
+ * NHÓM VỆ TINH: thanh-phan (Thành phần giao diện con)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Hiển thị thẻ tóm tắt thông tin ví/tài khoản: nhận diện loại ví, số dư hiện tại,
+ *   trạng thái mặc định và các nút thao tác nhanh (xem chi tiết, chỉnh sửa, xóa).
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Đối tượng Account, các hàm callback (onDetails, onEdit, onDelete).
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Default export AccountCard component.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Định dạng chuẩn tiền tệ VND; che dấu các thông tin nhạy cảm ở màn hình thu gọn.
+ * ============================================================================
+ */
 /** Thẻ ví gọn: nhận diện, số dư và các thao tác nhanh; dữ liệu dài nằm trong modal chi tiết. */
 import Link from "next/link";
 import { ArrowRight, Eye, Pencil, Trash2, Wallet } from "lucide-react";
@@ -6,6 +22,9 @@ import { accountTypes, type Account } from "@/dung-chung/nghiep-vu/finance";
 import { money } from "@/dung-chung/tien-ich/finance";
 import styles from "./AccountCard.module.css";
 
+/**
+ * Thẻ giao diện hiển thị thông tin tổng quan và thao tác nhanh cho một ví tài khoản.
+ */
 export default function AccountCard({ account, onDetails, onEdit, onDelete }: {
   account: Account;
   onDetails: (account: Account) => void;

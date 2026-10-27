@@ -1,6 +1,25 @@
+/**
+ * ============================================================================
+ * TÊN FILE: not-found.tsx
+ * MÀN HÌNH / PHÂN HỆ: Trang báo lỗi 404 (Not Found)
+ * NHÓM VỆ TINH: app (Next.js Not Found Boundary)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Hiển thị giao diện thông báo khi người dùng truy cập một đường dẫn không tồn tại
+ *   hoặc tài nguyên đã bị xóa, cung cấp lối tắt quay lại trang chủ an toàn.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Biểu tượng Lucide (FileQuestion, ArrowLeft) và Next.js Link.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Component NotFound với thông điệp rõ ràng và nút dẫn hướng về dashboard.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Tránh rò rỉ cấu trúc thư mục hoặc endpoint nội bộ khi truy vấn sai URL.
+ * ============================================================================
+ */
 import Link from 'next/link';
 import { FileQuestion, ArrowLeft } from 'lucide-react';
 
+/**
+ * Component giao diện hiển thị khi không tìm thấy tài nguyên (HTTP 404).
+ */
 export default function NotFound() {
   return (
     <main className="min-h-screen flex items-center justify-center bg-slate-50 p-6">

@@ -1,3 +1,19 @@
+/**
+ * ============================================================================
+ * TÊN FILE: AmountInput.tsx
+ * MÀN HÌNH / PHÂN HỆ: Quản lý Ví & Tài khoản
+ * NHÓM VỆ TINH: thanh-phan (Thành phần nhập liệu chuyên dụng)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Ô nhập liệu số tiền thông minh: tự động định dạng phân tách hàng nghìn (100.000đ),
+ *   cung cấp các chip chọn nhanh số tiền phổ biến, hỗ trợ nút xóa và kiểm tra số dư tối đa.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   amount, onAmountChange callback, maxBalance, nhãn label và cờ vô hiệu hóa disabled.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Default export AmountInput component và mảng hằng số DEFAULT_AMOUNT_CHIPS.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Chỉ cho phép nhập ký tự số; ngăn chặn nhập giá trị âm hoặc vượt quá số dư khả dụng.
+ * ============================================================================
+ */
 "use client";
 
 import { useRef, type ChangeEvent } from "react";
@@ -33,6 +49,9 @@ export function formatDisplayAmount(val: string): string {
   return new Intl.NumberFormat("vi-VN").format(Number(cleanNum));
 }
 
+/**
+ * Thành phần nhập liệu số tiền với chip chọn nhanh và kiểm tra giới hạn số dư.
+ */
 export default function AmountInput({
   label = "Số tiền",
   ariaLabel = "Số tiền",

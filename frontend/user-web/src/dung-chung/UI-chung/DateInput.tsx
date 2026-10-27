@@ -1,3 +1,19 @@
+/**
+ * ============================================================================
+ * TÊN FILE: DateInput.tsx
+ * MÀN HÌNH / PHÂN HỆ: Thành phần nhập liệu Ngày tháng
+ * NHÓM VỆ TINH: dung-chung (Thành phần giao diện dùng chung)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Ô nhập liệu ngày thông minh: nhận chữ số, tự động chèn dấu '/' theo dạng DD/MM/YYYY,
+ *   tự động điều chỉnh con trỏ chuột và chuyển đổi sang ISO YYYY-MM-DD cho backend.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   value (chuỗi ISO), onChange callback, min, max, label và các thuộc tính input tiêu chuẩn.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Default export DateInput component.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Chỉ phát sinh onChange khi chuỗi ngày nhập vào hoàn chỉnh và hợp lệ.
+ * ============================================================================
+ */
 "use client";
 
 /** Chỉ nhận chữ số, tự chèn dấu /; API vẫn dùng YYYY-MM-DD. */
@@ -26,6 +42,9 @@ type DateInputProps = {
   max?: string;
 };
 
+/**
+ * Ô nhập liệu ngày tháng có mặt nạ tự động DD/MM/YYYY.
+ */
 export default function DateInput({ value, onChange, id, required, readOnly, disabled, min, max,
   "aria-describedby": describedBy }: DateInputProps) {
   const [display, setDisplay] = useState(() => formatDateForDisplay(value));

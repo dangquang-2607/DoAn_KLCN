@@ -1,8 +1,27 @@
+/**
+ * ============================================================================
+ * TÊN FILE: invoiceApi.ts
+ * MÀN HÌNH / PHÂN HỆ: Nhận diện hóa đơn AI (OCR)
+ * NHÓM VỆ TINH: xu-ly (Xử lý nghiệp vụ & gọi API)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Cung cấp các hàm biến đổi dữ liệu hóa đơn (mutation) có kiểm soát hàng đợi cục bộ,
+ *   tạo khóa Idempotency Key bằng SHA-256 chống lặp request, và cơ chế khôi phục/thử lại.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Axios client, Web Crypto API (SubtleCrypto SHA-256), sessionStorage / localStorage.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Các hàm mutation, pending, retryPending phục vụ toàn bộ phân hệ hóa đơn AI.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Không lưu thông tin nhạy cảm của hóa đơn trong Web Storage; chỉ lưu giá trị băm hash.
+ * ============================================================================
+ */
 import axios from "axios";
 import api from "@/dung-chung/connect-api/api";
 import type { UploadIssue, UploadResult } from "./InvoiceTypes";
 
 const prefix = "cf-pending-invoice:";
+/**
+ * Trích xuất định danh chủ sở hữu phiên (user ID) từ JWT token.
+ */
 function owner() {
   if (typeof window === "undefined") return "";
   const token = sessionStorage.getItem("user_access_token");
@@ -10,12 +29,18 @@ function owner() {
   const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
   return String(payload.sub);
 }
+/**
+ * Tính toán chuỗi băm bảo mật SHA-256 phục vụ tạo khóa Idempotency duy nhất.
+ */
 async function hash(value: string | ArrayBuffer) {
   const bytes = typeof value === "string" ? new TextEncoder().encode(value) : value;
   return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), b => b.toString(16).padStart(2, "0")).join("");
 }
 // A retry keeps the same key, including after refresh/navigation. Never share
 // pending operations across users; persist only hashes, not invoice content.
+/**
+ * Gửi request biến đổi dữ liệu hóa đơn với khóa Idempotency và ghi nhật ký chờ.
+ */
 async function mutation<T>(path: string, body: unknown, signature: string, user: string): Promise<T> {
   if (owner() !== user) throw new Error("Phiên đăng nhập đã thay đổi.");
   const storageKey = `${prefix}${user}:${await hash(path + signature)}`;

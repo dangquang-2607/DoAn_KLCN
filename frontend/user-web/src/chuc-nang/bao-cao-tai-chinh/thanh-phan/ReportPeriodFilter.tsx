@@ -1,3 +1,19 @@
+/**
+ * ============================================================================
+ * TÊN FILE: ReportPeriodFilter.tsx
+ * MÀN HÌNH / PHÂN HỆ: Báo cáo & Phân tích tài chính
+ * NHÓM VỆ TINH: thanh-phan (Thành phần giao diện con)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Cung cấp thanh điều khiển lọc khung thời gian báo cáo tài chính (ngày, tuần, tháng,
+ *   quý, năm, toàn bộ hoặc khoảng ngày tự chọn) kèm nút lùi/tiến kỳ phân tích nhanh.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Các hàm tiện ích resolveReportPeriod, shiftReportPeriod, DateInput UI primitive.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Default export ReportPeriodFilter component.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Đảm bảo ngày bắt đầu luôn <= ngày kết thúc; tính toán chuẩn xác theo giờ Việt Nam.
+ * ============================================================================
+ */
 "use client";
 
 import { useEffect, useRef } from "react";
@@ -17,6 +33,9 @@ const modes = [
   { value: "custom", label: "Tùy chỉnh", icon: SlidersHorizontal },
 ] as const;
 
+/**
+ * Thanh công cụ lọc và chuyển đổi kỳ báo cáo tài chính linh hoạt.
+ */
 export default function ReportPeriodFilter({ mode, anchor, customStart, customEnd, onMode, onAnchor, onCustomStart, onCustomEnd }: {
   mode: ReportMode; anchor: string; customStart: string; customEnd: string;
   onMode: (mode: ReportMode) => void; onAnchor: (value: string) => void;

@@ -1,3 +1,19 @@
+/**
+ * ============================================================================
+ * TÊN FILE: InvoiceDuplicateReview.tsx
+ * MÀN HÌNH / PHÂN HỆ: Nhận diện hóa đơn AI (OCR)
+ * NHÓM VỆ TINH: thanh-phan (Thành phần giao diện con)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Hiển thị hộp thoại cảnh báo khi hệ thống AI phát hiện hóa đơn có khả năng bị trùng lặp
+ *   (cùng cửa hàng, ngày, số tiền hoặc trùng file) với một hóa đơn đã ghi sổ trước đó.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Đối tượng DuplicateCheck từ backend, modal UI primitive, định dạng tiền tệ.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Default export InvoiceDuplicateReview component.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Ngăn chặn việc ghi trùng giao dịch tài chính nhiều lần làm sai lệch số dư tài khoản.
+ * ============================================================================
+ */
 import Link from "next/link";
 import { useState } from "react";
 import { Modal } from "@/dung-chung/UI-chung/ui";
@@ -15,6 +31,9 @@ const reasons: Record<string, string> = {
   SAME_RETAIL_RECEIPT_ITEMS: "Cùng cửa hàng, số phiếu, địa chỉ, ngày, số tiền và chi tiết mặt hàng",
   SAME_RETAIL_TIME_ITEMS: "Cùng cửa hàng, địa chỉ, ngày, giờ, số tiền và chi tiết mặt hàng; OCR thiếu số phiếu",
 };
+/**
+ * Hộp thoại đối chiếu và xác nhận hóa đơn trùng lặp trước khi lưu.
+ */
 export default function InvoiceDuplicateReview({ check, busy, accepted, onAccept, onOpen, onSame }: {
   check: DuplicateCheck | null; busy: boolean; accepted: boolean;
   onAccept: (value: boolean) => void; onOpen: (id: string) => void; onSame: (id: string) => void;

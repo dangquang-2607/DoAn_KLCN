@@ -1,3 +1,20 @@
+/**
+ * ============================================================================
+ * TÊN FILE: page.tsx
+ * MÀN HÌNH / PHÂN HỆ: Báo cáo & Phân tích tài chính
+ * NHÓM VỆ TINH: chuc-nang (Phân hệ cốt lõi)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Hiển thị màn hình báo cáo tài chính trực quan, phân tích thu - chi, dòng tiền thuần,
+ *   so sánh kỳ trước và hỗ trợ kết xuất báo cáo giao dịch ra tệp Excel (.xlsx).
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Hook useQuery truy vấn API phân tích /analytics, tiện ích ngày tháng report-period,
+ *   thành phần ReportPeriodFilter và ReportCharts.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Default export Analytics component.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Không làm sai lệch số dư thực tế; định dạng số tiền VND chính xác không có số thập phân.
+ * ============================================================================
+ */
 "use client";
 
 import { useState } from "react";
@@ -22,6 +39,10 @@ type AnalyticsData = {
   period_trend: ReportTrendPoint[];
 };
 
+/**
+ * Component trang Phân tích & Báo cáo tài chính người dùng.
+ * Quản lý kỳ phân tích, gọi API thống kê và kết xuất dữ liệu Excel.
+ */
 export default function Analytics() {
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");

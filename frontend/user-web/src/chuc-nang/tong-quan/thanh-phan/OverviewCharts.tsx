@@ -1,3 +1,19 @@
+/**
+ * ============================================================================
+ * TÊN FILE: OverviewCharts.tsx
+ * MÀN HÌNH / PHÂN HỆ: Bảng điều khiển Tổng quan (Dashboard)
+ * NHÓM VỆ TINH: thanh-phan (Thành phần giao diện con)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Hiển thị biểu đồ tóm tắt tài chính trên dashboard: Biểu đồ xu hướng dòng tiền
+ *   (thu nhập vs chi phí) và biểu đồ tròn phân bổ số dư giữa các ví tài khoản.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   trendQuery (truy vấn xu hướng từ analytics API), accountsQuery (truy vấn danh sách ví).
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Default export OverviewCharts component.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Chỉ hiển thị các tài khoản đang hoạt động (is_active) và có số dư khả dụng lớn hơn 0.
+ * ============================================================================
+ */
 "use client";
 
 import type { UseQueryResult } from "@tanstack/react-query";
@@ -12,6 +28,9 @@ const palette = ["#208f87", "#8259ba", "#dfab49", "#e6816c", "#6682c3", "#b4779b
 const compact = (value: number) => `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 }).format(value / 1_000_000)} tr`;
 const tooltipStyle = { border: "1px solid #e9e4dc", borderRadius: 12, background: "#fffdf9", fontSize: 12 };
 
+/**
+ * Hệ thống biểu đồ trực quan hóa số dư ví và xu hướng dòng tiền tại trang Tổng quan.
+ */
 export default function OverviewCharts({ trendQuery, accountsQuery }: {
   trendQuery: UseQueryResult<{ period_trend: ReportTrendPoint[] }>;
   accountsQuery: UseQueryResult<Account[]>;

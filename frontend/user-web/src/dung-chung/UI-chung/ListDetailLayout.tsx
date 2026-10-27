@@ -1,3 +1,19 @@
+/**
+ * ============================================================================
+ * TÊN FILE: ListDetailLayout.tsx
+ * MÀN HÌNH / PHÂN HỆ: Bố cục Master - Detail dùng chung
+ * NHÓM VỆ TINH: dung-chung (Bố cục giao diện)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Cung cấp bố cục hai cột chuẩn hóa: cột trái danh sách phân loại, cột phải hiển thị
+ *   chi tiết bản ghi được chọn; tự động chuyển sang chế độ ngăn kéo (drawer) trên di động.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   listTitle, count, list, selectedKey, title, eyebrow, header, onClose, children.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Default export ListDetailLayout component và component phụ RecordRow.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Tuân thủ quy chuẩn W3C WAI-ARIA cho vùng hiển thị danh sách và chi tiết.
+ * ============================================================================
+ */
 "use client";
 
 import { useId, useRef, type MouseEvent, type ReactNode } from "react";
@@ -6,6 +22,9 @@ import { Empty } from "./ui";
 import styles from "./ListDetailLayout.module.css";
 
 /** Khung danh sách/chi tiết dùng chung; không đọc hoặc thay đổi dữ liệu nghiệp vụ. */
+/**
+ * Bố cục giao diện hai cột Master - Detail thích ứng đa màn hình.
+ */
 export default function ListDetailLayout({ listTitle, count, list, selectedKey, title, eyebrow, header, onClose, children }: {
   listTitle: string; count: number; list: ReactNode; selectedKey?: string;
   title: string; eyebrow: string; header?: ReactNode; onClose: () => void; children: ReactNode;

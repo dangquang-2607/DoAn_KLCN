@@ -1,6 +1,30 @@
+/**
+ * ============================================================================
+ * TÊN FILE: finance.ts
+ * MÀN HÌNH / PHÂN HỆ: Tiện ích tài chính & ngày tháng cốt lõi
+ * NHÓM VỆ TINH: dung-chung (Thư viện tiện ích dùng chung)
+ * MỤC ĐÍCH CỤ THỂ:
+ *   Tập trung toàn bộ logic định dạng tiền tệ vi-VN, chuẩn hóa ngày tháng cục bộ,
+ *   bóc tách thông điệp lỗi Axios, và hỗ trợ xuất báo cáo tài chính ra file Excel.
+ * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
+ *   Intl.NumberFormat, Date API, thư viện exceljs và file-saver.
+ * ĐẦU RA & CUNG CẤP (Outputs / Exports):
+ *   Các hàm money, localDate, dateLabel, formatDateForDisplay, parseDateForApi,
+ *   errorMessage, exportFinanceExcel.
+ * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
+ *   Không làm tròn số nguyên khi hiển thị VND; tính toán ngày theo múi giờ Việt Nam (+07:00).
+ * ============================================================================
+ */
 import type { Money } from "@/dung-chung/nghiep-vu/finance";
 
 // Định dạng để hiển thị; không làm tròn hoặc ghi ngược giá trị vào dữ liệu nguồn.
+/**
+ * Định dạng giá trị số thành chuỗi tiền tệ chuẩn Việt Nam (VND).
+ * 
+ * @param value - Giá trị số hoặc chuỗi số tiền.
+ * @param currency - Mã tiền tệ (mặc định 'VND').
+ * @returns Chuỗi tiền tệ đã định dạng kèm ký hiệu đơn vị.
+ */
 export function money(value: Money = 0, currency = "VND") {
   return new Intl.NumberFormat("vi-VN", {
     style: "currency",
@@ -10,6 +34,9 @@ export function money(value: Money = 0, currency = "VND") {
 }
 
 // Tạo ngày cục bộ thay vì UTC để tránh lệch một ngày theo múi giờ Việt Nam.
+/**
+ * Chuyển đổi đối tượng Date thành chuỗi ngày ISO (YYYY-MM-DD) theo giờ địa phương.
+ */
 export function localDate(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
