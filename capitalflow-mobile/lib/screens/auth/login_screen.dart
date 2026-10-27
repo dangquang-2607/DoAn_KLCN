@@ -76,7 +76,8 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _openForgot() async {
-    final done = await pushScreen<bool>(context, ForgotPasswordScreen(initialEmail: _email.text.trim()));
+    final done = await pushScreen<bool>(
+        context, ForgotPasswordScreen(initialEmail: _email.text.trim()));
     if (!mounted || done != true) return;
     setState(() {
       _password.clear();
@@ -89,29 +90,37 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return AuthScaffold(
       title: 'Đăng nhập',
-      subtitle: 'Quản lý thu chi, ngân sách và hóa đơn của bạn — đồng bộ với bản web.',
+      subtitle:
+          'Quản lý thu chi, ngân sách và hóa đơn của bạn — đồng bộ với bản web.',
       trailing: IconButton(
         onPressed: () => pushScreen<void>(context, const ServerScreen()),
-        icon: const Icon(Icons.dns_outlined, color: AppColors.muted),
+        icon: const Icon(Icons.dns_rounded, color: AppColors.muted),
         tooltip: 'Cấu hình máy chủ',
       ),
       children: [
         if (_notice != null) ...[
-          InfoBanner(message: _notice!, icon: Icons.check_circle_outline, color: AppColors.success),
-          const SizedBox(height: 14),
+          InfoBanner(
+              message: _notice!,
+              icon: Icons.check_circle_outline,
+              color: AppColors.success),
+          const SizedBox(height: Space.md),
         ],
         if (_error != null) ...[
-          InfoBanner(message: _error!, icon: Icons.error_outline, color: AppColors.danger),
-          const SizedBox(height: 14),
+          InfoBanner(
+              message: _error!,
+              icon: Icons.error_outline_rounded,
+              color: AppColors.danger),
+          const SizedBox(height: Space.md),
         ],
         TextField(
           controller: _email,
           keyboardType: TextInputType.emailAddress,
           textInputAction: TextInputAction.next,
           autocorrect: false,
-          decoration: fieldDecoration('Email', icon: Icons.mail_outline, hint: 'ban@example.com'),
+          decoration: fieldDecoration('Email',
+              icon: Icons.mail_outline_rounded, hint: 'ban@example.com'),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: Space.md),
         PasswordField(
           controller: _password,
           label: 'Mật khẩu',
@@ -120,16 +129,22 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         Align(
           alignment: Alignment.centerRight,
-          child: TextButton(onPressed: _busy ? null : _openForgot, child: const Text('Quên mật khẩu?')),
+          child: TextButton(
+              onPressed: _busy ? null : _openForgot,
+              child: const Text('Quên mật khẩu?')),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: Space.xs),
         PrimaryButton(label: 'Đăng nhập', loading: _busy, onPressed: _submit),
-        const SizedBox(height: 18),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        const SizedBox(height: Space.xl),
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            const Text('Chưa có tài khoản?', style: TextStyle(color: AppColors.muted, fontSize: 14)),
-            TextButton(onPressed: _busy ? null : _openRegister, child: const Text('Đăng ký ngay')),
+            const Text('Chưa có tài khoản?',
+                style: TextStyle(color: AppColors.muted, fontSize: 15)),
+            TextButton(
+                onPressed: _busy ? null : _openRegister,
+                child: const Text('Đăng ký ngay')),
           ],
         ),
       ],

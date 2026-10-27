@@ -9,6 +9,7 @@ class AppSettings extends ChangeNotifier {
     _reminderEnabled = _prefs.getBool(_keyReminder) ?? false;
     _reminderHour = _prefs.getInt(_keyReminderHour) ?? 21;
     _reminderMinute = _prefs.getInt(_keyReminderMinute) ?? 0;
+    _hideBalance = _prefs.getBool(_keyHideBalance) ?? false;
   }
 
   static const String _keyPush = 'cf_push_enabled';
@@ -16,6 +17,7 @@ class AppSettings extends ChangeNotifier {
   static const String _keyReminder = 'cf_reminder_enabled';
   static const String _keyReminderHour = 'cf_reminder_hour';
   static const String _keyReminderMinute = 'cf_reminder_minute';
+  static const String _keyHideBalance = 'cf_hide_balance';
   static const String _keyLastSync = 'cf_notification_last_sync';
   static const String _keyLastAlerted = 'cf_notification_last_alerted';
 
@@ -26,6 +28,16 @@ class AppSettings extends ChangeNotifier {
   late bool _reminderEnabled;
   late int _reminderHour;
   late int _reminderMinute;
+  late bool _hideBalance;
+
+  /// Ẩn số tiền trong thẻ tổng tài sản, giữ lựa chọn khi mở lại ứng dụng.
+  bool get hideBalance => _hideBalance;
+
+  Future<void> setHideBalance(bool value) async {
+    _hideBalance = value;
+    notifyListeners();
+    await _prefs.setBool(_keyHideBalance, value);
+  }
 
   /// Hiện thông báo hệ thống (banner) khi có thay đổi từ web hoặc cảnh báo ngân sách.
   bool get pushEnabled => _pushEnabled;

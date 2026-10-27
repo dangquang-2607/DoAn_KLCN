@@ -348,7 +348,8 @@ class InvoiceRepository {
       'invoice_symbol',
       'invoice_date',
       'invoice_time',
-      'total_amount'
+      'total_amount',
+      'items'
     ];
     final data = await api.post('/invoices/$id/duplicate-check', body: {
       for (final name in names)

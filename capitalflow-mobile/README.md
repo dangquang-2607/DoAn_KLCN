@@ -1,5 +1,24 @@
 # CapitalFlow Mobile
 
+## Giao diện hợp nhất — 23/10/2026
+
+Project này giữ các luồng nghiệp vụ của `capitalflow-mobile` và tích hợp thiết kế
+từ bản `mobile`: hệ thống theme/widget, dashboard mở rộng, biểu đồ trên trang đầu,
+lời chào theo buổi, thanh điều hướng nổi, menu thao tác dạng quạt và khung xác thực.
+Nút con mắt chỉ ẩn số tiền trong thẻ tổng tài sản (gồm thu/chi trong thẻ), lưu lựa
+chọn trên thiết bị; các phần ví, biểu đồ, ngân sách và giao dịch vẫn hiển thị tiền.
+
+Hàng đợi ngoại tuyến, chống trùng/khôi phục hóa đơn, hợp đồng thông báo REST,
+bảo vệ phiên và tối ưu chỉ tải tab khi mở vẫn dùng phần triển khai hiện có.
+Các thay đổi chống trùng bán lẻ đang có trong working tree cũng được giữ lại.
+
+`flutter test` chạy các test tiện ích được đưa từ bản `mobile` cùng kiểm thử widget
+cho giao diện hợp nhất, tải tab, lựa chọn ẩn số dư và hợp đồng dữ liệu thông báo/hóa đơn.
+Kiểm thử dùng dữ liệu giả và không gọi backend thật. Có thể dựng ảnh xem trước
+trên Windows bằng `flutter test test/ui_merge_test.dart --dart-define=CAPTURE_UI=true`;
+ảnh nằm ở `build/ui-review/`. Đây không thay thế nghiệm thu camera, thông báo và
+WorkManager trên điện thoại thật.
+
 Ứng dụng Flutter (Android) của hệ thống CapitalFlow — quản lý tài chính cá nhân tích hợp nhận dạng
 hóa đơn bằng OCR. App gọi **cùng REST API FastAPI** với hai cổng web nên dùng chung cơ sở dữ liệu
 SQL Server, và đồng bộ thông báo qua `GET /api/v1/notifications` mỗi 5 giây khi

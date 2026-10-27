@@ -32,6 +32,15 @@ class NotificationCenter extends ChangeNotifier with WidgetsBindingObserver {
   final NotificationRepository _repo;
   final SystemNotificationDelivery _delivery;
   int _sessionGeneration = 0;
+  int _refreshGeneration = 0;
+  String? _sessionOwner;
+  String? _sessionRoot;
+  int? _sessionEpoch;
+
+  bool _isCurrent(int generation) =>
+      _running && generation == _sessionGeneration &&
+      tokens.ownerId == _sessionOwner && config.apiRoot == _sessionRoot &&
+      tokens.epoch == _sessionEpoch;
   final AppConfig config;
   final TokenStore tokens;
   final AppSettings settings;
@@ -67,6 +76,9 @@ class NotificationCenter extends ChangeNotifier with WidgetsBindingObserver {
     if (_running) return;
     _running = true;
     _sessionGeneration++;
+    _sessionOwner = tokens.ownerId;
+    _sessionRoot = config.apiRoot;
+    _sessionEpoch = tokens.epoch;
     _foreground = WidgetsBinding.instance.lifecycleState == null ||
         WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
 
@@ -82,6 +94,9 @@ class NotificationCenter extends ChangeNotifier with WidgetsBindingObserver {
     if (!_running) return;
     _running = false;
     _sessionGeneration++;
+    _refreshGeneration++;
+    _loading = false;
+    _syncing = false;
     WidgetsBinding.instance.removeObserver(this);
     config.removeListener(_onServerChanged);
     _timer?.cancel();
@@ -106,13 +121,15 @@ class NotificationCenter extends ChangeNotifier with WidgetsBindingObserver {
 
   void _onServerChanged() {
     if (!_running) return;
-    _sync(alert: false);
+    stop();
+    start();
   }
 
   Future<void> _bootstrap() async {
+    final generation = _sessionGeneration;
     // Lấy bù trước (để hiện banner cho thông báo bị lỡ), sau đó nạp danh sách đầy đủ.
     await _sync(alert: true);
-    await refresh();
+    if (_isCurrent(generation)) await refresh();
   }
 
   void _tick() {
@@ -125,19 +142,19 @@ class NotificationCenter extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> _sync({required bool alert}) async {
     if (!_running || !_foreground || _syncing) return;
     _syncing = true;
+    final generation = _sessionGeneration;
     try {
-      final generation = _sessionGeneration;
       final result = await _repo.sync();
-      if (!_running || generation != _sessionGeneration) return;
+      if (!_isCurrent(generation)) return;
       final changedUnread = _unread != result.unread;
       _unread = result.unread;
       final added = _ingest(result.items);
       if (alert) await _alert(result.items);
-      if (!added && changedUnread) notifyListeners();
+      if (_isCurrent(generation) && !added && changedUnread) notifyListeners();
     } catch (_) {
       // Mất mạng tạm thời: thử lại ở chu kỳ sau.
     } finally {
-      _syncing = false;
+      if (_isCurrent(generation)) _syncing = false;
     }
   }
 
@@ -202,13 +219,15 @@ class NotificationCenter extends ChangeNotifier with WidgetsBindingObserver {
   /// Tải lại danh sách thông báo mới nhất cho màn "Thông báo".
   Future<void> refresh() async {
     if (!_running) return;
+    final generation = _sessionGeneration;
+    final request = ++_refreshGeneration;
+    bool current() => _isCurrent(generation) && request == _refreshGeneration;
     _loading = true;
     _error = null;
     notifyListeners();
     try {
-      final generation = _sessionGeneration;
       final page = await _repo.list(pageSize: 60);
-      if (!_running || generation != _sessionGeneration) return;
+      if (!current()) return;
       _ingest(page.items);
       _items
         ..clear()
@@ -220,22 +239,27 @@ class NotificationCenter extends ChangeNotifier with WidgetsBindingObserver {
       _unread = page.unread;
       await _alert(page.items);
     } on ApiException catch (error) {
-      _error = error.message;
+      if (current()) _error = error.message;
     } catch (_) {
-      _error = 'Không tải được thông báo. Vui lòng thử lại.';
+      if (current()) _error = 'Không tải được thông báo. Vui lòng thử lại.';
     } finally {
-      _loading = false;
-      notifyListeners();
+      if (current()) {
+        _loading = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<void> markRead(AppNotification item) async {
-    if (item.isRead) return;
+    if (!_running || item.isRead) return;
+    final generation = _sessionGeneration;
     item.isRead = true;
     if (_unread > 0) _unread--;
     notifyListeners();
     try {
-      _unread = await _repo.markRead(item.id);
+      final unread = await _repo.markRead(item.id);
+      if (!_isCurrent(generation)) return;
+      _unread = unread;
       notifyListeners();
     } catch (_) {
       // Trạng thái sẽ được đối soát ở lần đồng bộ kế tiếp.
@@ -243,7 +267,10 @@ class NotificationCenter extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> markAllRead() async {
+    if (!_running) return;
+    final generation = _sessionGeneration;
     await _repo.markAllRead();
+    if (!_isCurrent(generation)) return;
     for (final item in _items) {
       item.isRead = true;
     }
@@ -252,6 +279,8 @@ class NotificationCenter extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> remove(AppNotification item) async {
+    if (!_running) return;
+    final generation = _sessionGeneration;
     final index = _items.indexOf(item);
     if (index < 0) return;
     _items.removeAt(index);
@@ -260,13 +289,29 @@ class NotificationCenter extends ChangeNotifier with WidgetsBindingObserver {
     try {
       await _repo.remove(item.id);
     } catch (_) {
-      // Nếu xóa thất bại, mục sẽ xuất hiện lại khi tải lại danh sách.
+      if (!_isCurrent(generation)) return;
+      if (!_items.any((n) => n.id == item.id)) {
+        _items.add(item);
+        _items.sort(_newestFirst);
+        if (!item.isRead) _unread++;
+      }
+      _error = 'Chưa xóa được thông báo. Vui lòng thử lại.';
+      notifyListeners();
     }
   }
 
   Future<void> clearRead() async {
+    if (!_running) return;
+    final generation = _sessionGeneration;
     await _repo.clearRead();
+    if (!_isCurrent(generation)) return;
     _items.removeWhere((item) => item.isRead);
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    stop();
+    super.dispose();
   }
 }

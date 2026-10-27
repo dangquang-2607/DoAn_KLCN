@@ -430,7 +430,7 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
       context,
       title: 'Xóa hóa đơn?',
       message:
-          'Hóa đơn sẽ được ẩn và tệp gốc được xóa. Dữ liệu chống trùng và khoản chi đã ghi sổ vẫn được giữ. Có thể khôi phục thông tin từ mục Đã ẩn.',
+          'Hóa đơn và ảnh được giữ trong Thùng rác 30 ngày để khôi phục, sau đó xóa vĩnh viễn. Khoản chi đã ghi sổ vẫn được giữ.',
       confirmLabel: 'Xóa',
       danger: true,
     );
@@ -443,7 +443,7 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
       await appData.invoices.delete(widget.invoiceId);
       // Rời màn hình trước khi báo dữ liệu đổi để không tải lại một hóa đơn đã xóa.
       navigator.pop(true);
-      showSnack('Đã xóa hóa đơn.');
+      showSnack('Đã chuyển hóa đơn vào Thùng rác trong 30 ngày.');
       await appData.markChanged();
     } catch (error) {
       showSnack(errorText(error), error: true);
@@ -867,7 +867,7 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
       return AppCard(
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Hóa đơn đã ẩn. Khoản chi đã ghi sổ vẫn được giữ lại.'),
+        const Text('Hóa đơn trong Thùng rác, có thể khôi phục trong 30 ngày. Hết hạn sẽ xóa vĩnh viễn hóa đơn; khoản chi đã ghi sổ vẫn giữ lại.'),
         FilledButton(
             onPressed: _busy ? null : _restore,
             child: const Text('Khôi phục thông tin hóa đơn')),

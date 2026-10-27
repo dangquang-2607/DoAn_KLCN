@@ -1,0 +1,645 @@
+{
+  "notifications": {
+    "items": [
+      {
+        "id": "cc456cb6-6215-411a-a6cf-71146a2a0409",
+        "kind": "BUDGET_WARNING",
+        "severity": "WARNING",
+        "title": "QA ngân sách",
+        "message": "Chi tiêu đã đạt 80% hạn mức.",
+        "source_type": "BUDGET",
+        "source_id": "e2ec438f-c543-40c6-877f-07fdffb67010",
+        "action_url": "/budgets",
+        "read_at": "2026-10-22T00:00:00",
+        "created_at": "2026-10-22T11:00:02"
+      },
+      {
+        "id": "77f63576-9985-4cbd-8b40-2a7a8bad9a87",
+        "kind": "BUDGET_WARNING",
+        "severity": "WARNING",
+        "title": "QA ngân sách",
+        "message": "Chi tiêu đã đạt 80% hạn mức.",
+        "source_type": "BUDGET",
+        "source_id": "e2ec438f-c543-40c6-877f-07fdffb67010",
+        "action_url": "/budgets",
+        "read_at": null,
+        "created_at": "2026-10-22T11:00:01"
+      },
+      {
+        "id": "c4568d6d-ae1c-4ebe-ab8d-bce5de490096",
+        "kind": "BUDGET_WARNING",
+        "severity": "WARNING",
+        "title": "QA ngân sách",
+        "message": "Chi tiêu đã đạt 80% hạn mức.",
+        "source_type": "BUDGET",
+        "source_id": "e2ec438f-c543-40c6-877f-07fdffb67010",
+        "action_url": "/budgets",
+        "read_at": null,
+        "created_at": "2026-10-22T11:00:00"
+      }
+    ],
+    "unread_count": 2,
+    "total": 3,
+    "page": 1,
+    "page_size": 30
+  },
+  "notification_read": {
+    "id": "c4568d6d-ae1c-4ebe-ab8d-bce5de490096",
+    "kind": "BUDGET_WARNING",
+    "severity": "WARNING",
+    "title": "QA ngân sách",
+    "message": "Chi tiêu đã đạt 80% hạn mức.",
+    "source_type": "BUDGET",
+    "source_id": "e2ec438f-c543-40c6-877f-07fdffb67010",
+    "action_url": "/budgets",
+    "read_at": "2026-10-23T07:37:31.993000",
+    "created_at": "2026-10-22T11:00:00"
+  },
+  "notifications_after_read": {
+    "items": [
+      {
+        "id": "cc456cb6-6215-411a-a6cf-71146a2a0409",
+        "kind": "BUDGET_WARNING",
+        "severity": "WARNING",
+        "title": "QA ngân sách",
+        "message": "Chi tiêu đã đạt 80% hạn mức.",
+        "source_type": "BUDGET",
+        "source_id": "e2ec438f-c543-40c6-877f-07fdffb67010",
+        "action_url": "/budgets",
+        "read_at": "2026-10-22T00:00:00",
+        "created_at": "2026-10-22T11:00:02"
+      },
+      {
+        "id": "77f63576-9985-4cbd-8b40-2a7a8bad9a87",
+        "kind": "BUDGET_WARNING",
+        "severity": "WARNING",
+        "title": "QA ngân sách",
+        "message": "Chi tiêu đã đạt 80% hạn mức.",
+        "source_type": "BUDGET",
+        "source_id": "e2ec438f-c543-40c6-877f-07fdffb67010",
+        "action_url": "/budgets",
+        "read_at": null,
+        "created_at": "2026-10-22T11:00:01"
+      },
+      {
+        "id": "c4568d6d-ae1c-4ebe-ab8d-bce5de490096",
+        "kind": "BUDGET_WARNING",
+        "severity": "WARNING",
+        "title": "QA ngân sách",
+        "message": "Chi tiêu đã đạt 80% hạn mức.",
+        "source_type": "BUDGET",
+        "source_id": "e2ec438f-c543-40c6-877f-07fdffb67010",
+        "action_url": "/budgets",
+        "read_at": "2026-10-23T07:37:31.993000",
+        "created_at": "2026-10-22T11:00:00"
+      }
+    ],
+    "unread_count": 1,
+    "total": 3,
+    "page": 1,
+    "page_size": 30
+  },
+  "notifications_clear_read": null,
+  "notifications_read_all": {
+    "success": true
+  },
+  "notification_delete": null,
+  "invoice_confirm": {
+    "success": true,
+    "transaction_id": "61bb176c-6a25-4190-bf11-235d4151ce55",
+    "outcome": "CREATED",
+    "revision": 2
+  },
+  "invoice_confirm_replay": {
+    "success": true,
+    "transaction_id": "61bb176c-6a25-4190-bf11-235d4151ce55",
+    "outcome": "CREATED",
+    "revision": 2
+  },
+  "duplicate_exact": {
+    "level": "EXACT",
+    "can_override": false,
+    "review_token": "3c98ce66b97f01ccde19e4ecd03ca3d162b006fdc96e09f9f03aec91eae2e459",
+    "candidate_count": 1,
+    "candidates": [
+      {
+        "invoice_id": "72301446-4fab-44aa-9503-a646c10319cb",
+        "transaction_id": "61bb176c-6a25-4190-bf11-235d4151ce55",
+        "level": "EXACT",
+        "reason": "SAME_RETAIL_RECEIPT_TIME",
+        "status": "CONFIRMED",
+        "merchant_name": "HẢI BÉO1 BIA HƠI HÀ NỘI",
+        "invoice_date": "2026-10-12",
+        "total_amount": "1120000.00",
+        "currency": "VND",
+        "deleted_at": null,
+        "revision": 2
+      }
+    ]
+  },
+  "duplicate_exact_error": {
+    "detail": {
+      "code": "INVOICE_DUPLICATE_EXACT",
+      "message": "Hóa đơn này đã tồn tại. Vui lòng mở bản gốc.",
+      "duplicate_check": {
+        "level": "EXACT",
+        "can_override": false,
+        "review_token": "3c98ce66b97f01ccde19e4ecd03ca3d162b006fdc96e09f9f03aec91eae2e459",
+        "candidate_count": 1,
+        "candidates": [
+          {
+            "invoice_id": "72301446-4fab-44aa-9503-a646c10319cb",
+            "transaction_id": "61bb176c-6a25-4190-bf11-235d4151ce55",
+            "level": "EXACT",
+            "reason": "SAME_RETAIL_RECEIPT_TIME",
+            "status": "CONFIRMED",
+            "merchant_name": "HẢI BÉO1 BIA HƠI HÀ NỘI",
+            "invoice_date": "2026-10-12",
+            "total_amount": "1120000.00",
+            "currency": "VND",
+            "deleted_at": null,
+            "revision": 2
+          }
+        ]
+      }
+    }
+  },
+  "duplicate_suspected": {
+    "level": "SUSPECTED",
+    "can_override": true,
+    "review_token": "e1eef0fa9f1669bd1fea9fd71d3046853c11eab2ae808cd083b4a97507ec2a20",
+    "candidate_count": 1,
+    "candidates": [
+      {
+        "invoice_id": "72301446-4fab-44aa-9503-a646c10319cb",
+        "transaction_id": "61bb176c-6a25-4190-bf11-235d4151ce55",
+        "level": "SUSPECTED",
+        "reason": "SAME_MERCHANT_DATE_AMOUNT",
+        "status": "CONFIRMED",
+        "merchant_name": "HẢI BÉO1 BIA HƠI HÀ NỘI",
+        "invoice_date": "2026-10-12",
+        "total_amount": "1120000.00",
+        "currency": "VND",
+        "deleted_at": null,
+        "revision": 2
+      }
+    ]
+  },
+  "invoice_distinct_confirm": {
+    "success": true,
+    "transaction_id": "7cf3b76e-bac5-4903-8d2a-6560e9035f27",
+    "outcome": "CREATED",
+    "revision": 2
+  },
+  "invoice_detail": {
+    "id": "72301446-4fab-44aa-9503-a646c10319cb",
+    "user_id": "9ee0ca12-4d50-4aec-b0c7-fb38c2e77ccb",
+    "account_id": "e2ec438f-c543-40c6-877f-07fdffb67010",
+    "category_id": null,
+    "source": "UPLOAD",
+    "status": "CONFIRMED",
+    "merchant_name": "HẢI BÉO1 BIA HƠI HÀ NỘI",
+    "merchant_address": "2A Song Hành, Quốc Lộ, Trung Mỹ Tây, Quận 12, Hồ Chí Minh, Việt Nam",
+    "merchant_tax_code": null,
+    "invoice_number": "120022",
+    "invoice_symbol": null,
+    "invoice_date": "2026-10-12",
+    "vat_rate": null,
+    "payment_method": null,
+    "subtotal_amount": null,
+    "tax_amount": null,
+    "total_amount": "1120000.00",
+    "currency": "VND",
+    "original_filename": null,
+    "mime_type": null,
+    "file_size_bytes": null,
+    "ocr_confidence": null,
+    "note": null,
+    "created_at": "2026-10-22T10:00:00",
+    "updated_at": "2026-10-23T07:37:32",
+    "confirmed_at": "2026-10-23T07:37:32",
+    "is_duplicate": true,
+    "duplicate_reason": "Có hóa đơn có thông tin tương đồng. Cần kiểm tra trước khi ghi sổ.",
+    "duplicate_check": {
+      "level": "SUSPECTED",
+      "can_override": true,
+      "review_token": "316f6e2e0b640d67a8381d82ab8c4e56e2ee2740b530331892ca1de7fc77f1b9",
+      "candidate_count": 1,
+      "candidates": [
+        {
+          "invoice_id": "00d9aa77-619c-4973-afac-4a7a9e6068d9",
+          "transaction_id": "7cf3b76e-bac5-4903-8d2a-6560e9035f27",
+          "level": "SUSPECTED",
+          "reason": "SAME_MERCHANT_DATE_AMOUNT",
+          "status": "CONFIRMED",
+          "merchant_name": "HẢI BÉO1 BIA HƠI HÀ NỘI",
+          "invoice_date": "2026-10-12",
+          "total_amount": "1120000.00",
+          "currency": "VND",
+          "deleted_at": null,
+          "revision": 2
+        }
+      ]
+    },
+    "revision": 2,
+    "deleted_at": null,
+    "invoice_time": "20:57:00",
+    "duplicate_of_invoice_id": null,
+    "transaction_id": "61bb176c-6a25-4190-bf11-235d4151ce55",
+    "items": [
+      {
+        "id": "26f90736-5395-4e6d-b1de-68595b9414e6",
+        "invoice_id": "72301446-4fab-44aa-9503-a646c10319cb",
+        "line_no": 1,
+        "name": "Gỏi bò Hải Béo",
+        "sku": null,
+        "unit": null,
+        "quantity": "1.0000",
+        "unit_price": "159000.00",
+        "discount_amount": null,
+        "tax_amount": null,
+        "line_total": "159000.00",
+        "confidence": null,
+        "raw_text": null
+      },
+      {
+        "id": "0ef97cfc-a11a-435e-b611-d4e4e9582bac",
+        "invoice_id": "72301446-4fab-44aa-9503-a646c10319cb",
+        "line_no": 2,
+        "name": "Rau luộc thập cẩm kho quẹt",
+        "sku": null,
+        "unit": null,
+        "quantity": "1.0000",
+        "unit_price": "99000.00",
+        "discount_amount": null,
+        "tax_amount": null,
+        "line_total": "99000.00",
+        "confidence": null,
+        "raw_text": null
+      },
+      {
+        "id": "4934f23b-71c1-4888-8a49-87d5f2c72d31",
+        "invoice_id": "72301446-4fab-44aa-9503-a646c10319cb",
+        "line_no": 3,
+        "name": "Đùi dê chiên",
+        "sku": null,
+        "unit": null,
+        "quantity": "1.0000",
+        "unit_price": "139000.00",
+        "discount_amount": null,
+        "tax_amount": null,
+        "line_total": "139000.00",
+        "confidence": null,
+        "raw_text": null
+      }
+    ]
+  },
+  "invoice_page": {
+    "items": [
+      {
+        "id": "00d9aa77-619c-4973-afac-4a7a9e6068d9",
+        "deleted_at": null,
+        "user_id": "9ee0ca12-4d50-4aec-b0c7-fb38c2e77ccb",
+        "source": "UPLOAD",
+        "status": "CONFIRMED",
+        "merchant_name": "HẢI BÉO1 BIA HƠI HÀ NỘI",
+        "invoice_date": "2026-10-12",
+        "total_amount": "1120000.00",
+        "currency": "VND",
+        "original_filename": null,
+        "mime_type": null,
+        "ocr_confidence": null,
+        "created_at": "2026-10-22T10:00:01",
+        "confirmed_at": "2026-10-23T07:37:33",
+        "revision": 2,
+        "duplicate_of_invoice_id": null,
+        "duplicate_level": "SUSPECTED",
+        "duplicate_candidate_count": 1
+      },
+      {
+        "id": "72301446-4fab-44aa-9503-a646c10319cb",
+        "deleted_at": null,
+        "user_id": "9ee0ca12-4d50-4aec-b0c7-fb38c2e77ccb",
+        "source": "UPLOAD",
+        "status": "CONFIRMED",
+        "merchant_name": "HẢI BÉO1 BIA HƠI HÀ NỘI",
+        "invoice_date": "2026-10-12",
+        "total_amount": "1120000.00",
+        "currency": "VND",
+        "original_filename": null,
+        "mime_type": null,
+        "ocr_confidence": null,
+        "created_at": "2026-10-22T10:00:00",
+        "confirmed_at": "2026-10-23T07:37:32",
+        "revision": 2,
+        "duplicate_of_invoice_id": null,
+        "duplicate_level": "SUSPECTED",
+        "duplicate_candidate_count": 1
+      }
+    ],
+    "total": 2,
+    "page": 1,
+    "page_size": 50
+  },
+  "invoice_hidden": {
+    "id": "72301446-4fab-44aa-9503-a646c10319cb",
+    "user_id": "9ee0ca12-4d50-4aec-b0c7-fb38c2e77ccb",
+    "account_id": "e2ec438f-c543-40c6-877f-07fdffb67010",
+    "category_id": null,
+    "source": "UPLOAD",
+    "status": "CONFIRMED",
+    "merchant_name": "HẢI BÉO1 BIA HƠI HÀ NỘI",
+    "merchant_address": "2A Song Hành, Quốc Lộ, Trung Mỹ Tây, Quận 12, Hồ Chí Minh, Việt Nam",
+    "merchant_tax_code": null,
+    "invoice_number": "120022",
+    "invoice_symbol": null,
+    "invoice_date": "2026-10-12",
+    "vat_rate": null,
+    "payment_method": null,
+    "subtotal_amount": null,
+    "tax_amount": null,
+    "total_amount": "1120000.00",
+    "currency": "VND",
+    "original_filename": null,
+    "mime_type": null,
+    "file_size_bytes": null,
+    "ocr_confidence": null,
+    "note": null,
+    "created_at": "2026-10-22T10:00:00",
+    "updated_at": "2026-10-23T07:37:33",
+    "confirmed_at": "2026-10-23T07:37:32",
+    "is_duplicate": true,
+    "duplicate_reason": "Có hóa đơn có thông tin tương đồng. Cần kiểm tra trước khi ghi sổ.",
+    "duplicate_check": {
+      "level": "SUSPECTED",
+      "can_override": true,
+      "review_token": "c5c8bc1e9a399276ade5aada68f16cc2012e935aa45fd1d71814e4707c6b530e",
+      "candidate_count": 1,
+      "candidates": [
+        {
+          "invoice_id": "00d9aa77-619c-4973-afac-4a7a9e6068d9",
+          "transaction_id": "7cf3b76e-bac5-4903-8d2a-6560e9035f27",
+          "level": "SUSPECTED",
+          "reason": "SAME_MERCHANT_DATE_AMOUNT",
+          "status": "CONFIRMED",
+          "merchant_name": "HẢI BÉO1 BIA HƠI HÀ NỘI",
+          "invoice_date": "2026-10-12",
+          "total_amount": "1120000.00",
+          "currency": "VND",
+          "deleted_at": null,
+          "revision": 2
+        }
+      ]
+    },
+    "revision": 3,
+    "deleted_at": "2026-10-23T07:37:32.677000",
+    "invoice_time": "20:57:00",
+    "duplicate_of_invoice_id": null,
+    "transaction_id": "61bb176c-6a25-4190-bf11-235d4151ce55",
+    "items": [
+      {
+        "id": "26f90736-5395-4e6d-b1de-68595b9414e6",
+        "invoice_id": "72301446-4fab-44aa-9503-a646c10319cb",
+        "line_no": 1,
+        "name": "Gỏi bò Hải Béo",
+        "sku": null,
+        "unit": null,
+        "quantity": "1.0000",
+        "unit_price": "159000.00",
+        "discount_amount": null,
+        "tax_amount": null,
+        "line_total": "159000.00",
+        "confidence": null,
+        "raw_text": null
+      },
+      {
+        "id": "0ef97cfc-a11a-435e-b611-d4e4e9582bac",
+        "invoice_id": "72301446-4fab-44aa-9503-a646c10319cb",
+        "line_no": 2,
+        "name": "Rau luộc thập cẩm kho quẹt",
+        "sku": null,
+        "unit": null,
+        "quantity": "1.0000",
+        "unit_price": "99000.00",
+        "discount_amount": null,
+        "tax_amount": null,
+        "line_total": "99000.00",
+        "confidence": null,
+        "raw_text": null
+      },
+      {
+        "id": "4934f23b-71c1-4888-8a49-87d5f2c72d31",
+        "invoice_id": "72301446-4fab-44aa-9503-a646c10319cb",
+        "line_no": 3,
+        "name": "Đùi dê chiên",
+        "sku": null,
+        "unit": null,
+        "quantity": "1.0000",
+        "unit_price": "139000.00",
+        "discount_amount": null,
+        "tax_amount": null,
+        "line_total": "139000.00",
+        "confidence": null,
+        "raw_text": null
+      }
+    ]
+  },
+  "invoice_hidden_page": {
+    "items": [
+      {
+        "id": "72301446-4fab-44aa-9503-a646c10319cb",
+        "deleted_at": "2026-10-23T07:37:32.677000",
+        "user_id": "9ee0ca12-4d50-4aec-b0c7-fb38c2e77ccb",
+        "source": "UPLOAD",
+        "status": "CONFIRMED",
+        "merchant_name": "HẢI BÉO1 BIA HƠI HÀ NỘI",
+        "invoice_date": "2026-10-12",
+        "total_amount": "1120000.00",
+        "currency": "VND",
+        "original_filename": null,
+        "mime_type": null,
+        "ocr_confidence": null,
+        "created_at": "2026-10-22T10:00:00",
+        "confirmed_at": "2026-10-23T07:37:32",
+        "revision": 3,
+        "duplicate_of_invoice_id": null,
+        "duplicate_level": "SUSPECTED",
+        "duplicate_candidate_count": 1
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "page_size": 50
+  },
+  "restore_stale_error": {
+    "detail": {
+      "code": "INVOICE_VERSION_CONFLICT",
+      "message": "Thông tin hóa đơn đã thay đổi. Vui lòng tải lại.",
+      "revision": 3
+    }
+  },
+  "invoice_restore": {
+    "success": true,
+    "revision": 4,
+    "status": "CONFIRMED",
+    "requires_file": true
+  },
+  "invoice_restored": {
+    "id": "72301446-4fab-44aa-9503-a646c10319cb",
+    "user_id": "9ee0ca12-4d50-4aec-b0c7-fb38c2e77ccb",
+    "account_id": "e2ec438f-c543-40c6-877f-07fdffb67010",
+    "category_id": null,
+    "source": "UPLOAD",
+    "status": "CONFIRMED",
+    "merchant_name": "HẢI BÉO1 BIA HƠI HÀ NỘI",
+    "merchant_address": "2A Song Hành, Quốc Lộ, Trung Mỹ Tây, Quận 12, Hồ Chí Minh, Việt Nam",
+    "merchant_tax_code": null,
+    "invoice_number": "120022",
+    "invoice_symbol": null,
+    "invoice_date": "2026-10-12",
+    "vat_rate": null,
+    "payment_method": null,
+    "subtotal_amount": null,
+    "tax_amount": null,
+    "total_amount": "1120000.00",
+    "currency": "VND",
+    "original_filename": null,
+    "mime_type": null,
+    "file_size_bytes": null,
+    "ocr_confidence": null,
+    "note": null,
+    "created_at": "2026-10-22T10:00:00",
+    "updated_at": "2026-10-23T07:37:33",
+    "confirmed_at": "2026-10-23T07:37:32",
+    "is_duplicate": true,
+    "duplicate_reason": "Có hóa đơn có thông tin tương đồng. Cần kiểm tra trước khi ghi sổ.",
+    "duplicate_check": {
+      "level": "SUSPECTED",
+      "can_override": true,
+      "review_token": "5a94f5b9bacf6fab5c9f32ebf8e7eebdfb08f697c10f928b47fed79aec0f990a",
+      "candidate_count": 1,
+      "candidates": [
+        {
+          "invoice_id": "00d9aa77-619c-4973-afac-4a7a9e6068d9",
+          "transaction_id": "7cf3b76e-bac5-4903-8d2a-6560e9035f27",
+          "level": "SUSPECTED",
+          "reason": "SAME_MERCHANT_DATE_AMOUNT",
+          "status": "CONFIRMED",
+          "merchant_name": "HẢI BÉO1 BIA HƠI HÀ NỘI",
+          "invoice_date": "2026-10-12",
+          "total_amount": "1120000.00",
+          "currency": "VND",
+          "deleted_at": null,
+          "revision": 2
+        }
+      ]
+    },
+    "revision": 4,
+    "deleted_at": null,
+    "invoice_time": "20:57:00",
+    "duplicate_of_invoice_id": null,
+    "transaction_id": "61bb176c-6a25-4190-bf11-235d4151ce55",
+    "items": [
+      {
+        "id": "26f90736-5395-4e6d-b1de-68595b9414e6",
+        "invoice_id": "72301446-4fab-44aa-9503-a646c10319cb",
+        "line_no": 1,
+        "name": "Gỏi bò Hải Béo",
+        "sku": null,
+        "unit": null,
+        "quantity": "1.0000",
+        "unit_price": "159000.00",
+        "discount_amount": null,
+        "tax_amount": null,
+        "line_total": "159000.00",
+        "confidence": null,
+        "raw_text": null
+      },
+      {
+        "id": "0ef97cfc-a11a-435e-b611-d4e4e9582bac",
+        "invoice_id": "72301446-4fab-44aa-9503-a646c10319cb",
+        "line_no": 2,
+        "name": "Rau luộc thập cẩm kho quẹt",
+        "sku": null,
+        "unit": null,
+        "quantity": "1.0000",
+        "unit_price": "99000.00",
+        "discount_amount": null,
+        "tax_amount": null,
+        "line_total": "99000.00",
+        "confidence": null,
+        "raw_text": null
+      },
+      {
+        "id": "4934f23b-71c1-4888-8a49-87d5f2c72d31",
+        "invoice_id": "72301446-4fab-44aa-9503-a646c10319cb",
+        "line_no": 3,
+        "name": "Đùi dê chiên",
+        "sku": null,
+        "unit": null,
+        "quantity": "1.0000",
+        "unit_price": "139000.00",
+        "discount_amount": null,
+        "tax_amount": null,
+        "line_total": "139000.00",
+        "confidence": null,
+        "raw_text": null
+      }
+    ]
+  },
+  "upload_created": {
+    "id": "324dda79-c7d6-42c5-acc4-60a3da7fc5b8",
+    "filename": "qa.png",
+    "status": "UPLOADED",
+    "mime_type": "image/png",
+    "created_at": "2026-10-23T07:37:33",
+    "outcome": "CREATED",
+    "revision": 1,
+    "transaction_id": null,
+    "deleted_at": null
+  },
+  "upload_replayed": {
+    "id": "324dda79-c7d6-42c5-acc4-60a3da7fc5b8",
+    "filename": "qa.png",
+    "status": "UPLOADED",
+    "mime_type": "image/png",
+    "created_at": "2026-10-23T07:37:33",
+    "outcome": "REUSED_DRAFT",
+    "revision": 1,
+    "transaction_id": null,
+    "deleted_at": null
+  },
+  "upload_same_bytes": {
+    "id": "324dda79-c7d6-42c5-acc4-60a3da7fc5b8",
+    "filename": "qa.png",
+    "status": "UPLOADED",
+    "mime_type": "image/png",
+    "created_at": "2026-10-23T07:37:33",
+    "outcome": "REUSED_DRAFT",
+    "revision": 1,
+    "transaction_id": null,
+    "deleted_at": null
+  },
+  "upload_hidden": {
+    "id": "324dda79-c7d6-42c5-acc4-60a3da7fc5b8",
+    "filename": "qa.png",
+    "status": "UPLOADED",
+    "mime_type": "image/png",
+    "created_at": "2026-10-23T07:37:33",
+    "outcome": "RESTORE_REQUIRED",
+    "revision": 2,
+    "transaction_id": null,
+    "deleted_at": "2026-10-23T07:37:32.937000"
+  },
+  "upload_restored": {
+    "id": "324dda79-c7d6-42c5-acc4-60a3da7fc5b8",
+    "filename": "qa.png",
+    "status": "UPLOADED",
+    "mime_type": "image/png",
+    "created_at": "2026-10-23T07:37:33",
+    "outcome": "REUSED_DRAFT",
+    "revision": 3,
+    "transaction_id": null,
+    "deleted_at": null
+  }
+}

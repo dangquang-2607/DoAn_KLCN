@@ -22,7 +22,8 @@ const List<Color> chartPalette = [
 ];
 
 class ChartSlice {
-  const ChartSlice({required this.label, required this.value, required this.color});
+  const ChartSlice(
+      {required this.label, required this.value, required this.color});
 
   final String label;
   final double value;
@@ -30,7 +31,8 @@ class ChartSlice {
 }
 
 /// Gom các danh mục nhỏ thành "Khác" để biểu đồ tròn không quá vụn.
-List<ChartSlice> buildSlices(List<CategoryAmount> categories, {int maxSlices = 6}) {
+List<ChartSlice> buildSlices(List<CategoryAmount> categories,
+    {int maxSlices = 6}) {
   final slices = <ChartSlice>[];
   var other = 0.0;
   for (var i = 0; i < categories.length; i++) {
@@ -45,7 +47,8 @@ List<ChartSlice> buildSlices(List<CategoryAmount> categories, {int maxSlices = 6
     }
   }
   if (other > 0) {
-    slices.add(ChartSlice(label: 'Khác', value: other, color: const Color(0xFF9AA5B8)));
+    slices.add(ChartSlice(
+        label: 'Khác', value: other, color: const Color(0xFF9AA5B8)));
   }
   return slices;
 }
@@ -70,19 +73,27 @@ class DonutChart extends StatelessWidget {
     return SizedBox(
       width: size,
       height: size,
-      child: CustomPaint(
-        painter: _DonutPainter(slices),
+      child: TweenAnimationBuilder<double>(
+        tween: Tween<double>(begin: 0, end: 1),
+        duration: const Duration(milliseconds: 900),
+        curve: Curves.easeOutCubic,
+        builder: (context, progress, child) =>
+            CustomPaint(painter: _DonutPainter(slices, progress), child: child),
         child: Center(
           child: Padding(
             padding: EdgeInsets.all(size * 0.2),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(centerLabel, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                Text(centerLabel,
+                    style:
+                        const TextStyle(fontSize: 12, color: AppColors.muted)),
                 const SizedBox(height: 2),
                 FittedBox(
                   fit: BoxFit.scaleDown,
-                  child: Text(centerValue, style: moneyStyle.copyWith(fontSize: 17, color: AppColors.ink)),
+                  child: Text(centerValue,
+                      style: moneyStyle.copyWith(
+                          fontSize: 17, color: AppColors.ink)),
                 ),
               ],
             ),
@@ -94,9 +105,12 @@ class DonutChart extends StatelessWidget {
 }
 
 class _DonutPainter extends CustomPainter {
-  _DonutPainter(this.slices);
+  _DonutPainter(this.slices, this.progress);
 
   final List<ChartSlice> slices;
+
+  /// Tỉ lệ vẽ (0 → 1) để tạo hiệu ứng vành khuyên quét dần khi xuất hiện.
+  final double progress;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -118,20 +132,23 @@ class _DonutPainter extends CustomPainter {
     final gap = slices.length > 1 ? 0.035 : 0.0;
     var start = -math.pi / 2;
     for (final slice in slices) {
-      final sweep = slice.value / total * math.pi * 2;
+      final sweep = slice.value / total * math.pi * 2 * progress;
       final paint = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = stroke
         ..strokeCap = StrokeCap.butt
         ..color = slice.color;
-      final visible = sweep - gap;
-      if (visible > 0) canvas.drawArc(rect, start + gap / 2, visible, false, paint);
+      final visible = sweep - gap * progress;
+      if (visible > 0) {
+        canvas.drawArc(rect, start + gap / 2, visible, false, paint);
+      }
       start += sweep;
     }
   }
 
   @override
-  bool shouldRepaint(covariant _DonutPainter oldDelegate) => oldDelegate.slices != slices;
+  bool shouldRepaint(covariant _DonutPainter oldDelegate) =>
+      oldDelegate.slices != slices || oldDelegate.progress != progress;
 }
 
 /// Biểu đồ cột đôi thu/chi theo tháng.
@@ -146,22 +163,34 @@ class TrendBarChart extends StatelessWidget {
     return SizedBox(
       height: height,
       width: double.infinity,
-      child: CustomPaint(painter: _TrendPainter(points)),
+      child: TweenAnimationBuilder<double>(
+        tween: Tween<double>(begin: 0, end: 1),
+        duration: const Duration(milliseconds: 800),
+        curve: Curves.easeOutCubic,
+        builder: (context, progress, _) =>
+            CustomPaint(painter: _TrendPainter(points, progress)),
+      ),
     );
   }
 }
 
 class _TrendPainter extends CustomPainter {
-  _TrendPainter(this.points);
+  _TrendPainter(this.points, this.progress);
 
   final List<TrendPoint> points;
+
+  /// Tỉ lệ chiều cao cột (0 → 1) cho hiệu ứng cột mọc lên.
+  final double progress;
 
   static const double _axisWidth = 44;
   static const double _labelHeight = 22;
 
-  void _text(Canvas canvas, String text, Offset offset, {double width = 60, TextAlign align = TextAlign.left}) {
+  void _text(Canvas canvas, String text, Offset offset,
+      {double width = 60, TextAlign align = TextAlign.left}) {
     final painter = TextPainter(
-      text: TextSpan(text: text, style: const TextStyle(fontSize: 10.5, color: AppColors.muted)),
+      text: TextSpan(
+          text: text,
+          style: const TextStyle(fontSize: 10.5, color: AppColors.muted)),
       textAlign: align,
       textDirection: TextDirection.ltr,
       maxLines: 1,
@@ -210,7 +239,9 @@ class _TrendPainter extends CustomPainter {
       final baseY = 6 + chartHeight;
 
       void bar(double value, double left, Paint paint) {
-        final barHeight = value <= 0 ? 0.0 : math.max(2.0, chartHeight * value / maxValue);
+        final barHeight = value <= 0
+            ? 0.0
+            : math.max(2.0, chartHeight * value / maxValue * progress);
         if (barHeight <= 0) return;
         final rect = RRect.fromRectAndCorners(
           Rect.fromLTWH(left, baseY - barHeight, barWidth, barHeight),
@@ -222,12 +253,63 @@ class _TrendPainter extends CustomPainter {
 
       bar(point.income, center - barWidth - 2, incomePaint);
       bar(point.expense, center + 2, expensePaint);
-      _text(canvas, point.label, Offset(center - slot / 2, baseY + 6), width: slot, align: TextAlign.center);
+      _text(canvas, point.label, Offset(center - slot / 2, baseY + 6),
+          width: slot, align: TextAlign.center);
     }
   }
 
   @override
-  bool shouldRepaint(covariant _TrendPainter oldDelegate) => oldDelegate.points != points;
+  bool shouldRepaint(covariant _TrendPainter oldDelegate) =>
+      oldDelegate.points != points || oldDelegate.progress != progress;
+}
+
+/// Thanh ngang xếp chồng thể hiện tỉ trọng của từng phần trong tổng (ví dụ phân bổ tài sản theo ví).
+class StackedShareBar extends StatelessWidget {
+  const StackedShareBar({super.key, required this.slices, this.height = 14});
+
+  final List<ChartSlice> slices;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final total =
+        slices.fold<double>(0, (sum, slice) => sum + math.max(0, slice.value));
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(height / 2),
+      child: SizedBox(
+        height: height,
+        child: total <= 0
+            ? const ColoredBox(color: Color(0xFFE9EDF3))
+            : TweenAnimationBuilder<double>(
+                tween: Tween<double>(begin: 0, end: 1),
+                duration: const Duration(milliseconds: 800),
+                curve: Curves.easeOutCubic,
+                builder: (context, progress, _) => Row(
+                  children: [
+                    for (var i = 0; i < slices.length; i++)
+                      if (slices[i].value > 0)
+                        Flexible(
+                          flex: math.max(
+                              1,
+                              (slices[i].value / total * 1000 * progress)
+                                  .round()),
+                          child: Container(
+                            margin: EdgeInsets.only(left: i == 0 ? 0 : 2),
+                            color: slices[i].color,
+                          ),
+                        ),
+                    if (progress < 1)
+                      Flexible(
+                        flex: math.max(1, ((1 - progress) * 1000).round()),
+                        child: const ColoredBox(
+                            color: Color(0xFFE9EDF3), child: SizedBox.expand()),
+                      ),
+                  ],
+                ),
+              ),
+      ),
+    );
+  }
 }
 
 /// Chú thích màu của biểu đồ.
@@ -242,9 +324,16 @@ class LegendDot extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(width: 10, height: 10, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3))),
+        Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+                color: color, borderRadius: BorderRadius.circular(3))),
         const SizedBox(width: 6),
-        Text(label, style: const TextStyle(fontSize: 12.5, color: AppColors.muted)),
+        Flexible(
+            child: Text(label,
+                style:
+                    const TextStyle(fontSize: 12.5, color: AppColors.muted))),
       ],
     );
   }

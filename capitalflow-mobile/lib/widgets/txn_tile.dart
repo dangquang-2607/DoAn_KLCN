@@ -24,18 +24,25 @@ class TxnTile extends StatelessWidget {
 
   Widget _leading() {
     if (txn.kind == 'TRANSFER') {
-      return const IconBadge(icon: Icons.swap_horiz, color: AppColors.blue);
+      return const IconBadge(
+          icon: Icons.swap_horiz_rounded, color: AppColors.blue, size: 44);
     }
     if (txn.kind == 'ADJUSTMENT') {
-      return const IconBadge(icon: Icons.tune, color: AppColors.muted);
+      return const IconBadge(
+          icon: Icons.tune_rounded, color: AppColors.muted, size: 44);
     }
     final current = category;
     if (current != null) {
-      return CategoryAvatar(icon: current.icon, color: current.color, name: current.name);
+      return CategoryAvatar(
+          icon: current.icon,
+          color: current.color,
+          name: current.name,
+          size: 44);
     }
     return IconBadge(
-      icon: txn.isIncome ? Icons.south_west : Icons.north_east,
+      icon: txn.isIncome ? Icons.south_west_rounded : Icons.north_east_rounded,
       color: txn.isIncome ? AppColors.success : AppColors.danger,
+      size: 44,
     );
   }
 
@@ -60,11 +67,12 @@ class TxnTile extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+        padding: const EdgeInsets.symmetric(
+            horizontal: Space.md, vertical: Space.sm),
         child: Row(
           children: [
             _leading(),
-            const SizedBox(width: 12),
+            const SizedBox(width: Space.sm),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -73,9 +81,9 @@ class TxnTile extends StatelessWidget {
                     txn.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.ink),
+                    style: AppText.cardTitle,
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: Space.xxs),
                   Row(
                     children: [
                       Flexible(
@@ -83,23 +91,25 @@ class TxnTile extends StatelessWidget {
                           _subtitle(),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 12.5, color: AppColors.muted),
+                          style: AppText.caption,
                         ),
                       ),
                       if (txn.source == 'OCR') ...[
                         const SizedBox(width: 6),
-                        const Icon(Icons.document_scanner_outlined, size: 13, color: AppColors.blue),
+                        const Icon(Icons.document_scanner_outlined,
+                            size: 13, color: AppColors.blue),
                       ],
                       if (txn.categoryWasAuto) ...[
                         const SizedBox(width: 6),
-                        const Icon(Icons.auto_awesome, size: 13, color: AppColors.amber),
+                        const Icon(Icons.auto_awesome,
+                            size: 13, color: AppColors.amber),
                       ],
                     ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: Space.sm),
             Text(
               formatSigned(txn.absAmount, income: txn.isIncome),
               style: moneyStyle.copyWith(fontSize: 15, color: amountColor),

@@ -67,7 +67,7 @@ class InvoiceQueueRunner {
             'lease_until': 0,
             'next_attempt': 0,
             'error': hidden
-                ? 'Bản cũ đang ẩn. Mở hóa đơn để khôi phục, sau đó bấm thử lại để gửi ảnh.'
+                ? 'Bản cũ đang trong Thùng rác. Mở hóa đơn để khôi phục, sau đó bấm thử lại để gửi ảnh.'
                 : null
           });
         } else {
@@ -81,7 +81,7 @@ class InvoiceQueueRunner {
           if (detail['deleted_at'] != null) {
             await store.update(job, {
               'state': 'attention',
-              'error': 'Hóa đơn đã bị ẩn trên máy chủ. Mở bản cũ để kiểm tra.',
+              'error': 'Hóa đơn đang trong Thùng rác trên máy chủ. Mở bản cũ để kiểm tra.',
               'lease_id': null,
               'lease_until': 0
             });

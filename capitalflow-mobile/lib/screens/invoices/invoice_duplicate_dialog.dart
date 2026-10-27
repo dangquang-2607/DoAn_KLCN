@@ -14,6 +14,12 @@ Future<String?> reviewInvoiceDuplicates(BuildContext context, Json check) {
     'SAME_MERCHANT_DATE_AMOUNT': 'Cùng cửa hàng, ngày và số tiền',
     'SAME_RECEIPT_NUMBER_ADDRESS_DATE_AMOUNT':
         'Cùng số hóa đơn, địa chỉ, ngày và số tiền',
+    'SAME_RETAIL_RECEIPT_TIME':
+        'Cùng cửa hàng, số phiếu, địa chỉ, ngày, giờ và số tiền',
+    'SAME_RETAIL_RECEIPT_ITEMS':
+        'Cùng cửa hàng, số phiếu, địa chỉ, ngày, số tiền và chi tiết mặt hàng',
+    'SAME_RETAIL_TIME_ITEMS':
+        'Cùng cửa hàng, địa chỉ, ngày, giờ, số tiền và chi tiết mặt hàng; OCR thiếu số phiếu',
   };
   return showDialog<String>(
     context: context,

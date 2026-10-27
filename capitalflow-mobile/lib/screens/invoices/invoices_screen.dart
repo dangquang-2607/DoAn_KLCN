@@ -40,7 +40,7 @@ class _InvoicesScreenState extends State<InvoicesScreen>
     MapEntry('UPLOADED', 'Chờ quét'),
     MapEntry('CONFIRMED', 'Đã ghi sổ'),
     MapEntry('FAILED', 'Quét lỗi'),
-    MapEntry('HIDDEN', 'Đã ẩn'),
+    MapEntry('HIDDEN', 'Thùng rác'),
   ];
 
   final ImagePicker _picker = ImagePicker();
@@ -506,7 +506,7 @@ class _InvoiceCard extends StatelessWidget {
       if (invoice.invoiceDate != null)
         'Ngày ${formatDate(invoice.invoiceDate)}',
       'Tải lên ${relativeTime(invoice.createdAt)}',
-      if (invoice.hidden) 'Đã ẩn',
+      if (invoice.hidden) 'Thùng rác',
       if (invoice.duplicateLevel == 'EXACT') 'Trùng hóa đơn',
       if (invoice.duplicateLevel == 'SUSPECTED') 'Có thể trùng',
     ];

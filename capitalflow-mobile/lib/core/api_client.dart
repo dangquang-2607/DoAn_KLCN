@@ -61,7 +61,8 @@ class ApiClient {
   void Function()? onSessionExpired;
 
   static const Duration _timeout = Duration(seconds: 25);
-  static const Duration _uploadTimeout = Duration(seconds: 90);
+  // Server preflight OCR may use 90s; allow time for transfer and final checks.
+  static const Duration _uploadTimeout = Duration(seconds: 120);
   static const String deviceName = 'CapitalFlow Mobile (Android)';
 
   Future<bool>? _refreshInFlight;
