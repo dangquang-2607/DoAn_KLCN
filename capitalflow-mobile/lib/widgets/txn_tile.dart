@@ -5,7 +5,7 @@ import '../core/theme.dart';
 import '../models/models.dart';
 import 'common.dart';
 
-/// Một dòng giao dịch trong lịch sử: biểu tượng danh mục, diễn giải, ví và số tiền.
+/// Một dòng trong sổ thu chi: biểu tượng danh mục, diễn giải, nguồn ghi sổ và số tiền.
 class TxnTile extends StatelessWidget {
   const TxnTile({
     super.key,
@@ -57,13 +57,19 @@ class TxnTile extends StatelessWidget {
     }
     final walletName = wallet?.name;
     if (walletName != null && walletName.isNotEmpty) parts.add(walletName);
+    if (txn.fromWalletPayment) parts.add('Thanh toán ví');
+    if (!txn.includeInReports) parts.add('Không tính thu chi');
     if (showDate) parts.add(formatDate(txn.date));
     return parts.join(' · ');
   }
 
   @override
   Widget build(BuildContext context) {
-    final amountColor = txn.isIncome ? AppColors.success : AppColors.ink;
+    final amountColor = !txn.includeInReports
+        ? AppColors.subtle
+        : txn.isIncome
+            ? AppColors.success
+            : AppColors.ink;
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -94,6 +100,11 @@ class TxnTile extends StatelessWidget {
                           style: AppText.caption,
                         ),
                       ),
+                      if (txn.fromWalletPayment) ...[
+                        const SizedBox(width: 6),
+                        const Icon(Icons.account_balance_wallet_outlined,
+                            size: 13, color: AppColors.blue),
+                      ],
                       if (txn.source == 'OCR') ...[
                         const SizedBox(width: 6),
                         const Icon(Icons.document_scanner_outlined,

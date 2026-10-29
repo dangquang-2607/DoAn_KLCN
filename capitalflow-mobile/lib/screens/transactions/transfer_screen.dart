@@ -9,9 +9,17 @@ import '../../services/app_data.dart';
 import '../../widgets/common.dart';
 import '../../widgets/pickers.dart';
 
-/// Chuyển tiền giữa hai ví của cùng một người dùng (không tính vào thu/chi).
+/// Chuyển tiền từ một ví của bạn tới ví khác — giống bản web.
+///
+/// Người nhận là email (vào ví mặc định), mã ví `CF-…` (vào ví phụ), nội dung
+/// QR CapitalFlow hoặc một ví khác của chính bạn. Hệ thống xác minh người nhận
+/// trước, người dùng kiểm tra tên rồi mới xác nhận. Chuyển tiền không tính vào
+/// thu nhập/chi tiêu trong sổ thu chi.
 class TransferScreen extends StatefulWidget {
-  const TransferScreen({super.key});
+  const TransferScreen({super.key, this.fromWalletId});
+
+  /// Ví gửi được chọn sẵn (ví dụ khi mở từ màn hình Ví).
+  final String? fromWalletId;
 
   @override
   State<TransferScreen> createState() => _TransferScreenState();
@@ -19,87 +27,114 @@ class TransferScreen extends StatefulWidget {
 
 class _TransferScreenState extends State<TransferScreen> {
   final TextEditingController _amount = TextEditingController();
-  final TextEditingController _note = TextEditingController();
+  final TextEditingController _target = TextEditingController();
 
   String? _fromId;
-  String? _toId;
-  late DateTime _date;
+  Recipient? _recipient;
+
+  /// Nội dung người nhận đã được xác minh — đổi nội dung thì phải xác minh lại.
+  String _resolvedTarget = '';
   bool _saving = false;
 
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    _date = DateTime(now.year, now.month, now.day);
     final wallets = context.read<AppData>().wallets;
-    if (wallets.isNotEmpty) _fromId = wallets.first.id;
-    if (wallets.length > 1) _toId = wallets[1].id;
+    _fromId = widget.fromWalletId ??
+        (wallets.isNotEmpty ? wallets.first.id : null);
   }
 
   @override
   void dispose() {
     _amount.dispose();
-    _note.dispose();
+    _target.dispose();
     super.dispose();
   }
 
-  Future<void> _choose({required bool source}) async {
+  void _resetRecipient() {
+    if (_recipient != null) setState(() => _recipient = null);
+  }
+
+  Future<void> _chooseSource() async {
     final appData = context.read<AppData>();
     final wallet = await pickWallet(
       context,
       wallets: appData.wallets,
-      selectedId: source ? _fromId : _toId,
-      excludeId: source ? _toId : _fromId,
-      title: source ? 'Chuyển từ ví' : 'Chuyển đến ví',
+      selectedId: _fromId,
+      title: 'Chuyển từ ví',
     );
     if (wallet == null || !mounted) return;
     setState(() {
-      if (source) {
-        _fromId = wallet.id;
-      } else {
-        _toId = wallet.id;
-      }
+      _fromId = wallet.id;
+      _recipient = null;
     });
   }
 
-  void _swap() {
+  Future<void> _chooseOwnWallet() async {
+    final appData = context.read<AppData>();
+    final wallet = await pickWallet(
+      context,
+      wallets: appData.wallets,
+      excludeId: _fromId,
+      title: 'Chuyển đến ví của bạn',
+    );
+    if (wallet == null || !mounted) return;
     setState(() {
-      final previous = _fromId;
-      _fromId = _toId;
-      _toId = previous;
+      _target.text = wallet.id;
+      _recipient = null;
     });
   }
 
   Future<void> _submit() async {
+    final appData = context.read<AppData>();
+    final from = appData.walletById(_fromId);
     final amount = parseAmountInput(_amount.text);
-    final fromId = _fromId;
-    final toId = _toId;
-    if (fromId == null || toId == null) {
-      showSnack('Vui lòng chọn ví nguồn và ví đích.', error: true);
+    final target = _target.text.trim();
+    if (from == null) {
+      showSnack('Vui lòng chọn ví gửi.', error: true);
       return;
     }
-    if (fromId == toId) {
-      showSnack('Ví nguồn và ví đích không được trùng nhau.', error: true);
+    if (target.isEmpty) {
+      showSnack('Nhập email, mã ví hoặc chọn ví nhận.', error: true);
       return;
     }
     if (amount <= 0) {
       showSnack('Vui lòng nhập số tiền lớn hơn 0.', error: true);
       return;
     }
+    if (amount > from.balance) {
+      showSnack('Số dư ví không đủ để chuyển.', error: true);
+      return;
+    }
     FocusScope.of(context).unfocus();
-    final appData = context.read<AppData>();
     final navigator = Navigator.of(context);
     setState(() => _saving = true);
     try {
-      await appData.finance.transfer(
-        fromAccountId: fromId,
-        toAccountId: toId,
+      // Bước 1: xác minh người nhận để người dùng kiểm tra tên trước khi chuyển.
+      final recipient = _recipient;
+      if (recipient == null || _resolvedTarget != target) {
+        final resolved = await appData.finance.resolveRecipient(target);
+        if (!mounted) return;
+        if (resolved.walletId == from.id) {
+          showSnack('Chọn ví nhận khác ví gửi.', error: true);
+          setState(() => _saving = false);
+          return;
+        }
+        setState(() {
+          _recipient = resolved;
+          _resolvedTarget = target;
+          _saving = false;
+        });
+        return;
+      }
+      // Bước 2: người dùng đã thấy thông tin người nhận và bấm xác nhận.
+      await appData.finance.transferBetweenWallets(
+        fromWalletId: from.id,
+        toWalletId: recipient.walletId,
         amount: amount,
-        date: _date,
-        note: _note.text.trim(),
       );
       await appData.markChanged();
-      showSnack('Đã chuyển ${formatMoney(amount)} giữa hai ví.');
+      showSnack('Đã chuyển ${formatMoney(amount)} tới ${recipient.recipientName}.');
       navigator.pop(true);
     } catch (error) {
       showSnack(errorText(error), error: true);
@@ -107,28 +142,16 @@ class _TransferScreenState extends State<TransferScreen> {
     }
   }
 
-  Widget _walletField(String label, Wallet? wallet, VoidCallback onTap) {
-    return PickerField(
-      label: label,
-      value: wallet == null ? null : '${wallet.name} · ${formatMoney(wallet.balance, keepSign: true)}',
-      placeholder: 'Chọn ví',
-      leading: wallet == null
-          ? null
-          : IconBadge(icon: walletIcon(wallet.accountType), color: walletColor(wallet.accountType), size: 36),
-      icon: Icons.account_balance_wallet_outlined,
-      onTap: onTap,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final appData = context.watch<AppData>();
     final from = appData.walletById(_fromId);
-    final to = appData.walletById(_toId);
+    final recipient = _recipient;
+    final hasOtherWallets = appData.wallets.any((w) => w.id != _fromId);
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: appBar('Chuyển tiền giữa ví'),
+      appBar: appBar('Chuyển tiền'),
       body: SafeArea(
         child: Column(
           children: [
@@ -136,48 +159,72 @@ class _TransferScreenState extends State<TransferScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                 children: [
-                  if (appData.wallets.length < 2) ...[
-                    const InfoBanner(
-                      message: 'Cần ít nhất hai ví để chuyển tiền. Hãy tạo thêm ví trong mục "Ví & tài khoản".',
-                      icon: Icons.info_outline,
-                      color: AppColors.warning,
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  _walletField('Từ ví', from, () => _choose(source: true)),
-                  Center(
-                    child: IconButton(
-                      onPressed: _swap,
-                      icon: const Icon(Icons.swap_vert, color: AppColors.blue),
-                      tooltip: 'Đổi chiều chuyển',
+                  PickerField(
+                    label: 'Từ ví',
+                    value: from == null
+                        ? null
+                        : '${from.name} · ${formatMoney(from.balance, keepSign: true)}',
+                    placeholder: 'Chọn ví',
+                    leading: from == null
+                        ? null
+                        : IconBadge(
+                            icon: walletIcon(from.accountType),
+                            color: walletColor(from.accountType),
+                            size: 36),
+                    icon: Icons.account_balance_wallet_outlined,
+                    onTap: _chooseSource,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _target,
+                    maxLength: 512,
+                    keyboardType: TextInputType.emailAddress,
+                    onChanged: (_) => _resetRecipient(),
+                    decoration: fieldDecoration(
+                      'Email, mã ví hoặc nội dung QR người nhận',
+                      icon: Icons.person_search_outlined,
+                      hint: 'Email hoặc CF-7K9M2P4R',
+                      helper:
+                          'Email nhận vào ví mặc định; mã CF- nhận vào ví phụ tương ứng.',
                     ),
                   ),
-                  _walletField('Đến ví', to, () => _choose(source: false)),
-                  const SizedBox(height: 12),
+                  if (hasOtherWallets)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: _chooseOwnWallet,
+                        icon: const Icon(Icons.swap_horiz, size: 18),
+                        label: const Text('Hoặc chọn một ví khác của bạn'),
+                      ),
+                    ),
+                  const SizedBox(height: 8),
                   TextField(
                     controller: _amount,
                     keyboardType: TextInputType.number,
                     inputFormatters: [ThousandsInputFormatter()],
+                    onChanged: (_) => _resetRecipient(),
                     style: moneyStyle.copyWith(fontSize: 20, color: AppColors.ink),
-                    decoration: fieldDecoration('Số tiền chuyển (₫)', icon: Icons.payments_outlined),
+                    decoration: fieldDecoration(
+                      'Số tiền chuyển (₫)',
+                      icon: Icons.payments_outlined,
+                      helper: from == null
+                          ? null
+                          : 'Số dư khả dụng: ${formatMoney(from.balance)}',
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  PickerField(
-                    label: 'Ngày chuyển',
-                    value: formatDate(_date),
-                    icon: Icons.event_outlined,
-                    onTap: () async {
-                      final picked = await pickDate(context, initial: _date, last: DateTime.now());
-                      if (picked != null && mounted) setState(() => _date = picked);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _note,
-                    maxLength: 1000,
-                    minLines: 2,
-                    maxLines: 3,
-                    decoration: fieldDecoration('Ghi chú (không bắt buộc)', icon: Icons.notes),
+                  if (recipient != null) ...[
+                    const SizedBox(height: 14),
+                    InfoBanner(
+                      icon: Icons.verified_user_outlined,
+                      message: 'Người nhận: ${recipient.recipientName}\n'
+                          'Ví: ${recipient.walletName}${recipient.isOwn ? ' (ví của bạn)' : ''}\n'
+                          'Số tiền: ${formatMoney(parseAmountInput(_amount.text))}. Kiểm tra trước khi xác nhận.',
+                    ),
+                  ],
+                  const SizedBox(height: 14),
+                  const Text(
+                    'Chuyển tiền chỉ thay đổi số dư ví, không tính vào thu nhập/chi tiêu.',
+                    style: TextStyle(fontSize: 12.5, color: AppColors.muted),
                   ),
                 ],
               ),
@@ -185,10 +232,10 @@ class _TransferScreenState extends State<TransferScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
               child: PrimaryButton(
-                label: 'Chuyển tiền',
+                label: recipient == null ? 'Kiểm tra người nhận' : 'Xác nhận chuyển tiền',
                 loading: _saving,
                 onPressed: _submit,
-                icon: Icons.swap_horiz,
+                icon: recipient == null ? Icons.person_search : Icons.swap_horiz,
               ),
             ),
           ],

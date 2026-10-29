@@ -12,57 +12,132 @@ class FinanceRepository {
 
   final ApiClient api;
 
-  // ── Ví & tài khoản ────────────────────────────────────────────────────────
+  // ── Ví độc lập (giống bản web) ────────────────────────────────────────────
+  //
+  // Ví có số dư riêng, chỉ thay đổi khi nạp/rút qua ngân hàng liên kết,
+  // chuyển giữa các ví hoặc thanh toán hóa đơn. Ví mới luôn bắt đầu từ 0đ.
 
-  Future<List<Wallet>> wallets() async {
-    return asJsonList(await api.get('/accounts')).map(Wallet.fromJson).toList();
+  Future<List<Wallet>> wallets({bool includeClosed = false}) async {
+    return asJsonList(await api.get('/wallets',
+            query: {if (includeClosed) 'include_closed': 'true'}))
+        .map(Wallet.fromJson)
+        .toList();
   }
 
-  Future<Wallet> createWallet({
-    required String name,
-    required String accountType,
-    required int balance,
-    String? institutionName,
-  }) async {
-    final data = await api.post(
-      '/accounts',
-      money: true,
-      body: {
-        'name': name,
-        'account_type': accountType,
-        'balance': balance,
-        'currency': 'VND',
-        if (institutionName != null && institutionName.isNotEmpty)
-          'institution_name': institutionName,
-      },
-    );
+  Future<Wallet> createWallet(String name) async {
+    final data = await api.post('/wallets', money: true, body: {'name': name});
     return Wallet.fromJson(Map<String, dynamic>.from(data as Map));
   }
 
-  Future<Wallet> updateWallet(
-    String id, {
-    required String name,
-    required String accountType,
-    required String institutionName,
-    int? balance,
-  }) async {
-    final data = await api.patch(
-      '/accounts/$id',
-      money: true,
-      body: {
-        'name': name,
-        'account_type': accountType,
-        'institution_name': institutionName,
-        if (balance != null) 'balance': balance,
-      },
-    );
+  Future<Wallet> renameWallet(String id, String name) async {
+    final data =
+        await api.patch('/wallets/$id', money: true, body: {'name': name});
     return Wallet.fromJson(Map<String, dynamic>.from(data as Map));
   }
 
-  /// Xóa mềm ví. Backend trả 409 nếu ví còn số dư và chưa truyền `force`.
-  Future<void> deleteWallet(String id, {bool force = false}) async {
-    await api.delete('/accounts/$id',
-        money: true, query: {if (force) 'force': 'true'});
+  /// Đóng ví (không khôi phục được). Backend chỉ cho đóng ví phụ có số dư 0đ.
+  Future<void> closeWallet(String id) async {
+    await api.delete('/wallets/$id', money: true);
+  }
+
+  Future<WalletHistoryPage> walletHistory(String id,
+      {int page = 1, int pageSize = 20}) async {
+    final data = await api.get('/wallets/$id/history',
+        query: {'page': page, 'page_size': pageSize});
+    return WalletHistoryPage.fromJson(Map<String, dynamic>.from(data as Map));
+  }
+
+  Future<ReceiveInfo> receiveInfo(String walletId) async {
+    final data = await api.get('/wallets/$walletId/receive');
+    return ReceiveInfo.fromJson(Map<String, dynamic>.from(data as Map));
+  }
+
+  /// Xác minh người nhận từ email, mã ví `CF-...`, id ví hoặc nội dung QR.
+  Future<Recipient> resolveRecipient(String value) async {
+    final data = await api
+        .post('/wallets/recipients/resolve', body: {'recipient': value});
+    return Recipient.fromJson(Map<String, dynamic>.from(data as Map));
+  }
+
+  Future<void> transferBetweenWallets({
+    required String fromWalletId,
+    required String toWalletId,
+    required int amount,
+  }) async {
+    await api.post('/wallets/$fromWalletId/transfers/create',
+        money: true, body: {'to_wallet_id': toWalletId, 'amount': amount});
+  }
+
+  /// Nạp (`topup`) hoặc rút (`withdraw`) qua một ngân hàng đã liên kết.
+  Future<void> bankMoney({
+    required String walletId,
+    required bool topup,
+    required String linkId,
+    required int amount,
+  }) async {
+    await api.post('/wallets/$walletId/${topup ? 'topup' : 'withdraw'}',
+        money: true, body: {'link_id': linkId, 'amount': amount});
+  }
+
+  /// Thanh toán hóa đơn mô phỏng: trừ tiền ví và tạo (hoặc gắn) khoản chi trong sổ.
+  Future<Json> payBill({
+    required String walletId,
+    required String merchantName,
+    required String billReference,
+    required int amount,
+    String? bookkeepingId,
+  }) async {
+    final data = await api.post('/wallets/$walletId/payments/create',
+        money: true,
+        body: {
+          'merchant_name': merchantName,
+          'bill_reference': billReference,
+          'amount': amount,
+          'bookkeeping_id': bookkeepingId,
+        });
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  Future<List<BankProvider>> bankProviders() async {
+    final data = Map<String, dynamic>.from(await api.get('/wallets/providers') as Map);
+    return [
+      for (final entry in data.entries)
+        if (entry.value is Map)
+          BankProvider.fromJson(
+              entry.key, Map<String, dynamic>.from(entry.value as Map)),
+    ];
+  }
+
+  Future<List<BankLink>> bankLinks() async {
+    return asJsonList(await api.get('/wallets/banks'))
+        .map(BankLink.fromJson)
+        .toList();
+  }
+
+  /// Gửi OTP qua email để xác nhận liên kết ngân hàng; trả về mã yêu cầu OTP.
+  Future<String> sendBankOtp(
+      {required String provider, required String accountNumber}) async {
+    final data = await api.post('/wallets/banks/send-otp',
+        body: {'provider': provider, 'account_number': accountNumber});
+    return (data as Map)['otp_request_id'].toString();
+  }
+
+  Future<void> linkBank({
+    required String provider,
+    required String accountNumber,
+    required String otpRequestId,
+    required String otp,
+  }) async {
+    await api.post('/wallets/banks', money: true, body: {
+      'provider': provider,
+      'account_number': accountNumber,
+      'otp_request_id': otpRequestId,
+      'otp': otp,
+    });
+  }
+
+  Future<void> unlinkBank(String linkId) async {
+    await api.delete('/wallets/banks/$linkId', money: true);
   }
 
   // ── Danh mục ──────────────────────────────────────────────────────────────
@@ -130,49 +205,61 @@ class FinanceRepository {
     return CategorySuggestion.fromJson(Map<String, dynamic>.from(data as Map));
   }
 
-  // ── Giao dịch ─────────────────────────────────────────────────────────────
+  // ── Sổ thu chi (giống bản web) ────────────────────────────────────────────
+  //
+  // Ghi sổ thu/chi không gắn ví và không làm thay đổi số dư ví. Khoản chi sinh
+  // ra từ thanh toán ví được giữ để đối chiếu: chỉ sửa phần ghi nhận cá nhân
+  // hoặc tắt "Tính vào chi tiêu", không xóa được.
 
   Future<TxnPage> transactions({
     int page = 1,
     int pageSize = 30,
     String? type,
-    String? accountId,
+    String? origin,
     String? categoryId,
+    String? search,
     DateTime? startDate,
     DateTime? endDate,
   }) async {
-    final data = await api.get('/transactions', query: {
+    final data = await api.get('/bookkeeping', query: {
       'page': page,
       'page_size': pageSize,
       'type': type,
-      'account_id': accountId,
+      'origin': origin,
       'category_id': categoryId,
+      'search': (search == null || search.trim().isEmpty) ? null : search.trim(),
       'start_date': startDate == null ? null : isoDate(startDate),
       'end_date': endDate == null ? null : isoDate(endDate),
     });
     return TxnPage.fromJson(Map<String, dynamic>.from(data as Map));
   }
 
+  /// Ghi khoản thu/chi mới. Nếu có khoản thanh toán ví cùng ngày và số tiền,
+  /// backend trả 409 `PAYMENT_RECORD_REVIEW_REQUIRED` kèm danh sách để người
+  /// dùng gắn vào khoản đã có ([walletEntryId]) hoặc xác nhận là khoản khác
+  /// ([acceptSeparate]).
   Future<Txn> createTransaction({
-    required String accountId,
     required String type,
     required int amount,
     required DateTime date,
     required String description,
     String? categoryId,
     String? note,
+    String? walletEntryId,
+    bool acceptSeparate = false,
   }) async {
     final data = await api.post(
-      '/transactions',
+      '/bookkeeping',
       money: true,
       body: {
-        'account_id': accountId,
         'type': type,
         'amount': amount,
         'transaction_date': isoDate(date),
         'description': description,
-        if (categoryId != null) 'category_id': categoryId,
-        if (note != null && note.isNotEmpty) 'note': note,
+        'category_id': categoryId,
+        'note': (note == null || note.isEmpty) ? null : note,
+        'wallet_entry_id': walletEntryId,
+        'accept_separate_record': acceptSeparate,
       },
     );
     return Txn.fromJson(Map<String, dynamic>.from(data as Map));
@@ -180,19 +267,18 @@ class FinanceRepository {
 
   Future<Txn> updateTransaction(
     String id, {
-    required String accountId,
     required String type,
     required int amount,
     required DateTime date,
     required String description,
     required String? categoryId,
     required String? note,
+    bool? includeInReports,
   }) async {
     final data = await api.patch(
-      '/transactions/$id',
+      '/bookkeeping/$id',
       money: true,
       body: {
-        'account_id': accountId,
         'type': type,
         'amount': amount,
         'transaction_date': isoDate(date),
@@ -200,33 +286,29 @@ class FinanceRepository {
         // Gửi cả giá trị null để người dùng có thể bỏ phân loại/ghi chú.
         'category_id': categoryId,
         'note': (note == null || note.isEmpty) ? null : note,
+        if (includeInReports != null) 'include_in_reports': includeInReports,
       },
     );
     return Txn.fromJson(Map<String, dynamic>.from(data as Map));
   }
 
-  Future<void> deleteTransaction(String id) async {
-    await api.delete('/transactions/$id', money: true);
+  /// Sửa phần ghi nhận cá nhân của một khoản thanh toán ví.
+  Future<void> updatePaymentRecord(
+    String bookkeepingId, {
+    int? amount,
+    bool? includeInReports,
+    String? categoryId,
+    bool setCategory = false,
+  }) async {
+    await api.patch('/bookkeeping/$bookkeepingId', money: true, body: {
+      if (amount != null) 'amount': amount,
+      if (includeInReports != null) 'include_in_reports': includeInReports,
+      if (setCategory) 'category_id': categoryId,
+    });
   }
 
-  Future<void> transfer({
-    required String fromAccountId,
-    required String toAccountId,
-    required int amount,
-    required DateTime date,
-    String? note,
-  }) async {
-    await api.post(
-      '/transactions/transfer',
-      money: true,
-      body: {
-        'from_account_id': fromAccountId,
-        'to_account_id': toAccountId,
-        'amount': amount,
-        'transaction_date': isoDate(date),
-        if (note != null && note.isNotEmpty) 'note': note,
-      },
-    );
+  Future<void> deleteTransaction(String id) async {
+    await api.delete('/bookkeeping/$id', money: true);
   }
 
   // ── Ngân sách ─────────────────────────────────────────────────────────────
@@ -283,8 +365,9 @@ class FinanceRepository {
 
   // ── Tổng quan & báo cáo ───────────────────────────────────────────────────
 
+  /// Tổng quan: tổng số dư các ví đang dùng và thu chi tháng này từ sổ thu chi.
   Future<DashboardData> dashboard() async {
-    final data = await api.get('/dashboard');
+    final data = await api.get('/bookkeeping/dashboard');
     return DashboardData.fromJson(Map<String, dynamic>.from(data as Map));
   }
 
@@ -358,9 +441,10 @@ class InvoiceRepository {
     return Map<String, dynamic>.from(data as Map);
   }
 
+  /// Ghi sổ hóa đơn thành khoản chi (luồng sổ thu chi của bản web: không chọn ví).
   Future<Json> confirm(String id, Json payload) async =>
-      Map<String, dynamic>.from(
-          await api.invoicePost('/invoices/$id/confirm', payload) as Map);
+      Map<String, dynamic>.from(await api.invoicePost(
+          '/bookkeeping/invoices/$id/confirm', payload) as Map);
 
   Future<Json> resolve(String id, int revision, {String? matchedId}) async =>
       Map<String, dynamic>.from(

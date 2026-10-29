@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/category_style.dart';
+import '../../core/api_client.dart';
 import '../../core/formatters.dart';
 import '../../core/theme.dart';
 import '../../models/models.dart';
@@ -11,7 +11,11 @@ import '../../services/app_data.dart';
 import '../../widgets/common.dart';
 import '../../widgets/pickers.dart';
 
-/// Ghi nhận giao dịch thủ công (thu hoặc chi) và chỉnh sửa giao dịch đã có.
+/// Ghi nhận khoản thu/chi vào sổ thu chi và chỉnh sửa khoản đã có.
+///
+/// Giống bản web: sổ thu chi không gắn ví nên ghi sổ không làm đổi số dư ví.
+/// Khoản chi sinh ra từ thanh toán ví chỉ sửa được phần ghi nhận cá nhân và
+/// lựa chọn "Tính vào chi tiêu", không xóa được.
 ///
 /// Khi người dùng gõ diễn giải mà chưa chọn danh mục, ứng dụng hỏi backend để gợi ý
 /// danh mục tự động (dựa trên lịch sử phân loại và từ khóa của danh mục).
@@ -32,8 +36,8 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
 
   late String _type;
   late DateTime _date;
-  String? _walletId;
   String? _categoryId;
+  bool _includeInReports = true;
   bool _saving = false;
 
   Timer? _suggestTimer;
@@ -41,6 +45,9 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
   int _suggestRequest = 0;
 
   bool get _editing => widget.existing != null;
+
+  /// Khoản ghi nhận của một lần thanh toán ví (không đổi loại, không xóa).
+  bool get _fromPayment => widget.existing?.fromWalletPayment ?? false;
 
   @override
   void initState() {
@@ -50,8 +57,8 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     if (existing != null) {
       _type = existing.type;
       _date = existing.date;
-      _walletId = existing.accountId;
       _categoryId = existing.categoryId;
+      _includeInReports = existing.includeInReports;
       _amount.text = groupThousands(existing.absAmount.round().toString());
       _description.text = existing.description;
       _note.text = existing.note ?? '';
@@ -59,14 +66,10 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
       _type = widget.initialType;
       final now = DateTime.now();
       _date = DateTime(now.year, now.month, now.day);
-      if (appData.wallets.isNotEmpty) _walletId = appData.wallets.first.id;
     }
     if (!appData.loaded) {
       appData.refreshLookups().then((_) {
-        if (!mounted) return;
-        setState(() {
-          if (_walletId == null && appData.wallets.isNotEmpty) _walletId = appData.wallets.first.id;
-        });
+        if (mounted) setState(() {});
       }).catchError((Object _) {});
     }
   }
@@ -81,7 +84,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
   }
 
   void _setType(String type) {
-    if (type == _type) return;
+    if (type == _type || _fromPayment) return;
     setState(() {
       _type = type;
       // Danh mục thu và chi tách riêng nên phải chọn lại khi đổi loại giao dịch.
@@ -118,12 +121,6 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     }
   }
 
-  Future<void> _chooseWallet() async {
-    final appData = context.read<AppData>();
-    final wallet = await pickWallet(context, wallets: appData.wallets, selectedId: _walletId);
-    if (wallet != null && mounted) setState(() => _walletId = wallet.id);
-  }
-
   Future<void> _chooseCategory() async {
     final appData = context.read<AppData>();
     final choice = await pickCategory(
@@ -150,11 +147,6 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
       showSnack('Vui lòng nhập số tiền lớn hơn 0.', error: true);
       return;
     }
-    final walletId = _walletId;
-    if (walletId == null) {
-      showSnack('Vui lòng chọn ví cho giao dịch.', error: true);
-      return;
-    }
     FocusScope.of(context).unfocus();
     final appData = context.read<AppData>();
     final navigator = Navigator.of(context);
@@ -164,33 +156,31 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
       final note = _note.text.trim();
       final existing = widget.existing;
       if (existing == null) {
-        final created = await appData.finance.createTransaction(
-          accountId: walletId,
-          type: _type,
-          amount: amount,
-          date: _date,
-          description: description,
-          categoryId: _categoryId,
-          note: note,
-        );
+        final created = await _create(amount, description, note);
+        if (created == null) {
+          if (mounted) setState(() => _saving = false);
+          return;
+        }
         final autoCategory = created.categoryWasAuto ? appData.categoryById(created.categoryId)?.name : null;
         showSnack(
-          autoCategory == null
-              ? 'Đã ghi ${_type == 'INCOME' ? 'khoản thu' : 'khoản chi'} ${formatMoney(amount)}.'
-              : 'Đã ghi giao dịch và tự phân loại vào "$autoCategory".',
+          created.fromWalletPayment
+              ? 'Đã cập nhật khoản thanh toán có sẵn, không ghi chi lần hai.'
+              : autoCategory == null
+                  ? 'Đã ghi sổ ${_type == 'INCOME' ? 'khoản thu' : 'khoản chi'} ${formatMoney(amount)}. Số dư ví không thay đổi.'
+                  : 'Đã ghi sổ và tự phân loại vào "$autoCategory".',
         );
       } else {
         await appData.finance.updateTransaction(
           existing.id,
-          accountId: walletId,
           type: _type,
           amount: amount,
           date: _date,
           description: description,
           categoryId: _categoryId,
           note: note,
+          includeInReports: _fromPayment ? _includeInReports : null,
         );
-        showSnack('Đã cập nhật giao dịch.');
+        showSnack('Đã cập nhật khoản thu chi.');
       }
       await appData.markChanged();
       navigator.pop(true);
@@ -200,13 +190,42 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     }
   }
 
+  /// Ghi khoản mới; nếu backend phát hiện khoản thanh toán ví cùng ngày và số
+  /// tiền thì hỏi người dùng gắn vào khoản đó hay xác nhận là khoản khác.
+  /// Trả `null` khi người dùng hủy.
+  Future<Txn?> _create(int amount, String description, String note) async {
+    final appData = context.read<AppData>();
+    Future<Txn> send({String? walletEntryId, bool acceptSeparate = false}) {
+      return appData.finance.createTransaction(
+        type: _type,
+        amount: amount,
+        date: _date,
+        description: description,
+        categoryId: _categoryId,
+        note: note,
+        walletEntryId: walletEntryId,
+        acceptSeparate: acceptSeparate,
+      );
+    }
+
+    try {
+      return await send();
+    } on ApiException catch (error) {
+      if (error.code != 'PAYMENT_RECORD_REVIEW_REQUIRED' || !mounted) rethrow;
+      final candidates = asJsonList(error.detail['candidates']).map(PaymentCandidate.fromJson).toList();
+      final choice = await reviewPaymentCandidates(context, candidates);
+      if (choice == null) return null;
+      return choice.isEmpty ? send(acceptSeparate: true) : send(walletEntryId: choice);
+    }
+  }
+
   Future<void> _delete() async {
     final existing = widget.existing;
     if (existing == null) return;
     final confirmed = await confirmDialog(
       context,
-      title: 'Xóa giao dịch?',
-      message: 'Số dư ví sẽ được hoàn lại như trước khi ghi giao dịch này.',
+      title: 'Xóa khoản thu chi?',
+      message: 'Khoản này sẽ bị xóa khỏi sổ thu chi. Số dư ví không thay đổi.',
       confirmLabel: 'Xóa',
       danger: true,
     );
@@ -217,7 +236,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     try {
       await appData.finance.deleteTransaction(existing.id);
       await appData.markChanged();
-      showSnack('Đã xóa giao dịch và hoàn số dư.');
+      showSnack('Đã xóa khoản thu chi.');
       navigator.pop(true);
     } catch (error) {
       showSnack(errorText(error), error: true);
@@ -228,7 +247,6 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
   @override
   Widget build(BuildContext context) {
     final appData = context.watch<AppData>();
-    final wallet = appData.walletById(_walletId);
     final category = appData.categoryById(_categoryId);
     final isIncome = _type == 'INCOME';
     final accent = isIncome ? AppColors.success : AppColors.danger;
@@ -239,7 +257,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
       appBar: appBar(
         _editing ? 'Sửa giao dịch' : 'Giao dịch mới',
         actions: [
-          if (_editing)
+          if (_editing && !_fromPayment)
             IconButton(
               onPressed: _saving ? null : _delete,
               icon: const Icon(Icons.delete_outline, color: AppColors.danger),
@@ -254,6 +272,13 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                 children: [
+                  if (_fromPayment) ...[
+                    const InfoBanner(
+                      message: 'Đây là phần chi tiêu cá nhân của một khoản thanh toán ví. Sửa ở đây không thay đổi số tiền đã trả; số ghi nhận không được vượt số đã trả.',
+                      icon: Icons.account_balance_wallet_outlined,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   SegmentedChoice<String>(
                     options: const [MapEntry('EXPENSE', 'Khoản chi'), MapEntry('INCOME', 'Khoản thu')],
                     value: _type,
@@ -317,21 +342,19 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                       }),
                     ),
                   ],
-                  const SizedBox(height: 12),
-                  PickerField(
-                    label: 'Ví',
-                    value: wallet == null ? null : '${wallet.name} · ${formatMoney(wallet.balance, keepSign: true)}',
-                    placeholder: appData.wallets.isEmpty ? 'Chưa có ví — hãy tạo ví trước' : 'Chọn ví',
-                    leading: wallet == null
-                        ? null
-                        : IconBadge(
-                            icon: walletIcon(wallet.accountType),
-                            color: walletColor(wallet.accountType),
-                            size: 36,
-                          ),
-                    icon: Icons.account_balance_wallet_outlined,
-                    onTap: _chooseWallet,
-                  ),
+                  if (_fromPayment) ...[
+                    const SizedBox(height: 4),
+                    SwitchListTile(
+                      value: _includeInReports,
+                      onChanged: (value) => setState(() => _includeInReports = value),
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Tính vào chi tiêu', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600)),
+                      subtitle: const Text(
+                        'Tắt để chỉ giữ khoản thanh toán trong lịch sử ví, không tính vào sổ thu chi và ngân sách.',
+                        style: TextStyle(fontSize: 12.5, color: AppColors.muted),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   PickerField(
                     label: 'Danh mục',

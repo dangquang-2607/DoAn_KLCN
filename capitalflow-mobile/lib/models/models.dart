@@ -93,15 +93,19 @@ class LoginSession {
 
 // ── Ví & danh mục ───────────────────────────────────────────────────────────
 
+/// Ví mô phỏng độc lập (`/wallets`) — số dư chỉ thay đổi khi nạp, rút, chuyển
+/// hoặc thanh toán; tách biệt hoàn toàn với sổ thu chi.
 class Wallet {
   Wallet({
     required this.id,
     required this.name,
-    required this.accountType,
     required this.balance,
-    required this.currency,
+    this.accountType = 'WALLET',
+    this.currency = 'VND',
     this.institutionName,
     this.isActive = true,
+    this.isDefault = false,
+    this.receiveCode,
   });
 
   final String id;
@@ -112,15 +116,256 @@ class Wallet {
   final String? institutionName;
   final bool isActive;
 
+  /// Ví mặc định nhận tiền qua email, không thể đóng.
+  final bool isDefault;
+
+  /// Email (ví mặc định) hoặc mã `CF-xxxxxxxx` (ví phụ) để người khác chuyển tiền tới.
+  final String? receiveCode;
+
   factory Wallet.fromJson(Json json) {
     return Wallet(
       id: json['id'].toString(),
       name: (json['name'] ?? '').toString(),
-      accountType: (json['account_type'] ?? 'OTHER').toString(),
+      accountType: (json['account_type'] ?? 'WALLET').toString(),
       balance: asDouble(json['balance']),
       currency: (json['currency'] ?? 'VND').toString(),
       institutionName: asText(json['institution_name']),
       isActive: json['is_active'] != false,
+      isDefault: json['is_default'] == true,
+      receiveCode: asText(json['receive_code']),
+    );
+  }
+}
+
+/// Ngân hàng mô phỏng hỗ trợ liên kết (`/wallets/providers`).
+class BankProvider {
+  BankProvider({
+    required this.code,
+    required this.name,
+    required this.demoNumber,
+    required this.label,
+    required this.hint,
+  });
+
+  final String code;
+  final String name;
+
+  /// Số tài khoản demo được cấp riêng cho người dùng.
+  final String demoNumber;
+  final String label;
+  final String hint;
+
+  factory BankProvider.fromJson(String code, Json json) {
+    return BankProvider(
+      code: code,
+      name: (json['name'] ?? code).toString(),
+      demoNumber: (json['demo_number'] ?? '').toString(),
+      label: (json['label'] ?? 'Số tài khoản').toString(),
+      hint: (json['hint'] ?? '').toString(),
+    );
+  }
+}
+
+/// Liên kết ngân hàng dùng chung cho mọi ví (`/wallets/banks`).
+class BankLink {
+  BankLink({
+    required this.id,
+    required this.provider,
+    required this.maskedNumber,
+    required this.status,
+    this.expiresAt,
+  });
+
+  final String id;
+  final String provider;
+  final String maskedNumber;
+
+  /// `CONNECTED`, `EXPIRED` hoặc `DISCONNECTED`.
+  final String status;
+  final DateTime? expiresAt;
+
+  bool get connected => status == 'CONNECTED';
+
+  String get statusLabel => switch (status) {
+        'CONNECTED' => 'Đã liên kết',
+        'EXPIRED' => 'Hết hạn',
+        _ => 'Đã ngắt',
+      };
+
+  factory BankLink.fromJson(Json json) {
+    return BankLink(
+      id: json['id'].toString(),
+      provider: (json['provider'] ?? '').toString(),
+      maskedNumber: (json['account_number_masked'] ?? '').toString(),
+      status: (json['status'] ?? 'DISCONNECTED').toString(),
+      expiresAt: parseApiDateTime(json['expires_at']),
+    );
+  }
+}
+
+/// Một dòng biến động tiền trong lịch sử ví.
+class WalletEntry {
+  WalletEntry({
+    required this.id,
+    required this.operationId,
+    required this.kind,
+    required this.amount,
+    required this.balanceAfter,
+    this.createdAt,
+    this.merchantName,
+    this.billReference,
+    this.bookkeepingId,
+    this.recordedAmount,
+    this.includeInReports,
+    this.categoryId,
+    this.categoryName,
+  });
+
+  final String id;
+  final String operationId;
+
+  /// `TOPUP`, `WITHDRAW`, `TRANSFER_IN`, `TRANSFER_OUT` hoặc `PAYMENT`.
+  final String kind;
+
+  /// Số tiền có dấu: tiền vào dương, tiền ra âm.
+  final double amount;
+  final double balanceAfter;
+  final DateTime? createdAt;
+  final String? merchantName;
+  final String? billReference;
+
+  /// Khoản ghi sổ gắn với thanh toán (chỉ có ở `PAYMENT`).
+  final String? bookkeepingId;
+  final double? recordedAmount;
+  final bool? includeInReports;
+  final String? categoryId;
+  final String? categoryName;
+
+  bool get isIncoming => kind == 'TOPUP' || kind == 'TRANSFER_IN';
+  bool get isPayment => kind == 'PAYMENT';
+
+  String get label => switch (kind) {
+        'TOPUP' => 'Nạp từ ngân hàng',
+        'WITHDRAW' => 'Rút về ngân hàng',
+        'TRANSFER_IN' => 'Nhận chuyển tiền',
+        'TRANSFER_OUT' => 'Chuyển tiền',
+        'PAYMENT' => 'Thanh toán hóa đơn',
+        _ => kind,
+      };
+
+  factory WalletEntry.fromJson(Json json) {
+    final recorded = json['recorded_amount'];
+    return WalletEntry(
+      id: json['id'].toString(),
+      operationId: (json['operation_id'] ?? '').toString(),
+      kind: (json['kind'] ?? '').toString(),
+      amount: asDouble(json['amount']),
+      balanceAfter: asDouble(json['balance_after']),
+      // Backend lưu giờ UTC không kèm múi giờ.
+      createdAt: parseApiDateTime(json['created_at']),
+      merchantName: asText(json['merchant_name']),
+      billReference: asText(json['bill_reference']),
+      bookkeepingId: asText(json['bookkeeping_id']),
+      recordedAmount: recorded == null ? null : asDouble(recorded),
+      includeInReports: json['include_in_reports'] is bool
+          ? json['include_in_reports'] as bool
+          : null,
+      categoryId: asText(json['category_id']),
+      categoryName: asText(json['category_name']),
+    );
+  }
+}
+
+class WalletHistoryPage {
+  WalletHistoryPage({required this.items, required this.total});
+
+  final List<WalletEntry> items;
+  final int total;
+
+  factory WalletHistoryPage.fromJson(Json json) {
+    return WalletHistoryPage(
+      items: asJsonList(json['items']).map(WalletEntry.fromJson).toList(),
+      total: asInt(json['total']),
+    );
+  }
+}
+
+/// Thông tin nhận tiền của một ví (mã nhận và nội dung QR).
+class ReceiveInfo {
+  ReceiveInfo({
+    required this.walletId,
+    required this.walletName,
+    required this.recipientName,
+    required this.receiveCode,
+    required this.qrPayload,
+  });
+
+  final String walletId;
+  final String walletName;
+  final String recipientName;
+  final String receiveCode;
+  final String qrPayload;
+
+  factory ReceiveInfo.fromJson(Json json) {
+    return ReceiveInfo(
+      walletId: (json['wallet_id'] ?? '').toString(),
+      walletName: (json['wallet_name'] ?? '').toString(),
+      recipientName: (json['recipient_name'] ?? '').toString(),
+      receiveCode: (json['receive_code'] ?? '').toString(),
+      qrPayload: (json['qr_payload'] ?? '').toString(),
+    );
+  }
+}
+
+/// Ví nhận đã được backend xác minh trước khi chuyển tiền.
+class Recipient {
+  Recipient({
+    required this.walletId,
+    required this.walletName,
+    required this.recipientName,
+    required this.isOwn,
+  });
+
+  final String walletId;
+  final String walletName;
+  final String recipientName;
+  final bool isOwn;
+
+  factory Recipient.fromJson(Json json) {
+    return Recipient(
+      walletId: json['id'].toString(),
+      walletName: (json['name'] ?? '').toString(),
+      recipientName:
+          (json['recipient_name'] ?? 'Người dùng CapitalFlow').toString(),
+      isOwn: json['is_own'] == true,
+    );
+  }
+}
+
+/// Khoản thanh toán ví có thể trùng với khoản đang ghi sổ (lỗi 409
+/// `PAYMENT_RECORD_REVIEW_REQUIRED`).
+class PaymentCandidate {
+  PaymentCandidate({
+    required this.walletEntryId,
+    required this.merchantName,
+    required this.billReference,
+    required this.paidAmount,
+    this.createdAt,
+  });
+
+  final String walletEntryId;
+  final String merchantName;
+  final String billReference;
+  final double paidAmount;
+  final DateTime? createdAt;
+
+  factory PaymentCandidate.fromJson(Json json) {
+    return PaymentCandidate(
+      walletEntryId: json['wallet_entry_id'].toString(),
+      merchantName: (json['merchant_name'] ?? '').toString(),
+      billReference: (json['bill_reference'] ?? '').toString(),
+      paidAmount: asDouble(json['paid_amount']),
+      createdAt: parseApiDateTime(json['created_at']),
     );
   }
 }
@@ -200,28 +445,42 @@ class CategorySuggestion {
 
 // ── Giao dịch ───────────────────────────────────────────────────────────────
 
+/// Một khoản trong sổ thu chi (`/bookkeeping`). Sổ thu chi không gắn với ví:
+/// ghi sổ không làm thay đổi số dư ví.
 class Txn {
   Txn({
     required this.id,
-    required this.accountId,
     required this.amount,
     required this.type,
     required this.source,
     required this.kind,
     required this.date,
     required this.description,
+    this.accountId,
     this.categoryId,
     this.invoiceId,
     this.note,
     this.categoryWasAuto = false,
     this.categorySource,
     this.createdAt,
+    this.walletEntryId,
+    this.includeInReports = true,
   });
 
   final String id;
-  final String accountId;
+
+  /// Ví liên quan (chỉ còn ở dữ liệu cũ); sổ thu chi mới để trống.
+  final String? accountId;
   final String? categoryId;
   final String? invoiceId;
+
+  /// Khoản ghi nhận của một lần thanh toán ví — giữ để đối chiếu, không xóa được.
+  final String? walletEntryId;
+
+  /// Có tính vào báo cáo thu chi và ngân sách hay không.
+  final bool includeInReports;
+
+  bool get fromWalletPayment => walletEntryId != null;
 
   /// Số tiền có dấu như trong CSDL: thu dương, chi âm.
   final double amount;
@@ -229,8 +488,16 @@ class Txn {
   /// `INCOME` hoặc `EXPENSE`.
   final String type;
 
-  /// `MANUAL`, `OCR`, `IMPORT` hoặc `SYSTEM`.
+  /// `MANUAL`, `OCR`, `WALLET`, `IMPORT` hoặc `SYSTEM`.
   final String source;
+
+  String get sourceLabel => switch (source) {
+        'WALLET' => 'Thanh toán ví',
+        'OCR' => 'Hóa đơn AI',
+        'XML' => 'Hóa đơn điện tử',
+        'MANUAL' => 'Nhập tay',
+        _ => source,
+      };
 
   /// `NORMAL`, `TRANSFER` hoặc `ADJUSTMENT`.
   final String kind;
@@ -260,9 +527,11 @@ class Txn {
   factory Txn.fromJson(Json json) {
     return Txn(
       id: json['id'].toString(),
-      accountId: (json['account_id'] ?? '').toString(),
+      accountId: asText(json['account_id']),
       categoryId: asText(json['category_id']),
       invoiceId: asText(json['invoice_id']),
+      walletEntryId: asText(json['wallet_entry_id']),
+      includeInReports: json['include_in_reports'] != false,
       amount: asDouble(json['amount']),
       type: (json['type'] ?? 'EXPENSE').toString(),
       source: (json['source'] ?? 'MANUAL').toString(),

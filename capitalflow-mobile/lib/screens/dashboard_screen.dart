@@ -14,10 +14,7 @@ import '../widgets/charts.dart';
 import '../widgets/common.dart';
 import 'accounts/accounts_screen.dart';
 import 'analytics/analytics_screen.dart';
-import 'invoices/invoices_screen.dart';
 import 'notifications/notifications_screen.dart';
-import 'transactions/transaction_form_screen.dart';
-import 'transactions/transfer_screen.dart';
 
 /// Tổng quan tài chính: lời chào và trạng thái đồng bộ, thẻ tổng tài sản, thao tác nhanh,
 /// biểu đồ xu hướng thu chi và cơ cấu chi tiêu, phân bổ tài sản theo ví,
@@ -142,8 +139,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                       const SizedBox(height: Space.md),
                     ],
                     _BalanceCard(data: data),
-                    const SizedBox(height: Space.xl),
-                    const _QuickActions(),
                     const SizedBox(height: Space.xxl),
                     SectionHeader(
                       'Xu hướng thu chi',
@@ -640,118 +635,6 @@ class _FlowStat extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Thao tác nhanh
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _QuickActions extends StatelessWidget {
-  const _QuickActions();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: _QuickAction(
-            icon: Icons.north_east_rounded,
-            label: 'Ghi chi',
-            color: AppColors.danger,
-            onTap: () => pushScreen<bool>(
-                context, const TransactionFormScreen(initialType: 'EXPENSE')),
-          ),
-        ),
-        Expanded(
-          child: _QuickAction(
-            icon: Icons.south_west_rounded,
-            label: 'Ghi thu',
-            color: AppColors.success,
-            onTap: () => pushScreen<bool>(
-                context, const TransactionFormScreen(initialType: 'INCOME')),
-          ),
-        ),
-        Expanded(
-          child: _QuickAction(
-            icon: Icons.document_scanner_rounded,
-            label: 'Quét hóa đơn',
-            color: AppColors.blue,
-            onTap: () => pushScreen<bool>(context,
-                const InvoicesScreen(startAction: InvoiceStartAction.camera)),
-          ),
-        ),
-        Expanded(
-          child: _QuickAction(
-            icon: Icons.swap_horiz_rounded,
-            label: 'Chuyển ví',
-            color: AppColors.amber,
-            onTap: () => pushScreen<bool>(context, const TransferScreen()),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _QuickAction extends StatelessWidget {
-  const _QuickAction(
-      {required this.icon,
-      required this.label,
-      required this.color,
-      required this.onTap});
-
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(Radii.md),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: Space.xxs),
-        child: Column(
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(Radii.md + 2),
-                border: Border.all(color: AppColors.hairline),
-                boxShadow: AppShadows.soft,
-              ),
-              child: Center(
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(Radii.sm - 2),
-                  ),
-                  child: Icon(icon, size: 20, color: color),
-                ),
-              ),
-            ),
-            const SizedBox(height: Space.xs),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.ink),
-            ),
-          ],
-        ),
       ),
     );
   }

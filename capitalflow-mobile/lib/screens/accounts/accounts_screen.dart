@@ -1,17 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/api_client.dart';
 import '../../core/category_style.dart';
 import '../../core/formatters.dart';
 import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../../services/app_data.dart';
 import '../../widgets/common.dart';
-import '../../widgets/pickers.dart';
 import '../transactions/transfer_screen.dart';
+import 'bank_links_screen.dart';
+import 'bank_money_screen.dart';
+import 'bill_payment_screen.dart';
+import 'wallet_history_screen.dart';
 
-/// Quản lý ví, tài khoản ngân hàng, ví điện tử... và số dư của từng ví.
+/// Ví của bạn — đồng bộ với trang Ví của bản web.
+///
+/// Ví có số dư riêng, chỉ thay đổi khi nạp/rút qua ngân hàng liên kết, chuyển
+/// tiền giữa các ví hoặc thanh toán hóa đơn mô phỏng. Ví mới luôn bắt đầu từ 0đ;
+/// ví mặc định nhận tiền qua email và không thể đóng.
 class AccountsScreen extends StatefulWidget {
   const AccountsScreen({super.key});
 
@@ -22,6 +29,8 @@ class AccountsScreen extends StatefulWidget {
 class _AccountsScreenState extends State<AccountsScreen> {
   bool _loading = false;
   String? _error;
+  bool _showClosed = false;
+  List<Wallet> _closed = <Wallet>[];
 
   @override
   void initState() {
@@ -38,7 +47,12 @@ class _AccountsScreenState extends State<AccountsScreen> {
     });
     try {
       await appData.refreshLookups();
-      if (mounted) setState(() => _loading = false);
+      final all = await appData.finance.wallets(includeClosed: true);
+      if (!mounted) return;
+      setState(() {
+        _closed = all.where((wallet) => !wallet.isActive).toList();
+        _loading = false;
+      });
     } catch (error) {
       if (mounted) {
         setState(() {
@@ -49,109 +63,166 @@ class _AccountsScreenState extends State<AccountsScreen> {
     }
   }
 
-  Future<void> _openForm([Wallet? wallet]) async {
-    await showModalBottomSheet<void>(
+  Future<void> _afterChange(Future<bool?> action) async {
+    final changed = await action;
+    if (changed == true) await _refresh();
+  }
+
+  Future<void> _openNameForm([Wallet? wallet]) async {
+    final changed = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
       backgroundColor: AppColors.surface,
-      builder: (_) => _WalletForm(existing: wallet),
+      builder: (_) => _WalletNameForm(existing: wallet),
     );
+    if (changed == true) await _refresh();
   }
 
-  Future<void> _delete(Wallet wallet) async {
+  Future<void> _close(Wallet wallet) async {
+    if (wallet.balance != 0) {
+      showSnack('Rút hoặc chuyển hết tiền trước khi đóng ví.', error: true);
+      return;
+    }
     final confirmed = await confirmDialog(
       context,
-      title: 'Ngừng sử dụng ví?',
-      message: 'Ví "${wallet.name}" sẽ được ẩn khỏi danh sách. Lịch sử giao dịch cũ vẫn được giữ nguyên.',
-      confirmLabel: 'Ngừng sử dụng',
+      title: 'Đóng ví "${wallet.name}"?',
+      message:
+          'Ví đã đóng không thể khôi phục và không thể nạp, rút, nhận hay chuyển tiền. '
+          'Lịch sử vẫn xem được trong mục Ví đã đóng.',
+      confirmLabel: 'Đóng ví',
       danger: true,
     );
     if (!confirmed || !mounted) return;
     final appData = context.read<AppData>();
     try {
-      await appData.finance.deleteWallet(wallet.id);
-    } on ApiException catch (error) {
-      // 409: ví còn số dư — backend yêu cầu xác nhận lần hai trước khi xóa.
-      if (error.statusCode != 409 || !mounted) {
-        showSnack(error.message, error: true);
-        return;
-      }
-      final force = await confirmDialog(
-        context,
-        title: 'Ví vẫn còn số dư',
-        message: 'Ví "${wallet.name}" còn ${formatMoney(wallet.balance, keepSign: true)}. '
-            'Bạn vẫn muốn ngừng sử dụng ví này?',
-        confirmLabel: 'Vẫn ngừng sử dụng',
-        danger: true,
-      );
-      if (!force) return;
-      try {
-        await appData.finance.deleteWallet(wallet.id, force: true);
-      } catch (retryError) {
-        showSnack(errorText(retryError), error: true);
-        return;
-      }
+      await appData.finance.closeWallet(wallet.id);
+      await appData.markChanged();
+      await _refresh();
+      showSnack('Đã đóng ví "${wallet.name}".');
+    } catch (error) {
+      showSnack(errorText(error), error: true);
+    }
+  }
+
+  Future<void> _showReceive(Wallet wallet) async {
+    final appData = context.read<AppData>();
+    ReceiveInfo info;
+    try {
+      info = await appData.finance.receiveInfo(wallet.id);
     } catch (error) {
       showSnack(errorText(error), error: true);
       return;
     }
-    await appData.markChanged();
-    showSnack('Đã ngừng sử dụng ví "${wallet.name}".');
+    if (!mounted) return;
+    await showPickerSheet<void>(
+      context,
+      title: 'Nhận tiền vào ví',
+      children: (sheetContext) => [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(info.recipientName,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              Text(info.walletName,
+                  style: const TextStyle(fontSize: 13.5, color: AppColors.muted)),
+              const SizedBox(height: 14),
+              _CopyBox(
+                label: wallet.isDefault
+                    ? 'Email nhận tiền vào ví mặc định'
+                    : 'Mã ví để nhận tiền',
+                value: info.receiveCode,
+              ),
+              const SizedBox(height: 10),
+              _CopyBox(label: 'Nội dung QR CapitalFlow', value: info.qrPayload),
+              const SizedBox(height: 12),
+              const Text(
+                'Người gửi nhập email/mã ví hoặc dán nội dung QR ở mục Chuyển tiền, '
+                'kiểm tra tên người nhận rồi xác nhận số tiền.',
+                style: TextStyle(fontSize: 12.5, color: AppColors.muted),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   void _showActions(Wallet wallet) {
+    if (!wallet.isActive) {
+      _afterChange(pushScreen<bool>(context, WalletHistoryScreen(wallet: wallet)));
+      return;
+    }
     showPickerSheet<void>(
       context,
       title: wallet.name,
-      children: (sheetContext) => [
-        SheetOption(
-          title: 'Chỉnh sửa ví / điều chỉnh số dư',
-          leading: const Icon(Icons.edit_outlined, color: AppColors.ink),
-          onTap: () {
-            Navigator.of(sheetContext).pop();
-            _openForm(wallet);
-          },
-        ),
-        SheetOption(
-          title: 'Chuyển tiền giữa ví',
-          leading: const Icon(Icons.swap_horiz, color: AppColors.ink),
-          onTap: () {
-            Navigator.of(sheetContext).pop();
-            pushScreen<bool>(context, const TransferScreen());
-          },
-        ),
-        SheetOption(
-          title: 'Ngừng sử dụng ví',
-          leading: const Icon(Icons.delete_outline, color: AppColors.danger),
-          onTap: () {
-            Navigator.of(sheetContext).pop();
-            _delete(wallet);
-          },
-        ),
-      ],
+      children: (sheetContext) {
+        void go(VoidCallback action) {
+          Navigator.of(sheetContext).pop();
+          action();
+        }
+
+        return [
+          SheetOption(
+            title: 'Lịch sử tiền trong ví',
+            leading: const Icon(Icons.history, color: AppColors.ink),
+            onTap: () => go(() => _afterChange(
+                pushScreen<bool>(context, WalletHistoryScreen(wallet: wallet)))),
+          ),
+          SheetOption(
+            title: 'Nạp / rút tiền',
+            leading: const Icon(Icons.swap_vert, color: AppColors.ink),
+            onTap: () => go(() => _afterChange(
+                pushScreen<bool>(context, BankMoneyScreen(walletId: wallet.id)))),
+          ),
+          SheetOption(
+            title: 'Chuyển tiền',
+            leading: const Icon(Icons.swap_horiz, color: AppColors.ink),
+            onTap: () => go(() => _afterChange(pushScreen<bool>(
+                context, TransferScreen(fromWalletId: wallet.id)))),
+          ),
+          SheetOption(
+            title: 'Thanh toán hóa đơn',
+            leading: const Icon(Icons.receipt_long_outlined, color: AppColors.ink),
+            onTap: () => go(() => _afterChange(pushScreen<bool>(
+                context, BillPaymentScreen(walletId: wallet.id)))),
+          ),
+          SheetOption(
+            title: 'Mã nhận tiền',
+            subtitle: wallet.receiveCode,
+            leading: const Icon(Icons.qr_code_2, color: AppColors.ink),
+            onTap: () => go(() => _showReceive(wallet)),
+          ),
+          SheetOption(
+            title: 'Đổi tên ví',
+            leading: const Icon(Icons.edit_outlined, color: AppColors.ink),
+            onTap: () => go(() => _openNameForm(wallet)),
+          ),
+          if (!wallet.isDefault)
+            SheetOption(
+              title: 'Đóng ví',
+              leading: const Icon(Icons.delete_outline, color: AppColors.danger),
+              onTap: () => go(() => _close(wallet)),
+            ),
+        ];
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final appData = context.watch<AppData>();
-    final wallets = appData.wallets;
-    final total = wallets.fold<double>(0, (sum, wallet) => sum + wallet.balance);
+    final active = appData.wallets;
+    final wallets = _showClosed ? _closed : active;
+    final total = active.fold<double>(0, (sum, wallet) => sum + wallet.balance);
 
     Widget body;
     if (_loading) {
       body = const LoadingView();
-    } else if (_error != null && wallets.isEmpty) {
+    } else if (_error != null && active.isEmpty) {
       body = ErrorView(message: _error!, onRetry: _refresh);
-    } else if (wallets.isEmpty) {
-      body = EmptyView(
-        icon: Icons.account_balance_wallet_outlined,
-        title: 'Chưa có ví nào',
-        message: 'Tạo ví tiền mặt, tài khoản ngân hàng hoặc ví điện tử để bắt đầu ghi chép thu chi.',
-        actionLabel: 'Thêm ví',
-        onAction: _openForm,
-      );
     } else {
       body = RefreshIndicator(
         onRefresh: _refresh,
@@ -168,7 +239,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Tổng số dư ${wallets.length} ví', style: const TextStyle(fontSize: 13, color: AppColors.muted)),
+                        Text('Tổng số dư ${active.length} ví đang dùng',
+                            style: const TextStyle(fontSize: 13, color: AppColors.muted)),
                         const SizedBox(height: 2),
                         Text(
                           formatMoney(total, keepSign: true),
@@ -181,6 +253,52 @@ class _AccountsScreenState extends State<AccountsScreen> {
               ),
             ),
             const SizedBox(height: 12),
+            Row(
+              children: [
+                _WalletAction(
+                  icon: Icons.swap_vert,
+                  label: 'Nạp / Rút',
+                  color: AppColors.blue,
+                  onTap: () => _afterChange(pushScreen<bool>(
+                      context, BankMoneyScreen(walletId: active.isEmpty ? null : active.first.id))),
+                ),
+                _WalletAction(
+                  icon: Icons.swap_horiz,
+                  label: 'Chuyển tiền',
+                  color: AppColors.success,
+                  onTap: () => _afterChange(pushScreen<bool>(context, const TransferScreen())),
+                ),
+                _WalletAction(
+                  icon: Icons.receipt_long_outlined,
+                  label: 'Thanh toán',
+                  color: AppColors.amber,
+                  onTap: () => _afterChange(pushScreen<bool>(context, const BillPaymentScreen())),
+                ),
+                _WalletAction(
+                  icon: Icons.account_balance_outlined,
+                  label: 'Ngân hàng',
+                  color: AppPalette.violet,
+                  onTap: () => _afterChange(pushScreen<bool>(context, const BankLinksScreen())),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            SegmentedChoice<bool>(
+              options: const [MapEntry(false, 'Ví đang dùng'), MapEntry(true, 'Ví đã đóng')],
+              value: _showClosed,
+              onChanged: (value) => setState(() => _showClosed = value),
+            ),
+            const SizedBox(height: 12),
+            if (wallets.isEmpty)
+              EmptyView(
+                icon: Icons.account_balance_wallet_outlined,
+                title: _showClosed ? 'Chưa có ví đã đóng' : 'Chưa có ví nào',
+                message: _showClosed
+                    ? 'Lịch sử của ví đã đóng vẫn được lưu để tra cứu.'
+                    : 'Tạo ví bằng tên bạn muốn. Số dư ban đầu luôn là 0đ.',
+                actionLabel: _showClosed ? null : 'Tạo ví',
+                onAction: _showClosed ? null : _openNameForm,
+              ),
             for (final wallet in wallets)
               Padding(
                 padding: const EdgeInsets.only(bottom: 10),
@@ -188,7 +306,10 @@ class _AccountsScreenState extends State<AccountsScreen> {
                   onTap: () => _showActions(wallet),
                   child: Row(
                     children: [
-                      IconBadge(icon: walletIcon(wallet.accountType), color: walletColor(wallet.accountType), size: 46),
+                      IconBadge(
+                          icon: walletIcon(wallet.accountType),
+                          color: wallet.isActive ? walletColor(wallet.accountType) : AppColors.subtle,
+                          size: 46),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -203,8 +324,12 @@ class _AccountsScreenState extends State<AccountsScreen> {
                             const SizedBox(height: 3),
                             Text(
                               [
-                                walletTypeLabel(wallet.accountType),
-                                if ((wallet.institutionName ?? '').isNotEmpty) wallet.institutionName!,
+                                wallet.isDefault
+                                    ? 'Ví mặc định'
+                                    : wallet.isActive
+                                        ? 'Ví cá nhân'
+                                        : 'Đã đóng',
+                                if ((wallet.receiveCode ?? '').isNotEmpty) wallet.receiveCode!,
                               ].join(' · '),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -216,15 +341,17 @@ class _AccountsScreenState extends State<AccountsScreen> {
                       const SizedBox(width: 8),
                       Text(
                         formatMoney(wallet.balance, keepSign: true),
-                        style: moneyStyle.copyWith(
-                          fontSize: 15.5,
-                          color: wallet.balance < 0 ? AppColors.danger : AppColors.ink,
-                        ),
+                        style: moneyStyle.copyWith(fontSize: 15.5, color: AppColors.ink),
                       ),
                     ],
                   ),
                 ),
               ),
+            const SizedBox(height: 4),
+            const Text(
+              'Số dư ví tách biệt với sổ thu chi. Nạp, rút và chuyển tiền không tính vào thu nhập/chi tiêu.',
+              style: TextStyle(fontSize: 12.5, color: AppColors.muted),
+            ),
           ],
         ),
       );
@@ -232,54 +359,125 @@ class _AccountsScreenState extends State<AccountsScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: appBar('Ví & tài khoản'),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openForm,
-        icon: const Icon(Icons.add),
-        label: const Text('Thêm ví'),
-      ),
+      appBar: appBar('Ví của bạn'),
+      floatingActionButton: _showClosed
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: _openNameForm,
+              icon: const Icon(Icons.add),
+              label: const Text('Tạo ví'),
+            ),
       body: body,
     );
   }
 }
 
-/// Biểu mẫu tạo/sửa ví hiển thị trong bảng trượt.
-class _WalletForm extends StatefulWidget {
-  const _WalletForm({this.existing});
+/// Ô thao tác nhanh trên đầu màn hình Ví.
+class _WalletAction extends StatelessWidget {
+  const _WalletAction({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(Radii.md),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: Space.xxs),
+          child: Column(
+            children: [
+              IconBadge(icon: icon, color: color, size: 46),
+              const SizedBox(height: Space.xs),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.ink),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Ô hiển thị một giá trị kèm nút sao chép.
+class _CopyBox extends StatelessWidget {
+  const _CopyBox({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 4, 10),
+      decoration: BoxDecoration(
+        color: AppColors.soft,
+        borderRadius: BorderRadius.circular(Radii.sm),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                const SizedBox(height: 2),
+                SelectableText(value,
+                    style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: AppColors.ink)),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Sao chép',
+            icon: const Icon(Icons.copy_rounded, size: 20, color: AppColors.blue),
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: value));
+              showSnack('Đã sao chép.');
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tạo ví mới (chỉ cần tên, số dư ban đầu 0đ) hoặc đổi tên ví.
+class _WalletNameForm extends StatefulWidget {
+  const _WalletNameForm({this.existing});
 
   final Wallet? existing;
 
   @override
-  State<_WalletForm> createState() => _WalletFormState();
+  State<_WalletNameForm> createState() => _WalletNameFormState();
 }
 
-class _WalletFormState extends State<_WalletForm> {
+class _WalletNameFormState extends State<_WalletNameForm> {
   final TextEditingController _name = TextEditingController();
-  final TextEditingController _institution = TextEditingController();
-  final TextEditingController _balance = TextEditingController();
-
-  String _type = 'CASH';
-  bool _negative = false;
   bool _saving = false;
 
   @override
   void initState() {
     super.initState();
-    final existing = widget.existing;
-    if (existing != null) {
-      _name.text = existing.name;
-      _institution.text = existing.institutionName ?? '';
-      _type = existing.accountType;
-      _negative = existing.balance < 0;
-      _balance.text = groupThousands(existing.balance.abs().round().toString());
-    }
+    _name.text = widget.existing?.name ?? '';
   }
 
   @override
   void dispose() {
     _name.dispose();
-    _institution.dispose();
-    _balance.dispose();
     super.dispose();
   }
 
@@ -289,34 +487,20 @@ class _WalletFormState extends State<_WalletForm> {
       showSnack('Vui lòng nhập tên ví.', error: true);
       return;
     }
-    final amount = parseAmountInput(_balance.text);
-    final balance = _negative ? -amount : amount;
     final appData = context.read<AppData>();
     final navigator = Navigator.of(context);
     setState(() => _saving = true);
     try {
       final existing = widget.existing;
       if (existing == null) {
-        await appData.finance.createWallet(
-          name: name,
-          accountType: _type,
-          balance: balance,
-          institutionName: _institution.text.trim(),
-        );
-        showSnack('Đã thêm ví "$name".');
+        await appData.finance.createWallet(name);
+        showSnack('Đã tạo ví "$name".');
       } else {
-        final balanceChanged = balance != existing.balance.round();
-        await appData.finance.updateWallet(
-          existing.id,
-          name: name,
-          accountType: _type,
-          institutionName: _institution.text.trim(),
-          balance: balanceChanged ? balance : null,
-        );
-        showSnack(balanceChanged ? 'Đã cập nhật ví và ghi nhận điều chỉnh số dư.' : 'Đã cập nhật ví.');
+        await appData.finance.renameWallet(existing.id, name);
+        showSnack('Đã đổi tên ví.');
       }
       await appData.markChanged();
-      navigator.pop();
+      navigator.pop(true);
     } catch (error) {
       showSnack(errorText(error), error: true);
       if (mounted) setState(() => _saving = false);
@@ -329,71 +513,32 @@ class _WalletFormState extends State<_WalletForm> {
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.fromLTRB(20, 0, 20, 16 + MediaQuery.of(context).viewInsets.bottom),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                editing ? 'Chỉnh sửa ví' : 'Thêm ví mới',
-                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: _name,
-                maxLength: 150,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: fieldDecoration('Tên ví', icon: Icons.badge_outlined, hint: 'Ví dụ: Tiền mặt, Vietcombank'),
-              ),
-              const SizedBox(height: 10),
-              PickerField(
-                label: 'Loại tài khoản',
-                value: walletTypeLabel(_type),
-                leading: IconBadge(icon: walletIcon(_type), color: walletColor(_type), size: 36),
-                onTap: () async {
-                  final picked = await pickOption<String>(
-                    context,
-                    title: 'Loại tài khoản',
-                    options: walletTypeLabels.entries.toList(),
-                    selected: _type,
-                  );
-                  if (picked != null && mounted) setState(() => _type = picked);
-                },
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: _institution,
-                maxLength: 150,
-                decoration: fieldDecoration(
-                  'Ngân hàng / tổ chức (không bắt buộc)',
-                  icon: Icons.account_balance_outlined,
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: _balance,
-                keyboardType: TextInputType.number,
-                inputFormatters: [ThousandsInputFormatter()],
-                style: moneyStyle.copyWith(fontSize: 18, color: AppColors.ink),
-                decoration: fieldDecoration(
-                  editing ? 'Số dư hiện tại (₫)' : 'Số dư ban đầu (₫)',
-                  icon: Icons.payments_outlined,
-                  helper: editing
-                      ? 'Đổi số dư sẽ tạo một giao dịch "Điều chỉnh số dư" để đối soát.'
-                      : null,
-                ),
-              ),
-              SwitchListTile(
-                value: _negative,
-                onChanged: (value) => setState(() => _negative = value),
-                contentPadding: EdgeInsets.zero,
-                dense: true,
-                title: const Text('Số dư âm (đang nợ)', style: TextStyle(fontSize: 14)),
-              ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              editing ? 'Đổi tên ví' : 'Tạo ví mới',
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _name,
+              autofocus: true,
+              maxLength: 150,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: fieldDecoration('Tên ví', icon: Icons.badge_outlined, hint: 'Ví dụ: Ví chi tiêu, Quỹ du lịch'),
+            ),
+            if (!editing) ...[
               const SizedBox(height: 8),
-              PrimaryButton(label: editing ? 'Lưu thay đổi' : 'Thêm ví', loading: _saving, onPressed: _save),
+              const Text(
+                'Ví bắt đầu với 0đ. Nạp tiền từ ngân hàng liên kết hoặc nhận tiền từ ví khác để sử dụng.',
+                style: TextStyle(fontSize: 12.5, color: AppColors.muted),
+              ),
             ],
-          ),
+            const SizedBox(height: 14),
+            PrimaryButton(label: editing ? 'Lưu tên ví' : 'Tạo ví', loading: _saving, onPressed: _save),
+          ],
         ),
       ),
     );

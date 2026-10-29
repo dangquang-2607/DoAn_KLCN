@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/category_style.dart';
 import '../../core/api_client.dart';
 import 'invoice_duplicate_dialog.dart';
 import '../../core/formatters.dart';
@@ -110,7 +109,6 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
   InvoiceDetail? _detail;
   String? _populatedStatus;
   DateTime? _invoiceDate;
-  String? _walletId;
   String? _categoryId;
   CategorySuggestion? _suggestion;
   Uint8List? _image;
@@ -207,9 +205,6 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
     _lines
       ..clear()
       ..addAll(detail.items.map((item) => _LineEditor(item)));
-    _walletId = detail.accountId ??
-        _walletId ??
-        (appData.wallets.isNotEmpty ? appData.wallets.first.id : null);
     _categoryId = detail.categoryId ?? _categoryId;
   }
 
@@ -277,8 +272,8 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
       return;
     }
     final total = parseAmountInput(_total.text);
-    if (total <= 0 || _walletId == null) {
-      showSnack('Nhập tổng tiền lớn hơn 0 và chọn ví thanh toán.', error: true);
+    if (total <= 0) {
+      showSnack('Nhập tổng tiền lớn hơn 0.', error: true);
       return;
     }
     final time = _time.text.trim();
@@ -289,8 +284,8 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
     }
     String? clean(TextEditingController field) =>
         field.text.trim().isEmpty ? null : field.text.trim();
+    // Ghi sổ thu chi (giống bản web): không chọn ví, số dư ví không thay đổi.
     final fields = <String, dynamic>{
-      'account_id': _walletId,
       'category_id': _categoryId,
       'merchant_name': clean(_merchant),
       'merchant_address': clean(_address),
@@ -345,18 +340,44 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
         };
         _pendingConfirm = payload;
       }
-      final result = await appData.invoices.confirm(widget.invoiceId, payload);
+      Json result;
+      try {
+        result = await appData.invoices.confirm(widget.invoiceId, payload);
+      } on ApiException catch (error) {
+        // Có khoản thanh toán ví cùng ngày và số tiền: gắn vào khoản đó hoặc
+        // xác nhận đây là khoản khác rồi gửi lại.
+        if (error.code != 'PAYMENT_RECORD_REVIEW_REQUIRED' || !mounted) rethrow;
+        final candidates = asJsonList(error.detail['candidates'])
+            .map(PaymentCandidate.fromJson)
+            .toList();
+        final choice = await reviewPaymentCandidates(context, candidates);
+        if (choice == null || !mounted) {
+          _pendingConfirm = null;
+          return;
+        }
+        payload = {
+          ...payload,
+          if (choice.isEmpty) 'accept_separate_record': true,
+          if (choice.isNotEmpty) 'wallet_entry_id': choice,
+        };
+        _pendingConfirm = payload;
+        result = await appData.invoices.confirm(widget.invoiceId, payload);
+      }
       _pendingConfirm = null;
       await appData.markChanged();
       if (!mounted) return;
-      showSnack(result['outcome'] == 'ALREADY_CONFIRMED'
-          ? 'Hóa đơn đã ghi sổ trước đó. Không tạo thêm khoản chi.'
-          : 'Đã ghi khoản chi ${formatMoney(total)} từ hóa đơn.');
+      showSnack(switch (result['outcome']) {
+        'ALREADY_CONFIRMED' => 'Hóa đơn đã ghi sổ trước đó. Không tạo thêm khoản chi.',
+        'LINKED_PAYMENT' => 'Đã gắn hóa đơn vào khoản thanh toán có sẵn, không ghi chi lần hai.',
+        _ => 'Đã ghi sổ khoản chi ${formatMoney(total)} từ hóa đơn. Số dư ví không thay đổi.',
+      });
       Navigator.of(context).pop(true);
     } catch (error) {
       final uncertain = error is ApiException && error.uncertain;
       if (!uncertain) _pendingConfirm = null;
-      if (error is ApiException && error.statusCode == 409) {
+      if (error is ApiException &&
+          error.statusCode == 409 &&
+          error.code != 'PAYMENT_RECORD_REVIEW_REQUIRED') {
         _versionConflict = true;
       }
       showSnack(
@@ -520,7 +541,6 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
     final appData = context.watch<AppData>();
     final status = detail.summary.status;
     final readOnly = _confirmed || _processing || _hidden || _locked;
-    final wallet = appData.walletById(_walletId);
     final category = appData.categoryById(_categoryId);
     final suggestion = _suggestion;
     final confidence = detail.summary.ocrConfidence;
@@ -769,33 +789,15 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
                     label: const Text('Tính lại tổng từ các dòng sản phẩm'),
                   ),
                 ),
-              const SectionHeader('Ghi sổ vào'),
-              PickerField(
-                label: 'Ví thanh toán',
-                value: wallet == null
-                    ? null
-                    : '${wallet.name} · ${formatMoney(wallet.balance, keepSign: true)}',
-                placeholder: appData.wallets.isEmpty
-                    ? 'Chưa có ví — hãy tạo ví trước'
-                    : 'Chọn ví',
-                leading: wallet == null
-                    ? null
-                    : IconBadge(
-                        icon: walletIcon(wallet.accountType),
-                        color: walletColor(wallet.accountType),
-                        size: 36),
-                icon: Icons.account_balance_wallet_outlined,
-                onTap: readOnly
-                    ? null
-                    : () async {
-                        final picked = await pickWallet(context,
-                            wallets: appData.wallets, selectedId: _walletId);
-                        if (picked != null && mounted) {
-                          setState(() => _walletId = picked.id);
-                        }
-                      },
+              const SectionHeader('Ghi sổ thu chi'),
+              const Padding(
+                padding: EdgeInsets.only(bottom: 10),
+                child: Text(
+                  'Hóa đơn được ghi thành khoản chi trong sổ thu chi, không trừ tiền ví. '
+                  'Nếu đã thanh toán bằng ví, bạn sẽ được hỏi để gắn vào khoản đó.',
+                  style: TextStyle(fontSize: 12.5, color: AppColors.muted),
+                ),
               ),
-              const SizedBox(height: 10),
               PickerField(
                 label: 'Danh mục chi',
                 value: category?.name,

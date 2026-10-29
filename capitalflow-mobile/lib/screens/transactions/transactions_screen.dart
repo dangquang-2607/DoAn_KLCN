@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -12,7 +14,16 @@ import '../../widgets/txn_tile.dart';
 import 'transaction_form_screen.dart';
 import 'transfer_screen.dart';
 
-/// Lịch sử giao dịch: nhóm theo ngày, tải thêm khi cuộn, lọc theo loại/ví/danh mục/khoảng ngày.
+/// Sổ thu chi: nhóm theo ngày, tải thêm khi cuộn, lọc theo loại/nguồn/danh mục/khoảng ngày
+/// và tìm theo diễn giải trên máy chủ — giống trang Giao dịch của bản web.
+
+/// Nguồn ghi sổ dùng cho bộ lọc (khớp tham số `origin` của API).
+const Map<String, String> _originLabels = {
+  'WALLET': 'Thanh toán ví',
+  'OCR': 'Hóa đơn AI',
+  'MANUAL': 'Nhập tay',
+};
+
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
 
@@ -35,8 +46,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> with AutoRefres
   int _request = 0;
 
   String? _type;
-  String? _walletId;
+  String? _origin;
   String? _categoryId;
+  Timer? _searchTimer;
   DateTime? _from;
   DateTime? _to;
   String _query = '';
@@ -49,6 +61,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with AutoRefres
 
   @override
   void dispose() {
+    _searchTimer?.cancel();
     _scroll.dispose();
     _search.dispose();
     super.dispose();
@@ -58,7 +71,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with AutoRefres
 
   int get _activeFilters {
     var count = 0;
-    if (_walletId != null) count++;
+    if (_origin != null) count++;
     if (_categoryId != null) count++;
     if (_from != null || _to != null) count++;
     return count;
@@ -74,8 +87,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> with AutoRefres
           page: page,
           pageSize: _pageSize,
           type: _type,
-          accountId: _walletId,
+          origin: _origin,
           categoryId: _categoryId,
+          search: _query,
           startDate: _from,
           endDate: _to,
         );
@@ -148,7 +162,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> with AutoRefres
               setSheetState(() {});
             }
 
-            final wallet = appData.walletById(_walletId);
             final category = appData.categoryById(_categoryId);
             return SafeArea(
               child: Padding(
@@ -160,15 +173,20 @@ class _TransactionsScreenState extends State<TransactionsScreen> with AutoRefres
                     const Text('Bộ lọc giao dịch', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 14),
                     PickerField(
-                      label: 'Ví',
-                      value: wallet?.name,
-                      placeholder: 'Tất cả ví',
-                      icon: Icons.account_balance_wallet_outlined,
+                      label: 'Nguồn ghi sổ',
+                      value: _originLabels[_origin],
+                      placeholder: 'Tất cả nguồn',
+                      icon: Icons.source_outlined,
                       onTap: () async {
-                        final picked = await pickWallet(sheetContext, wallets: appData.wallets, selectedId: _walletId);
-                        if (picked != null) update(() => _walletId = picked.id);
+                        final picked = await pickOption<String>(
+                          sheetContext,
+                          title: 'Nguồn ghi sổ',
+                          options: _originLabels.entries.toList(),
+                          selected: _origin,
+                        );
+                        if (picked != null) update(() => _origin = picked);
                       },
-                      onClear: () => update(() => _walletId = null),
+                      onClear: () => update(() => _origin = null),
                     ),
                     const SizedBox(height: 10),
                     PickerField(
@@ -224,7 +242,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with AutoRefres
                         Expanded(
                           child: OutlinedButton(
                             onPressed: () => update(() {
-                              _walletId = null;
+                              _origin = null;
                               _categoryId = null;
                               _from = null;
                               _to = null;
@@ -256,7 +274,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> with AutoRefres
       await pushScreen<bool>(context, TransactionFormScreen(existing: txn));
       return;
     }
-    final appData = context.read<AppData>();
     await showPickerSheet<void>(
       context,
       title: txn.title,
@@ -272,7 +289,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with AutoRefres
               ),
               const SizedBox(height: 8),
               Text(
-                'Ví: ${appData.walletById(txn.accountId)?.name ?? '—'} · Ngày ${formatDate(txn.date)}',
+                'Nguồn: ${txn.sourceLabel} · Ngày ${formatDate(txn.date)}',
                 style: const TextStyle(fontSize: 14, color: AppColors.muted),
               ),
               if ((txn.note ?? '').isNotEmpty) ...[
@@ -290,6 +307,16 @@ class _TransactionsScreenState extends State<TransactionsScreen> with AutoRefres
         ),
       ],
     );
+  }
+
+  /// Lọc ngay trên dữ liệu đã tải, rồi hỏi lại máy chủ sau khi người dùng ngừng gõ
+  /// để tìm cả các trang chưa tải.
+  void _onSearch(String value) {
+    setState(() => _query = value);
+    _searchTimer?.cancel();
+    _searchTimer = Timer(const Duration(milliseconds: 400), () {
+      if (mounted) _applyFilters(() {});
+    });
   }
 
   /// Dựng danh sách hiển thị: xen tiêu đề ngày giữa các giao dịch.
@@ -335,7 +362,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with AutoRefres
                 IconButton(
                   onPressed: () => pushScreen<bool>(context, const TransferScreen()),
                   icon: const Icon(Icons.swap_horiz, color: AppColors.ink),
-                  tooltip: 'Chuyển tiền giữa ví',
+                  tooltip: 'Chuyển tiền giữa các ví',
                 ),
                 IconButton(
                   onPressed: _openFilters,
@@ -355,7 +382,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with AutoRefres
             child: TextField(
               controller: _search,
               textInputAction: TextInputAction.search,
-              onChanged: (value) => setState(() => _query = value),
+              onChanged: _onSearch,
               decoration: fieldDecoration(
                 'Tìm theo diễn giải',
                 icon: Icons.search,
@@ -364,7 +391,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with AutoRefres
                     : IconButton(
                         onPressed: () {
                           _search.clear();
-                          setState(() => _query = '');
+                          _onSearch('');
                         },
                         icon: const Icon(Icons.close, size: 18, color: AppColors.muted),
                       ),
@@ -418,7 +445,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> with AutoRefres
                 : 'Chưa có giao dịch nào',
             message: _query.isNotEmpty || _activeFilters > 0 || _type != null
                 ? 'Hãy thử đổi từ khóa hoặc bộ lọc.'
-                : 'Nhấn nút + để ghi khoản thu chi đầu tiên.',
+                : 'Nhấn nút + để ghi khoản thu chi đầu tiên. Ghi sổ không làm thay đổi số dư ví.',
           ),
         ],
       );
@@ -457,7 +484,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> with AutoRefres
           child: TxnTile(
             txn: txn,
             category: appData.categoryById(txn.categoryId),
-            wallet: appData.walletById(txn.accountId),
             onTap: () => _open(txn),
           ),
         );

@@ -73,26 +73,32 @@ class Harness {
   dynamic fixture(String path) {
     final now = DateTime.now();
     switch (path) {
-      case '/accounts':
+      case '/wallets':
         return [
           {
             'id': 'cash',
-            'name': 'Tiền mặt',
-            'account_type': 'CASH',
-            'balance': 2500000
+            'name': 'Ví mặc định',
+            'balance': '2500000.00',
+            'currency': 'VND',
+            'is_active': true,
+            'is_default': true,
+            'receive_code': 'demo@example.com'
           },
           {
             'id': 'bank',
-            'name': 'Tài khoản ngân hàng',
-            'account_type': 'BANK',
-            'balance': 10000000
+            'name': 'Quỹ tiết kiệm',
+            'balance': '10000000.00',
+            'currency': 'VND',
+            'is_active': true,
+            'is_default': false,
+            'receive_code': 'CF-7K9M2P4R'
           },
         ];
       case '/categories':
         return [
           {'id': 'food', 'name': 'Ăn uống', 'type': 'EXPENSE'}
         ];
-      case '/dashboard':
+      case '/bookkeeping/dashboard':
         return {
           'net_worth': 12500000,
           'income_this_month': 18000000,
@@ -142,7 +148,7 @@ class Harness {
             'progress_status': 'SAFE'
           },
         ];
-      case '/transactions':
+      case '/bookkeeping':
         return {'items': [], 'total': 0, 'page': 1, 'page_size': 30};
       case '/notifications':
         return {'items': [], 'total': 7, 'unread_count': 7};
@@ -270,21 +276,21 @@ void main() {
       'New navigation preserves lazy tabs and defers refresh of hidden tabs',
       (tester) async {
     await mount(tester);
-    expect(harness.requests.where((p) => p == '/transactions'), isEmpty);
-    expect(harness.requests.where((p) => p == '/accounts').length, 1);
+    expect(harness.requests.where((p) => p == '/bookkeeping'), isEmpty);
+    expect(harness.requests.where((p) => p == '/wallets').length, 1);
     await tester.tap(find.text('Giao dịch'));
     await tester.pumpAndSettle();
-    final before = harness.requests.where((p) => p == '/transactions').length;
+    final before = harness.requests.where((p) => p == '/bookkeeping').length;
     expect(before, 1);
     await tester.tap(find.text('Tổng quan'));
     await tester.pumpAndSettle();
     await harness.data.markChanged();
     await tester.pumpAndSettle();
-    expect(harness.requests.where((p) => p == '/transactions').length, before);
+    expect(harness.requests.where((p) => p == '/bookkeeping').length, before);
     await tester.tap(find.text('Giao dịch'));
     await tester.pumpAndSettle();
     expect(
-        harness.requests.where((p) => p == '/transactions').length, before + 1);
+        harness.requests.where((p) => p == '/bookkeeping').length, before + 1);
     expect(homeTab.value, HomeTabs.transactions);
   });
 

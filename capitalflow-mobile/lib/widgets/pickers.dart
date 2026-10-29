@@ -6,6 +6,57 @@ import '../core/theme.dart';
 import '../models/models.dart';
 import 'common.dart';
 
+/// Đối chiếu khoản đang ghi sổ với các khoản thanh toán ví cùng ngày và số tiền
+/// (lỗi 409 `PAYMENT_RECORD_REVIEW_REQUIRED`).
+///
+/// Trả id khoản thanh toán được chọn để gắn vào, chuỗi rỗng nếu người dùng xác
+/// nhận đây là khoản khác, `null` nếu hủy. Đặt [allowLink] = false khi luồng
+/// chỉ cho phép xác nhận khoản khác (giống bản web ở phần ghi sổ hóa đơn).
+Future<String?> reviewPaymentCandidates(
+  BuildContext context,
+  List<PaymentCandidate> candidates, {
+  bool allowLink = true,
+}) {
+  return showPickerSheet<String>(
+    context,
+    title: 'Có khoản thanh toán ví trùng ngày và số tiền',
+    children: (sheetContext) => [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+        child: Text(
+          allowLink
+              ? 'Gắn vào khoản đã thanh toán để không ghi chi hai lần, hoặc xác nhận đây là khoản khác.'
+              : 'Kiểm tra các khoản đã thanh toán dưới đây trước khi ghi sổ khoản mới.',
+          style: const TextStyle(fontSize: 13.5, color: AppColors.muted),
+        ),
+      ),
+      for (final candidate in candidates)
+        SheetOption(
+          title: '${candidate.merchantName} · ${candidate.billReference}',
+          subtitle:
+              'Đã trả ${formatMoney(candidate.paidAmount)} · ${formatDateTime(candidate.createdAt?.toLocal())}',
+          leading: const IconBadge(
+              icon: Icons.receipt_long, color: AppColors.blue, size: 40),
+          trailing: allowLink
+              ? const Text('Gắn vào',
+                  style: TextStyle(
+                      color: AppColors.blue, fontWeight: FontWeight.w700))
+              : null,
+          onTap: allowLink
+              ? () => Navigator.of(sheetContext).pop(candidate.walletEntryId)
+              : () {},
+        ),
+      SheetOption(
+        title: 'Đây là khoản khác',
+        subtitle: 'Tôi đã đối chiếu và vẫn muốn ghi một khoản riêng',
+        leading: const IconBadge(
+            icon: Icons.add_circle_outline, color: AppColors.amber, size: 40),
+        onTap: () => Navigator.of(sheetContext).pop(''),
+      ),
+    ],
+  );
+}
+
 /// Chọn một ví từ danh sách; trả `null` nếu người dùng đóng bảng chọn.
 Future<Wallet?> pickWallet(
   BuildContext context, {

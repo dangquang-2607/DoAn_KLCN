@@ -88,6 +88,8 @@ Color walletColor(String type) {
       return const Color(0xFF2454E6);
     case 'E_WALLET':
       return const Color(0xFF198EC8);
+    case 'WALLET':
+      return const Color(0xFF2454E6);
     case 'CREDIT_CARD':
       return const Color(0xFFD14B62);
     case 'SAVINGS':
@@ -108,6 +110,7 @@ IconData walletIcon(String type) {
     case 'BANK':
       return Icons.account_balance;
     case 'E_WALLET':
+    case 'WALLET':
       return Icons.account_balance_wallet;
     case 'CREDIT_CARD':
       return Icons.credit_card;
@@ -127,6 +130,7 @@ const Map<String, String> walletTypeLabels = {
   'CASH': 'Tiền mặt',
   'BANK': 'Ngân hàng',
   'E_WALLET': 'Ví điện tử',
+  'WALLET': 'Ví CapitalFlow',
   'CREDIT_CARD': 'Thẻ tín dụng',
   'SAVINGS': 'Tiết kiệm',
   'INVESTMENT': 'Đầu tư',
