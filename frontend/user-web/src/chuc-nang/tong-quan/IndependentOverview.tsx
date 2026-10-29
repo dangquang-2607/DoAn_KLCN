@@ -63,7 +63,14 @@ export default function Overview() {
 
   return (
     <div className={styles.canvas}>
-      <PageHead eyebrow="KHÔNG GIAN CÁ NHÂN" title="Tiền của bạn, rõ ràng hơn" description="Một cái nhìn nhanh về số dư, nhịp thu chi và điều cần chú ý hôm nay." actions={<QuickActions refreshing={dashboardQuery.isFetching} onRefresh={refresh} />} />
+      {/* Đã sửa lại Tiêu đề và Mô tả cho tự nhiên hơn */}
+      <PageHead 
+        eyebrow="VÍ CẢ NHÂN CỦA BẠN" 
+        title="TỔNG QUAN TÀI CHÍNH" 
+        description="Theo dõi biến động số dư, thu chi và các mục tiêu tài chính của bạn." 
+        actions={<QuickActions refreshing={dashboardQuery.isFetching} onRefresh={refresh} />} 
+      />
+      
       {dashboardQuery.isPending ? (
         <Loading />
       ) : dashboardQuery.isError ? (
@@ -72,7 +79,7 @@ export default function Overview() {
         dashboardQuery.data && (
           <>
             {accountsQuery.data?.some(a => !a.exclude_from_total && a.balance_available === false) &&
-              <p role="status">Tổng tài sản chưa đầy đủ: có ví liên kết chưa lấy được số dư.</p>}
+              <p role="status">Tổng tài sản chưa đầy đủ: một số ví liên kết đang mất kết nối.</p>}
             {accountsQuery.data?.some(a => a.balance_available !== false && a.bank_sync_error) &&
               <p role="status">Một số ví đang hiển thị số dư tại lần đồng bộ thành công gần nhất.</p>}
             <OverviewStats data={dashboardQuery.data} />
@@ -83,7 +90,7 @@ export default function Overview() {
               <BudgetsWidget query={budgetsQuery} />
             </div>
             <p className={styles.overviewFootnote}>
-              Cập nhật lúc {new Date(dashboardQuery.dataUpdatedAt).toLocaleTimeString("vi-VN")}. Số dư ví tách biệt với sổ thu chi. Nạp, rút và chuyển tiền không tính vào thu nhập/chi tiêu.
+              Cập nhật lúc {new Date(dashboardQuery.dataUpdatedAt).toLocaleTimeString("vi-VN")}. Lưu ý: Số dư ví và sổ thu chi được tính độc lập. Các giao dịch nạp, rút, chuyển tiền nội bộ sẽ không làm thay đổi báo cáo thu nhập/chi tiêu.
             </p>
           </>
         )

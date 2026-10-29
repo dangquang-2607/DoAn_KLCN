@@ -23,7 +23,7 @@ import styles from "../CSS/overview.module.css";
 export default function RecentTransactions({ transactions }: { transactions: Transaction[] }) {
   return (
     <section className={`${styles.panel} ${styles.overviewCard} ${styles.activityPanel}`}>
-      <header className={styles.overviewCardHead}><div><span className={styles.overline}>HOẠT ĐỘNG GẦN ĐÂY</span><h2>Vừa ghi nhận</h2><p>5 giao dịch mới nhất của bạn</p></div><Link href="/transactions">Xem tất cả →</Link></header>
+      <header className={styles.overviewCardHead}><div><span className={styles.overline}>LỊCH SỬ GIAO DỊCH</span><h2>Vừa ghi nhận</h2><p>5 Giao dịch mới nhất của bạn</p></div><Link href="/transactions">Xem tất cả →</Link></header>
       {!transactions.length ? (
         <div className={styles.overviewEmpty}>Chưa có giao dịch nào. <Link href="/transactions?new=1">Ghi nhận giao dịch đầu tiên →</Link></div>
       ) : (

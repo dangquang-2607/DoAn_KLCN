@@ -42,7 +42,7 @@ export default function OverviewStats({ data }: { data: OverviewData }) {
         <Link href="/accounts">Xem ví và tài khoản →</Link>
       </section>
       <section className={styles.monthCard}>
-        <span className={styles.overline}>NHỊP TIỀN · THÁNG {data.period.month}/{data.period.year}</span>
+        <span className={styles.overline}>BIẾN ĐỘNG SỐ DƯ · THÁNG {data.period.month}/{data.period.year}</span>
         <span>Chênh lệch thu chi tháng này</span>
         <strong className={data.net_cash_flow < 0 ? styles.negative : ""}>{money(data.net_cash_flow)}</strong>
         <div className={styles.monthBreakdown}>
