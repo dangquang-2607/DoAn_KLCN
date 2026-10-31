@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../core/theme.dart';
 import '../widgets/common.dart';
+import 'accounts/qr_scan_screen.dart';
 import 'budgets/budgets_screen.dart';
 import 'dashboard_screen.dart';
 import 'home_tabs.dart';
@@ -151,17 +152,19 @@ class _FanAction {
   final Widget screen;
 }
 
+// Ghi thu và ghi chi gộp thành một nút (chọn loại thu/chi ngay trong form);
+// nút "Quét QR" ở giữa mở máy quét QR CapitalFlow để chuyển tiền.
 const List<_FanAction> _fanActions = [
-  _FanAction(Icons.north_east_rounded, 'Ghi chi', AppColors.danger,
-      TransactionFormScreen(initialType: 'EXPENSE')),
-  _FanAction(Icons.south_west_rounded, 'Ghi thu', AppColors.success,
-      TransactionFormScreen(initialType: 'INCOME')),
+  _FanAction(Icons.edit_note_rounded, 'Ghi thu chi', AppColors.danger,
+      TransactionFormScreen()),
   _FanAction(
     Icons.document_scanner_rounded,
     'Chụp hóa đơn',
     AppColors.blue,
     InvoicesScreen(startAction: InvoiceStartAction.camera),
   ),
+  _FanAction(Icons.qr_code_scanner_rounded, 'Quét QR', AppColors.success,
+      QrScanScreen()),
   _FanAction(
     Icons.photo_library_rounded,
     'Ảnh hóa đơn',

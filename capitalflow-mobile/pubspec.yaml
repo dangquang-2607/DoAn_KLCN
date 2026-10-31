@@ -30,6 +30,9 @@ dependencies:
   timezone: ^0.10.0
   sqflite: ^2.4.4+1
   workmanager: ^0.10.10
+  # Quét mã QR CapitalFlow để chuyển tiền và hiển thị mã QR nhận tiền.
+  mobile_scanner: ^7.4.2
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   sqflite_common_ffi: ^2.4.3

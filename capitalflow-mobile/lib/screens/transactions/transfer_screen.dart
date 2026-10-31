@@ -8,6 +8,7 @@ import '../../models/models.dart';
 import '../../services/app_data.dart';
 import '../../widgets/common.dart';
 import '../../widgets/pickers.dart';
+import '../accounts/qr_scan_screen.dart';
 
 /// Chuyển tiền từ một ví của bạn tới ví khác — giống bản web.
 ///
@@ -16,10 +17,13 @@ import '../../widgets/pickers.dart';
 /// trước, người dùng kiểm tra tên rồi mới xác nhận. Chuyển tiền không tính vào
 /// thu nhập/chi tiêu trong sổ thu chi.
 class TransferScreen extends StatefulWidget {
-  const TransferScreen({super.key, this.fromWalletId});
+  const TransferScreen({super.key, this.fromWalletId, this.initialTarget});
 
   /// Ví gửi được chọn sẵn (ví dụ khi mở từ màn hình Ví).
   final String? fromWalletId;
+
+  /// Người nhận điền sẵn, ví dụ nội dung QR vừa quét.
+  final String? initialTarget;
 
   @override
   State<TransferScreen> createState() => _TransferScreenState();
@@ -42,6 +46,16 @@ class _TransferScreenState extends State<TransferScreen> {
     final wallets = context.read<AppData>().wallets;
     _fromId = widget.fromWalletId ??
         (wallets.isNotEmpty ? wallets.first.id : null);
+    _target.text = widget.initialTarget ?? '';
+  }
+
+  Future<void> _scanQr() async {
+    final value = await pushScreen<String>(context, const QrScanScreen(pickOnly: true));
+    if (value == null || !mounted) return;
+    setState(() {
+      _target.text = value;
+      _recipient = null;
+    });
   }
 
   @override
@@ -186,6 +200,11 @@ class _TransferScreenState extends State<TransferScreen> {
                       hint: 'Email hoặc CF-7K9M2P4R',
                       helper:
                           'Email nhận vào ví mặc định; mã CF- nhận vào ví phụ tương ứng.',
+                      suffix: IconButton(
+                        tooltip: 'Quét mã QR',
+                        onPressed: _scanQr,
+                        icon: const Icon(Icons.qr_code_scanner_rounded, color: AppColors.blue),
+                      ),
                     ),
                   ),
                   if (hasOtherWallets)

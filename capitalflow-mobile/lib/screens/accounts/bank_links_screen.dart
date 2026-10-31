@@ -179,6 +179,8 @@ class _LinkBankFormState extends State<_LinkBankForm> {
   String? _challenge;
   bool _loading = true;
   String? _error;
+  // Lỗi khi gửi OTP/xác nhận: hiện ngay trong bảng vì snackbar bị bảng che mất.
+  String? _formError;
   bool _busy = false;
 
   BankProvider? get _current {
@@ -229,12 +231,15 @@ class _LinkBankFormState extends State<_LinkBankForm> {
     if (provider == null) return;
     final number = _number.text.replaceAll(RegExp(r'\D'), '');
     if (number != provider.demoNumber) {
-      showSnack('Hãy dùng số tài khoản được cấp riêng ${provider.demoNumber} của ${provider.name}.', error: true);
+      setState(() => _formError = 'Hãy dùng số tài khoản được cấp riêng ${provider.demoNumber} của ${provider.name}.');
       return;
     }
     final finance = context.read<AppData>().finance;
     final navigator = Navigator.of(context);
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _formError = null;
+    });
     try {
       final challenge = _challenge;
       if (challenge == null) {
@@ -246,7 +251,7 @@ class _LinkBankFormState extends State<_LinkBankForm> {
       }
       final otp = _otp.text.trim();
       if (!RegExp(r'^\d{6}$').hasMatch(otp)) {
-        showSnack('Mã OTP gồm 6 chữ số.', error: true);
+        setState(() => _formError = 'Mã OTP gồm 6 chữ số.');
         return;
       }
       await finance.linkBank(
@@ -258,7 +263,7 @@ class _LinkBankFormState extends State<_LinkBankForm> {
       showSnack('Đã liên kết ${provider.name}.');
       navigator.pop(true);
     } catch (error) {
-      showSnack(errorText(error), error: true);
+      if (mounted) setState(() => _formError = errorText(error));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -267,6 +272,7 @@ class _LinkBankFormState extends State<_LinkBankForm> {
   @override
   Widget build(BuildContext context) {
     final provider = _current;
+    final formError = _formError;
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.fromLTRB(20, 0, 20, 16 + MediaQuery.of(context).viewInsets.bottom),
@@ -345,6 +351,10 @@ class _LinkBankFormState extends State<_LinkBankForm> {
                       child: const Text('Gửi mã khác (cách nhau ít nhất 30 giây)'),
                     ),
                   ),
+                ],
+                if (formError != null) ...[
+                  const SizedBox(height: 10),
+                  InfoBanner(message: formError, icon: Icons.error_outline, color: AppColors.danger),
                 ],
                 const SizedBox(height: 12),
                 PrimaryButton(

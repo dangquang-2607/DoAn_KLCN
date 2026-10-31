@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/category_style.dart';
@@ -12,6 +11,7 @@ import '../transactions/transfer_screen.dart';
 import 'bank_links_screen.dart';
 import 'bank_money_screen.dart';
 import 'bill_payment_screen.dart';
+import 'receive_sheet.dart';
 import 'wallet_history_screen.dart';
 
 /// Ví của bạn — đồng bộ với trang Ví của bản web.
@@ -105,50 +105,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
     }
   }
 
-  Future<void> _showReceive(Wallet wallet) async {
-    final appData = context.read<AppData>();
-    ReceiveInfo info;
-    try {
-      info = await appData.finance.receiveInfo(wallet.id);
-    } catch (error) {
-      showSnack(errorText(error), error: true);
-      return;
-    }
-    if (!mounted) return;
-    await showPickerSheet<void>(
-      context,
-      title: 'Nhận tiền vào ví',
-      children: (sheetContext) => [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(info.recipientName,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-              Text(info.walletName,
-                  style: const TextStyle(fontSize: 13.5, color: AppColors.muted)),
-              const SizedBox(height: 14),
-              _CopyBox(
-                label: wallet.isDefault
-                    ? 'Email nhận tiền vào ví mặc định'
-                    : 'Mã ví để nhận tiền',
-                value: info.receiveCode,
-              ),
-              const SizedBox(height: 10),
-              _CopyBox(label: 'Nội dung QR CapitalFlow', value: info.qrPayload),
-              const SizedBox(height: 12),
-              const Text(
-                'Người gửi nhập email/mã ví hoặc dán nội dung QR ở mục Chuyển tiền, '
-                'kiểm tra tên người nhận rồi xác nhận số tiền.',
-                style: TextStyle(fontSize: 12.5, color: AppColors.muted),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+  Future<void> _showReceive(Wallet wallet) => showReceiveMoney(context, wallet);
 
   void _showActions(Wallet wallet) {
     if (!wallet.isActive) {
@@ -408,48 +365,6 @@ class _WalletAction extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// Ô hiển thị một giá trị kèm nút sao chép.
-class _CopyBox extends StatelessWidget {
-  const _CopyBox({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 10, 4, 10),
-      decoration: BoxDecoration(
-        color: AppColors.soft,
-        borderRadius: BorderRadius.circular(Radii.sm),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
-                const SizedBox(height: 2),
-                SelectableText(value,
-                    style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: AppColors.ink)),
-              ],
-            ),
-          ),
-          IconButton(
-            tooltip: 'Sao chép',
-            icon: const Icon(Icons.copy_rounded, size: 20, color: AppColors.blue),
-            onPressed: () async {
-              await Clipboard.setData(ClipboardData(text: value));
-              showSnack('Đã sao chép.');
-            },
-          ),
-        ],
       ),
     );
   }

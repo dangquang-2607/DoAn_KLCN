@@ -17,6 +17,7 @@ import 'package:capitalflow_mobile/core/app_config.dart';
 import 'package:capitalflow_mobile/core/theme.dart';
 import 'package:capitalflow_mobile/core/token_store.dart';
 import 'package:capitalflow_mobile/models/models.dart';
+import 'package:capitalflow_mobile/screens/accounts/accounts_screen.dart';
 import 'package:capitalflow_mobile/screens/auth/login_screen.dart';
 import 'package:capitalflow_mobile/screens/home_shell.dart';
 import 'package:capitalflow_mobile/screens/home_tabs.dart';
@@ -256,18 +257,20 @@ void main() {
   }
 
   testWidgets(
-      'Dashboard hides and persists balance without losing notification receipts',
+      'Dashboard shows wallet utilities instead of balance card and trend chart',
       (tester) async {
     await harness.settings.rememberNotifications('server:user', ['n1']);
     await mount(tester);
-    expect(find.text('Tổng tài sản'), findsOneWidget);
-    expect(find.text('12.500.000 ₫'), findsOneWidget);
+    for (final label in ['Nạp/Rút', 'Nhận tiền', 'QR thanh toán', 'Ví tiện ích']) {
+      expect(find.text(label), findsOneWidget);
+    }
+    expect(find.text('Tổng tài sản'), findsNothing);
+    expect(find.text('Xu hướng thu chi'), findsNothing);
     await harness.capture(tester, 'dashboard');
-    await tester.tap(find.byTooltip('Ẩn số tiền'));
+    await tester.tap(find.text('Ví tiện ích'));
     await tester.pumpAndSettle();
-    expect(find.text('•••••• ₫'), findsOneWidget);
+    expect(find.byType(AccountsScreen), findsOneWidget);
     final restored = AppSettings(harness.prefs);
-    expect(restored.hideBalance, isTrue);
     expect(restored.deliveredNotifications('server:user'), ['n1']);
     restored.dispose();
   });
@@ -295,22 +298,24 @@ void main() {
   });
 
   testWidgets(
-      'Fan menu exposes five actions and opens the existing expense form',
+      'Fan menu merges income/expense into one action and adds QR scan',
       (tester) async {
     await mount(tester);
     await tester.tap(find.byTooltip('Thao tác nhanh'));
     await tester.pumpAndSettle();
     for (final label in [
-      'Ghi chi',
-      'Ghi thu',
+      'Ghi thu chi',
       'Chụp hóa đơn',
+      'Quét QR',
       'Ảnh hóa đơn',
       'Chuyển ví'
     ]) {
       expect(find.text(label), findsWidgets);
     }
+    expect(find.text('Ghi chi'), findsNothing);
+    expect(find.text('Ghi thu'), findsNothing);
     await harness.capture(tester, 'quick-actions');
-    await tester.tap(find.text('Ghi chi').last);
+    await tester.tap(find.text('Ghi thu chi').last);
     await tester.pumpAndSettle();
     expect(find.byType(TransactionFormScreen), findsOneWidget);
     expect(

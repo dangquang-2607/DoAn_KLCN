@@ -6,18 +6,20 @@ import '../core/formatters.dart';
 import '../core/theme.dart';
 import '../models/models.dart';
 import '../services/app_data.dart';
-import '../services/app_settings.dart';
 import '../services/auth_controller.dart';
 import '../services/notification_center.dart';
 import '../widgets/auto_refresh.dart';
 import '../widgets/charts.dart';
 import '../widgets/common.dart';
 import 'accounts/accounts_screen.dart';
+import 'accounts/bank_money_screen.dart';
+import 'accounts/qr_scan_screen.dart';
+import 'accounts/receive_sheet.dart';
 import 'analytics/analytics_screen.dart';
 import 'notifications/notifications_screen.dart';
 
-/// Tổng quan tài chính: lời chào và trạng thái đồng bộ, thẻ tổng tài sản, thao tác nhanh,
-/// biểu đồ xu hướng thu chi và cơ cấu chi tiêu, phân bổ tài sản theo ví,
+/// Tổng quan tài chính: lời chào và trạng thái đồng bộ, tiện ích ví (nạp/rút, nhận tiền,
+/// QR thanh toán, ví), cơ cấu chi tiêu, phân bổ tài sản theo ví,
 /// ngân sách cần chú ý và các giao dịch gần nhất.
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen(
@@ -85,6 +87,21 @@ class _DashboardScreenState extends State<DashboardScreen>
     await reload();
   }
 
+  /// Mở một tiện ích ví; nếu số dư thay đổi (nạp/rút, chuyển tiền) thì tải lại tổng quan.
+  Future<void> _open(Widget screen) async {
+    final changed = await pushScreen<bool>(context, screen);
+    if (changed == true && mounted) await _pullToRefresh();
+  }
+
+  Future<void> _receive(AppData appData) async {
+    final wallet = receivingWallet(appData.wallets);
+    if (wallet == null) {
+      showSnack('Chưa tải được ví nhận tiền. Vui lòng thử lại.', error: true);
+      return;
+    }
+    await showReceiveMoney(context, wallet);
+  }
+
   @override
   Widget build(BuildContext context) {
     final profile = context.watch<AuthController>().profile;
@@ -138,18 +155,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                           color: AppColors.warning),
                       const SizedBox(height: Space.md),
                     ],
-                    _BalanceCard(data: data),
-                    const SizedBox(height: Space.xxl),
-                    SectionHeader(
-                      'Xu hướng thu chi',
-                      actionLabel: 'Báo cáo',
-                      onAction: () =>
-                          pushScreen<void>(context, const AnalyticsScreen()),
-                    ),
-                    _TrendCard(
-                      analytics: _analytics,
-                      onOpen: () =>
-                          pushScreen<void>(context, const AnalyticsScreen()),
+                    _WalletUtilities(
+                      onTopup: () => _open(const BankMoneyScreen()),
+                      onReceive: () => _receive(appData),
+                      onScan: () => _open(const QrScanScreen()),
+                      onWallets: () => _open(const AccountsScreen()),
                     ),
                     const SizedBox(height: Space.xxl),
                     SectionHeader(
@@ -339,302 +349,103 @@ class _SyncPill extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Thẻ tổng tài sản
+// Tiện ích ví
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _BalanceCard extends StatelessWidget {
-  const _BalanceCard({required this.data});
+/// Bốn tiện ích ví theo đúng nghiệp vụ ví độc lập của đồ án: nạp/rút qua ngân hàng
+/// liên kết, nhận tiền bằng QR/email/mã ví, quét QR CapitalFlow để chuyển tiền và
+/// mở trang Ví (tạo ví, liên kết ngân hàng, thanh toán hóa đơn, lịch sử).
+class _WalletUtilities extends StatelessWidget {
+  const _WalletUtilities(
+      {required this.onTopup,
+      required this.onReceive,
+      required this.onScan,
+      required this.onWallets});
 
-  final DashboardData data;
-
-  static const Color _up = Color(0xFF34D399);
-  static const Color _down = Color(0xFFFB7185);
-
-  /// Chuỗi thay thế số tiền khi người dùng chọn ẩn số dư.
-  static const String masked = '••••••';
-
-  @override
-  Widget build(BuildContext context) {
-    final settings = context.watch<AppSettings>();
-    final hidden = settings.hideBalance;
-    final net = data.incomeThisMonth - data.expenseThisMonth;
-    final positive = net >= 0;
-    final trendColor = positive ? _up : _down;
-    return Container(
-      padding: const EdgeInsets.all(Space.xl),
-      decoration: BoxDecoration(
-        color: AppColors.heroSurface,
-        borderRadius: BorderRadius.circular(Radii.xl),
-        boxShadow: AppShadows.floating,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Flexible(
-                child: Text(
-                  'Tổng tài sản',
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.heroMuted),
-                ),
-              ),
-              const SizedBox(width: Space.xxs),
-              IconButton(
-                onPressed: () => settings.setHideBalance(!hidden),
-                tooltip: hidden ? 'Hiện số tiền' : 'Ẩn số tiền',
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                constraints:
-                    const BoxConstraints.tightFor(width: 32, height: 32),
-                splashRadius: 18,
-                icon: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
-                  transitionBuilder: (child, animation) =>
-                      ScaleTransition(scale: animation, child: child),
-                  child: Icon(
-                    hidden
-                        ? Icons.visibility_off_rounded
-                        : Icons.visibility_rounded,
-                    key: ValueKey<bool>(hidden),
-                    size: 18,
-                    color: AppColors.heroMuted,
-                  ),
-                ),
-              ),
-              const SizedBox(width: Space.xs),
-              Flexible(
-                  child: Align(
-                alignment: Alignment.centerRight,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: Space.xs, vertical: Space.xxs),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(Radii.pill),
-                  ),
-                  child: Text(
-                    'Tháng ${data.month}/${data.year}',
-                    style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white),
-                  ),
-                ),
-              )),
-            ],
-          ),
-          const SizedBox(height: Space.xs),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 220),
-              layoutBuilder: (current, previous) => Stack(
-                alignment: Alignment.centerLeft,
-                children: [...previous, if (current != null) current],
-              ),
-              child: Text(
-                hidden
-                    ? '$masked ₫'
-                    : formatMoney(data.netWorth, keepSign: true),
-                key: ValueKey<bool>(hidden),
-                style: AppText.heroMetric.copyWith(color: Colors.white),
-              ),
-            ),
-          ),
-          const SizedBox(height: Space.xxs),
-          Row(
-            children: [
-              Icon(
-                positive
-                    ? Icons.trending_up_rounded
-                    : Icons.trending_down_rounded,
-                size: 16,
-                color: trendColor,
-              ),
-              const SizedBox(width: Space.xxs),
-              Flexible(
-                child: Text(
-                  '${positive ? 'Dư' : 'Thâm hụt'} ${hidden ? masked : formatMoney(net.abs())} trong tháng',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: trendColor),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: Space.lg),
-          Row(
-            children: [
-              Expanded(
-                child: _FlowStat(
-                  label: 'Thu nhập',
-                  value: data.incomeThisMonth,
-                  icon: Icons.south_west_rounded,
-                  accent: _up,
-                  hidden: hidden,
-                ),
-              ),
-              const SizedBox(width: Space.sm),
-              Expanded(
-                child: _FlowStat(
-                  label: 'Chi tiêu',
-                  value: data.expenseThisMonth,
-                  icon: Icons.north_east_rounded,
-                  accent: _down,
-                  hidden: hidden,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: Space.md),
-          _SpendRatio(
-              income: data.incomeThisMonth,
-              expense: data.expenseThisMonth,
-              up: _up,
-              down: _down),
-        ],
-      ),
-    );
-  }
-}
-
-/// Thanh tỉ lệ chi tiêu so với thu nhập trong tháng, đặt trong thẻ tổng tài sản.
-class _SpendRatio extends StatelessWidget {
-  const _SpendRatio(
-      {required this.income,
-      required this.expense,
-      required this.up,
-      required this.down});
-
-  final double income;
-  final double expense;
-  final Color up;
-  final Color down;
+  final VoidCallback onTopup;
+  final VoidCallback onReceive;
+  final VoidCallback onScan;
+  final VoidCallback onWallets;
 
   @override
   Widget build(BuildContext context) {
-    final String caption;
-    final double ratio;
-    final Color color;
-    if (income <= 0) {
-      ratio = expense > 0 ? 1 : 0;
-      color = expense > 0 ? down : AppColors.heroMuted;
-      caption = expense > 0
-          ? 'Chưa có thu nhập trong tháng'
-          : 'Chưa có giao dịch trong tháng';
-    } else {
-      ratio = expense / income;
-      color = ratio > 1
-          ? down
-          : ratio > 0.8
-              ? const Color(0xFFFBBF24)
-              : up;
-      caption = 'Đã chi ${(ratio * 100).round()}% thu nhập';
-    }
-    return Column(
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(caption,
-                  style: const TextStyle(
-                      fontSize: 12.5, color: AppColors.heroMuted)),
-            ),
-            if (income > 0)
-              Text(
-                ratio <= 1
-                    ? 'Tiết kiệm ${((1 - ratio) * 100).round()}%'
-                    : 'Vượt ${((ratio - 1) * 100).round()}%',
-                style: TextStyle(
-                    fontSize: 12.5, fontWeight: FontWeight.w700, color: color),
-              ),
-          ],
-        ),
-        const SizedBox(height: Space.xs),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(Radii.pill),
-          child: TweenAnimationBuilder<double>(
-            tween: Tween<double>(begin: 0, end: ratio.clamp(0, 1).toDouble()),
-            duration: const Duration(milliseconds: 900),
-            curve: Curves.easeOutCubic,
-            builder: (context, value, _) => LinearProgressIndicator(
-              value: value,
-              minHeight: 8,
-              backgroundColor: Colors.white.withValues(alpha: 0.10),
-              valueColor: AlwaysStoppedAnimation<Color>(color),
-            ),
-          ),
-        ),
+        Expanded(
+            child: _UtilityButton(
+                icon: Icons.login_rounded, label: 'Nạp/Rút', onTap: onTopup)),
+        Expanded(
+            child: _UtilityButton(
+                icon: Icons.currency_exchange_rounded,
+                label: 'Nhận tiền',
+                onTap: onReceive)),
+        Expanded(
+            child: _UtilityButton(
+                icon: Icons.qr_code_scanner_rounded,
+                label: 'QR thanh toán',
+                onTap: onScan)),
+        Expanded(
+            child: _UtilityButton(
+                icon: Icons.account_balance_wallet_rounded,
+                label: 'Ví tiện ích',
+                onTap: onWallets)),
       ],
     );
   }
 }
 
-class _FlowStat extends StatelessWidget {
-  const _FlowStat({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.accent,
-    required this.hidden,
-  });
+class _UtilityButton extends StatelessWidget {
+  const _UtilityButton(
+      {required this.icon, required this.label, required this.onTap});
 
-  final String label;
-  final double value;
   final IconData icon;
-  final Color accent;
-  final bool hidden;
+  final String label;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(Space.sm),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(Radii.md),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(Radii.chip),
-            ),
-            child: Icon(icon, size: 18, color: accent),
-          ),
-          const SizedBox(width: Space.xs),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label,
-                    style: const TextStyle(
-                        fontSize: 12, color: AppColors.heroMuted)),
-                const SizedBox(height: 2),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    hidden ? _BalanceCard.masked : formatMoney(value),
-                    style:
-                        moneyStyle.copyWith(fontSize: 15, color: Colors.white),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(Radii.md),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: Space.xxs),
+        child: Column(
+          children: [
+            Container(
+              width: 58,
+              height: 58,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(Radii.md + 2),
+                border: Border.all(color: AppColors.hairline),
+                boxShadow: AppShadows.soft,
+              ),
+              child: Center(
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: AppColors.blue.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(Radii.sm - 2),
                   ),
+                  child: Icon(icon, size: 22, color: AppColors.blue),
                 ),
-              ],
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: Space.xs),
+            Text(
+              label,
+              maxLines: 2,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                  fontSize: 12.5,
+                  height: 1.25,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.ink),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -643,118 +454,6 @@ class _FlowStat extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // Biểu đồ
 // ─────────────────────────────────────────────────────────────────────────────
-
-/// Biểu đồ cột thu/chi 6 tháng gần nhất kèm mức chênh lệch so với tháng trước.
-class _TrendCard extends StatelessWidget {
-  const _TrendCard({required this.analytics, required this.onOpen});
-
-  final AnalyticsData? analytics;
-  final VoidCallback onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    final data = analytics;
-    if (data == null || data.trend.isEmpty) {
-      return _EmptyHint(
-        icon: Icons.bar_chart_rounded,
-        text: data == null
-            ? 'Chưa tải được dữ liệu biểu đồ. Kéo xuống để thử lại.'
-            : 'Chưa đủ dữ liệu để vẽ xu hướng thu chi.',
-        onTap: onOpen,
-      );
-    }
-    return AppCard(
-      onTap: onOpen,
-      padding:
-          const EdgeInsets.fromLTRB(Space.md, Space.md, Space.md, Space.sm),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: _DeltaStat(
-                  label: 'Thu nhập',
-                  color: AppColors.success,
-                  current: data.income,
-                  previous: data.previousIncome,
-                  goodWhenUp: true,
-                ),
-              ),
-              const SizedBox(width: Space.sm),
-              Expanded(
-                child: _DeltaStat(
-                  label: 'Chi tiêu',
-                  color: AppColors.danger,
-                  current: data.expense,
-                  previous: data.previousExpense,
-                  goodWhenUp: false,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: Space.md),
-          TrendBarChart(points: data.trend, height: 170),
-        ],
-      ),
-    );
-  }
-}
-
-class _DeltaStat extends StatelessWidget {
-  const _DeltaStat({
-    required this.label,
-    required this.color,
-    required this.current,
-    required this.previous,
-    required this.goodWhenUp,
-  });
-
-  final String label;
-  final Color color;
-  final double current;
-  final double previous;
-  final bool goodWhenUp;
-
-  @override
-  Widget build(BuildContext context) {
-    var trend = 'Chưa có tháng trước';
-    var trendColor = AppColors.subtle;
-    if (previous > 0) {
-      final change = (current - previous) / previous * 100;
-      if (change.abs() < 0.5) {
-        trend = 'Không đổi';
-      } else {
-        final upward = change > 0;
-        trend =
-            '${upward ? '▲' : '▼'} ${change.abs().round()}% so với tháng trước';
-        trendColor =
-            upward == goodWhenUp ? AppColors.success : AppColors.danger;
-      }
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        LegendDot(color: color, label: label),
-        const SizedBox(height: Space.xxs),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Text(formatMoney(current),
-              style: moneyStyle.copyWith(fontSize: 16, color: AppColors.ink)),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          trend,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-              fontSize: 11.5, fontWeight: FontWeight.w600, color: trendColor),
-        ),
-      ],
-    );
-  }
-}
 
 /// Biểu đồ vành khuyên cơ cấu chi tiêu theo danh mục của tháng hiện tại.
 class _SpendingBreakdown extends StatelessWidget {
