@@ -1,87 +1,173 @@
 /* Style riêng của tab; các class nền được compose từ dung-chung. */
-.canvas { composes: canvas from "../../../dung-chung/styles/finance-visuals.module.css"; }
-.overline { composes: overline from "../../../dung-chung/styles/finance-visuals.module.css"; }
-.sectionHead { composes: sectionHead from "../../../dung-chung/styles/finance-visuals.module.css"; }
-.charts { composes: charts from "../../../dung-chung/styles/finance-visuals.module.css"; }
-.panel { composes: panel from "../../../dung-chung/styles/finance-visuals.module.css"; }
-.panelPurple { composes: panelPurple from "../../../dung-chung/styles/finance-visuals.module.css"; }
-.panelOlive { composes: panelOlive from "../../../dung-chung/styles/finance-visuals.module.css"; }
-.legend { composes: legend from "../../../dung-chung/styles/finance-visuals.module.css"; }
-.dot { composes: dot from "../../../dung-chung/styles/finance-visuals.module.css"; }
-.chart { composes: chart from "../../../dung-chung/styles/finance-visuals.module.css"; }
-.donut { composes: donut from "../../../dung-chung/styles/finance-visuals.module.css"; }
-.donutCenter { composes: donutCenter from "../../../dung-chung/styles/finance-visuals.module.css"; }
-.miniList { composes: miniList from "../../../dung-chung/styles/finance-visuals.module.css"; }
-.empty { composes: empty from "../../../dung-chung/styles/finance-visuals.module.css"; }
+.canvas { composes: canvas from "../../../dung-chung/CSS/finance-visuals.module.css"; --overview-body-font: var(--font-inter, var(--cf-font)); }
+.content { display: grid; gap: 16px; min-width: 0; }
+.sectionHead { composes: sectionHead from "../../../dung-chung/CSS/finance-visuals.module.css"; }
+.charts { min-width: 0; display: flex; flex-direction: column; }
+.panel { composes: panel from "../../../dung-chung/CSS/finance-visuals.module.css"; }
+.legend { composes: legend from "../../../dung-chung/CSS/finance-visuals.module.css"; }
+.chart { composes: chart from "../../../dung-chung/CSS/finance-visuals.module.css"; }
+.empty { composes: empty from "../../../dung-chung/CSS/finance-visuals.module.css"; }
 
-.topCards { display: grid; grid-template-columns: minmax(0, 1.13fr) minmax(0, .87fr); gap: 18px; }
-.balance, .monthCard { border-radius: 17px; }
-.balance { background: #30283d; color: white; padding: 27px 30px; min-height: 240px; display: flex; flex-direction: column; }
-.balanceTop { display: flex; justify-content: space-between; align-items: center; color: #c6bace; font-size: 11px; font-weight: 750; letter-spacing: .13em; }
-.balance strong { font-size: clamp(31px, 3vw, 45px); font-variant-numeric: tabular-nums; letter-spacing: -.06em; line-height: 1.15; margin: 27px 0 8px; }
-.balance p { color: #d1c7d6; font-size: 12px; margin: 0; }
-.balance a { color: white; border-top: 1px solid #ffffff2a; padding-top: 15px; margin-top: auto; font-size: 12px; font-weight: 750; }
-.monthCard { background: #fff1e7; border: 1px solid #f0dfd3; padding: 27px; display: flex; flex-direction: column; min-height: 240px; }
-.monthCard .overline { color: #b6695d; }
-.monthCard > span:nth-child(2) { margin-top: 22px; color: #826d69; font-size: 13px; }
-.monthCard > strong { font-size: clamp(27px, 2.4vw, 37px); letter-spacing: -.06em; font-variant-numeric: tabular-nums; }
-.monthCard > strong.negative { color: #bd5d4b; }
-.monthBreakdown { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: auto; padding-top: 19px; }
-.monthBreakdown > span { display: flex; gap: 8px; align-items: center; color: #786d73; font-size: 11px; }
-.monthBreakdown svg { flex: none; }
-.monthBreakdown b { display: block; color: #30283d; font-size: 14px; }
-.overviewLower { display: grid; grid-template-columns: minmax(0, 1.13fr) minmax(0, .87fr); gap: 18px; align-items: start; }
-.overviewLower > :last-child { grid-column: 1 / -1; }
+.topCards { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 16px; }
+.balance, .summaryCard { border-radius: 6px; min-height: 180px; }
+.balance { min-width: 0; background: #30283d; color: white; padding: 22px 24px 16px; display: flex; flex-direction: column; }
+.balanceTop { display: flex; justify-content: space-between; align-items: center; color: #e2dbe7; }
+.balanceTop h2, .summaryHead h2, .overviewCardHead h2, .monthlyHead h2 {
+  margin: 0;
+  font-family: var(--cf-font);
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 24px;
+  letter-spacing: -.02em;
+}
+.balance strong { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.03em; line-height: 1.2; margin: 12px 0 0; overflow-wrap: anywhere; }
+.balance p { color: #d1c7d6; font-size: 13px; line-height: 20px; margin: 0; }
+.balanceDetails { display: flex; flex-direction: column; flex: 1; }
+.balanceDetails > p { margin: 4px 0 10px; }
+.balanceDetails > .cardAction { --card-action-color: white; min-height: 40px; margin-top: auto; padding-top: 10px; border-top: 1px solid #ffffff2a; }
+.summaryCard { min-width: 0; background: var(--surface); border: 1px solid var(--line); padding: 22px 24px; display: flex; flex-direction: column; justify-content: space-between; gap: 20px; container-type: inline-size; }
+.summaryHead p { margin: 4px 0 0; color: #68616d; font-size: 13px; line-height: 20px; }
+.overallMetrics { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr); margin: 0; }
+.overallMetrics > div { min-width: 0; padding: 0 20px; border-left: 1px solid var(--line); }
+.overallMetrics > div:first-child { padding-left: 0; border-left: 0; }
+.overallMetrics > div:last-child { padding-right: 0; }
+.overallMetrics dt { color: #68616d; font-size: 13px; line-height: 20px; }
+.overallMetrics dd { margin: 6px 0 0; color: var(--ink); font-size: 26px; font-weight: 650; line-height: 1.3; letter-spacing: -.03em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.overallMetrics dd.metricIncome { color: #16796f; }
+.overallMetrics dd.negative { color: #bd5d4b; }
+.reportGrid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: var(--cf-field-gap); }
 .overviewCard { min-width: 0; padding: 0; overflow: hidden; }
 .activityPanel { background: #fffefa; }
-.walletPanel { background: #f3f0f8; border-color: #e5dded; }
+.activityPanel .overviewCardHead { padding: 0; align-items: center; flex-wrap: wrap; }
+.activityPanel .overviewEmpty { padding: 0; }
+.activityPanel .overviewCardHead p { color: #68616d; font-size: 13px; line-height: 20px; }
 .budgetPanel { background: #f4f5ee; border-color: #e4e9d9; }
 .overviewCardHead { display: flex; justify-content: space-between; align-items: start; gap: 14px; padding: 22px 24px 17px; }
-.overviewCardHead h2 { margin: 6px 0 3px; font-size: 21px; line-height: 1.2; letter-spacing: -.05em; }
-.overviewCardHead p { margin: 0; color: var(--muted); font-size: 12px; }
-.overviewCardHead a { white-space: nowrap; color: #704b95; font-size: 12px; font-weight: 750; padding-top: 8px; }
-.overviewCardHead a:hover { text-decoration: underline; }
-.walletPanel .overline { color: #8665a7; }
-.budgetPanel .overline { color: #71825c; }
-.activityList { padding: 0 24px 12px; }
-.activityRow { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 12px; align-items: center; min-height: 69px; padding: 10px 0; border-top: 1px solid #eee9e4; }
-.activityIcon, .walletIcon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; flex: none; }
+.overviewCardHead p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+.activityList .activityRow:last-child { padding-bottom: 0; }
+.activityRow { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid #eee9e4; }
+.activityIcon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 6px; flex: none; }
 .activityIconIncome { color: #16796f; background: #d9eee9; }
 .activityIconExpense { color: #be674f; background: #f9ddd2; }
 .activityIconTransfer { color: #70549e; background: #ebe2f2; }
 .activityInfo { min-width: 0; }
-.activityInfo strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
-.activityInfo small { display: block; color: #8d858d; font-size: 11px; margin-top: 2px; }
-.activityAmount { font-size: 13px; font-weight: 750; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.activityInfo strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; line-height: 20px; font-weight: 600; }
+.activityInfo small { display: block; color: #8d858d; font-size: 13px; line-height: 20px; margin-top: 0; }
+.activityAmount { font-size: 14px; line-height: 20px; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .amountIncome { color: #16796f; }
 .amountExpense { color: #bd6d5b; }
-.walletList { display: grid; gap: 8px; padding: 0 16px 17px; }
-.walletRow { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 11px; align-items: center; min-width: 0; padding: 13px; border: 1px solid #e8e1ec; border-radius: 11px; background: #fffefa; }
-.walletIcon { background: #e7f1ed; color: #16857b; }
-.walletRow:nth-child(3n + 2) .walletIcon { background: #f9e7d9; color: #bb7752; }
-.walletRow:nth-child(3n) .walletIcon { background: #ebe2f2; color: #8259ba; }
-.walletCopy { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1px 8px; align-items: center; }
-.walletCopy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
-.walletCopy small { color: #918a94; font-size: 11px; }
-.walletCopy b { grid-column: 2; grid-row: 1 / 3; font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.budgetGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 12px; padding: 0 24px 24px; }
-.budgetItem { min-width: 0; padding: 17px; background: #fffefa; border: 1px solid #e4e9d9; border-radius: 12px; }
-.budgetTop { display: flex; justify-content: space-between; gap: 8px; align-items: start; }
-.budgetTop strong { font-size: 13px; line-height: 1.4; }
-.budgetTop span { color: #73815f; background: #eaf0df; border-radius: 999px; padding: 3px 7px; white-space: nowrap; font-size: 11px; font-weight: 750; }
-.budgetTop span.budgetWarning { color: #97651e; background: #fbefda; }
-.budgetTop span.budgetExceeded { color: #ad4d46; background: #fbe7e2; }
-.budgetValues { display: flex; justify-content: space-between; gap: 8px; color: #807e81; font-size: 11px; margin-top: 18px; }
-.budgetValues b { color: var(--ink); font-size: 13px; font-variant-numeric: tabular-nums; }
-.budgetTrack { height: 8px; border-radius: 99px; overflow: hidden; background: #e7e9df; margin-top: 10px; }
-.budgetTrack span { display: block; height: 100%; border-radius: inherit; background: #208f87; }
-.budgetItem:nth-child(3n + 2) .budgetTrack span { background: #8259ba; }
-.budgetItem:nth-child(3n) .budgetTrack span { background: #dfab49; }
-.budgetItem .budgetTrack span.budgetBarWarning { background: #dfab49; }
-.budgetItem .budgetTrack span.budgetBarExceeded { background: #e6816c; }
-.overviewEmpty { padding: 12px 24px 24px; color: var(--muted); font-size: 13px; }
-.overviewEmpty a { color: #704b95; font-weight: 700; }
-.overviewFootnote { color: #8d858e; font-size: 12px; margin: -5px 0 0; }
-@media (max-width: 800px) { .topCards, .overviewLower { grid-template-columns: 1fr; } }
-@media (max-width: 540px) { .balance, .monthCard { padding: 20px; } }
-@media (max-width: 540px) { .overviewCard { padding: 0; } .overviewCardHead { padding: 19px 18px 15px; } .activityList { padding: 0 18px 10px; } .walletList { padding: 0 12px 14px; } .budgetGrid { padding: 0 18px 18px; } .activityRow { grid-template-columns: 34px minmax(0, 1fr); } .activityAmount { grid-column: 2; margin-top: -8px; } .walletCopy { grid-template-columns: minmax(0, 1fr); } .walletCopy b { grid-column: 1; grid-row: auto; } }
+.budgetPanel { background: #f8fafc; border-color: #e2e8f0; container: overview-budget / inline-size; }
+.budgetPanel .overviewCardHead { padding: 18px 24px 14px; align-items: center; }
+.budgetPanel .overviewCardHead p { color: #64748b; font-size: 13px; line-height: 20px; }
+.budgetGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding: 0 20px 20px; }
+.budgetItem { min-width: 0; padding: 16px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04); display: flex; flex-direction: column; justify-content: space-between; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+.budgetItem:hover { border-color: #cbd5e1; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.07); transform: translateY(-1px); }
+.budgetTop { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px 8px; align-items: center; }
+.budgetTop strong { font-size: 14px; line-height: 20px; font-weight: 600; color: #0f172a; overflow-wrap: anywhere; }
+.budgetTop span { color: #475569; white-space: nowrap; font-size: 12px; line-height: 18px; font-weight: 600; padding: 2px 8px; border-radius: 6px; background: #f1f5f9; }
+.budgetTop span.budgetWarning { color: #b45309; background: #fef3c7; }
+.budgetTop span.budgetExceeded { color: #b91c1c; background: #fee2e2; }
+.budgetValues { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; color: #64748b; font-size: 13px; line-height: 20px; margin-top: 10px; }
+.budgetValues > span, .budgetValues b { min-width: 0; overflow-wrap: anywhere; }
+.budgetValues b { color: #0f172a; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.budgetTrack { height: 6px; border-radius: 6px; overflow: hidden; background: #e2e8f0; margin-top: 12px; }
+.budgetTrack span { display: block; height: 100%; border-radius: inherit; background: #0d9488; transition: width 0.3s ease; }
+.budgetItem:nth-child(3n + 2) .budgetTrack span { background: #6366f1; }
+.budgetItem:nth-child(3n) .budgetTrack span { background: #0284c7; }
+.budgetItem .budgetTrack span.budgetBarWarning { background: #f59e0b; }
+.budgetItem .budgetTrack span.budgetBarExceeded { background: #ef4444; }
+.overviewEmpty { padding: 12px 24px 20px; color: var(--muted); font-size: 14px; line-height: 20px; }
+
+/* Ngữ cảnh dữ liệu nằm cạnh số liệu; các thao tác mở rộng dùng HTML gốc. */
+.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.dataUpdates { display: flex; justify-content: space-between; align-items: start; gap: 16px; padding-top: 8px; color: #68616d; font-size: 13px; line-height: 20px; }
+.dataUpdates p { margin: 0 0 8px; }
+.dataUpdates ul { display: flex; flex-wrap: wrap; gap: 6px 24px; margin: 0; padding: 0; list-style: none; }
+.dataUpdates li { overflow-wrap: anywhere; }
+.dataUpdates > button { flex-shrink: 0; }
+@media (max-width: 800px) {
+  .dataUpdates { flex-direction: column; align-items: stretch; }
+  .budgetTop { flex-wrap: wrap; }
+}
+
+/* Chỉ chuẩn hóa phần thân Tổng quan; giữ nguyên khối tiêu đề và CSS dùng chung với Báo cáo. */
+.balance > strong, .balance > p, .balance > a, .summaryCard,
+.activityList, .budgetGrid, .overviewEmpty,
+.charts .legend, .charts .chart, .charts .empty {
+  font-family: var(--overview-body-font);
+}
+.charts .panel { flex: 1; display: flex; flex-direction: column; padding: 22px 24px; }
+.charts .sectionHead h2 { margin: 0 0 4px; font-size: 18px; line-height: 24px; letter-spacing: -.02em; }
+.charts .sectionHead p { color: #68616d; line-height: 20px; }
+.charts .legend { font-size: 13px; line-height: 20px; margin: 16px 0 0; }
+.charts .chart { flex: 1; height: 240px; min-height: 240px; margin-top: 12px; overflow: clip; }
+.charts .empty { flex: 1; min-height: 240px; font-size: 14px; line-height: 20px; }
+@container overview-budget (max-width: 680px) {
+  .budgetGrid { grid-template-columns: 1fr; gap: 12px; padding: 0 16px 16px; }
+  .budgetItem { padding: 14px 16px; border-radius: 6px; }
+}
+@media (max-width: 800px) { .topCards, .reportGrid { grid-template-columns: 1fr; } }
+@media (min-width: 801px) and (max-width: 1100px) { .overallMetrics > div { padding: 0 12px; } .overallMetrics dd { font-size: 22px; } }
+@media (max-width: 540px) {
+  .balance, .summaryCard { padding: 20px; min-height: 0; }
+  .balance strong { font-size: 28px; }
+}
+@container (max-width: 560px) {
+  .overallMetrics { grid-template-columns: 1fr; }
+  .overallMetrics > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); align-items: baseline; gap: 12px; padding: 10px 0; border-left: 0; }
+  .overallMetrics > div + div { border-top: 1px solid var(--line); }
+  .overallMetrics > div:first-child { padding-top: 0; }
+  .overallMetrics > div:last-child { padding-bottom: 0; }
+  .overallMetrics dd { margin: 0; text-align: right; font-size: 21px; }
+}
+@media (max-width: 540px) { .overviewCard { padding: 0; } .overviewCardHead { padding: 19px 18px 15px; } .budgetGrid { padding: 0 18px 16px; } .activityRow { grid-template-columns: 36px minmax(0, 1fr); gap: 4px 12px; } .activityInfo strong { white-space: normal; overflow-wrap: anywhere; } .activityAmount { grid-column: 2; overflow-wrap: anywhere; white-space: normal; } }
+
+.panel.monthlyCard { display: flex; flex-direction: column; gap: var(--cf-field-gap); padding: var(--cf-dialog-padding); font-family: var(--cf-font); }
+.monthlyHead, .seriesKey, .seriesKey span { display: flex; align-items: center; }
+.monthlyHead { justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.metricSwitch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.metricSwitch button { min-width: 0; padding: 6px 6px 12px; display: grid; gap: 3px; border: 0; border-bottom: 3px solid var(--line); background: transparent; text-align: center; cursor: pointer; }
+.metricSwitch button[aria-pressed="true"] { border-bottom-color: currentColor; }
+.metricSwitch span { color: #625c68; font-size: 14px; }
+.metricSwitch strong { font-size: clamp(17px, 2vw, 25px); line-height: 1.3; overflow-wrap: anywhere; font-weight: 650; font-variant-numeric: tabular-nums; }
+.readout { align-self: flex-start; max-width: 100%; background: #f5f4f2; border-radius: 6px; padding: 9px 12px; display: grid; gap: 3px; font-size: 13px; color: #625c68; }
+.readout div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+.readout strong { font-size: 17px; }
+.readout b, .readout strong { font-variant-numeric: tabular-nums; }
+.plotScroll { min-width: 0; max-width: 100%; overflow-x: auto; }
+.monthPlot { width: 100%; min-width: 715px; height: clamp(195px, 20vw, 245px); }
+.seriesKey { gap: 6px 20px; flex-wrap: wrap; color: #625c68; font-size: 13px; }
+.seriesKey span { gap: 6px; }
+.seriesKey i { width: 9px; height: 9px; border-radius: 50%; background: #a7a8b0; }
+
+.periodSwitch { display: grid; grid-template-columns: 1fr 1fr; padding: 3px; background: #f1efed; border-radius: var(--cf-control-radius); }
+.periodSwitch button { min-height: 32px; padding: 5px 12px; font: inherit; font-size: 14px; line-height: 20px; font-weight: 600; color: #625c68; border: 0; border-radius: 4px; background: transparent; cursor: pointer; }
+.periodSwitch button[aria-pressed="true"] { background: #fff; color: var(--ink); box-shadow: 0 1px 3px #30283d26; }
+.spendSummary strong { display: block; font-size: clamp(22px, 2.3vw, 28px); line-height: 1.2; font-weight: 650; letter-spacing: -.025em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.spendSummary p, .noSpending { margin: 3px 0 0; color: #625c68; font-size: 13px; line-height: 20px; }
+.spendSummary p.decrease { color: #127164; }
+.spendSummary p.increase { color: #a63a40; }
+.barChart { flex: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: min(100%, 360px); margin-inline: auto; }
+.barColumn { min-width: 0; display: grid; grid-template-rows: auto minmax(78px, 1fr) auto; text-align: center; color: #625c68; font-size: 13px; line-height: 20px; }
+.barColumn strong { display: block; color: var(--ink); font-weight: 600; overflow-wrap: anywhere; }
+.barTrack { display: flex; justify-content: center; align-items: flex-end; margin: 5px 0; border-bottom: 1px solid var(--line); }
+.barTrack i { width: min(48%, 64px); background: #edc7c9; border-radius: 5px 5px 0 0; }
+.barColumn:last-child .barTrack i { background: #cb555b; }
+.cardAction { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; background: transparent; padding: 0; border: 0; color: var(--card-action-color, #136f65); font-family: var(--cf-font); font-size: 13px; line-height: 20px; font-weight: 650; text-decoration: none; cursor: pointer; }
+.cardAction > svg { width: 15px; height: 15px; flex: none; }
+.cardAction:hover { text-decoration: underline; text-underline-offset: 2px; }
+.cardAction:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.categoryList { list-style: none; padding: 0; margin: 0; }
+.categoryList li { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px 0; }
+.categoryList li + li { border-top: 1px solid var(--line, #e8e2d9); }
+.monthlyCard > .categoryList li:first-child { padding-top: 0; }
+.monthlyCard > .categoryList li:last-child { padding-bottom: 0; }
+.categoryList strong, .categoryList small { display: block; line-height: 20px; overflow-wrap: anywhere; }
+.categoryList strong { font-size: 14px; font-weight: 600; }
+.categoryList small { color: #625c68; font-size: 13px; }
+.categoryList li > span:last-child { color: #a63a40; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.detailTotal { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; }
+
+.demoPage { max-width: 960px; margin: 0 auto; padding: 32px clamp(14px, 3vw, 40px); }
+.demoPage h1 { font-size: 28px; font-weight: 700; }
+.demoPage header > p { color: #625c68; margin: 4px 0 0; }

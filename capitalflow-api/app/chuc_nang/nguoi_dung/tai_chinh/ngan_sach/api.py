@@ -1,5 +1,5 @@
 """User-owned budget configurations, calendar periods, and history."""
-from datetime import date, timedelta
+from datetime import date
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
@@ -7,11 +7,15 @@ from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.exc import IntegrityError
 from app.chuc_nang.nguoi_dung.danh_muc.luu_tru.danh_muc import Category
 from app.chuc_nang.nguoi_dung.tai_chinh.bao_cao_tai_chinh.dich_vu import budget_progress, budgets_progress
-from app.chuc_nang.nguoi_dung.tai_chinh.ngan_sach.ky_han import history_for_year, next_period_start, period_bounds, settings_on, today_vn
+from app.chuc_nang.nguoi_dung.tai_chinh.ngan_sach.ky_han import (
+    historical_periods, next_period_start, period_bounds, progress_for_periods, settings_on, today_vn,
+)
 from app.dung_chung.http.phu_thuoc import get_current_user, get_db
+from app.chuc_nang.nguoi_dung.dang_nhap.nghiep_vu.session_management import locked_user
 from app.chuc_nang.nguoi_dung.tai_chinh.ngan_sach.luu_tru.ngan_sach import Budget, BudgetChange
 from app.chuc_nang.nguoi_dung.dang_nhap.luu_tru.nguoi_dung import User
 from app.chuc_nang.nguoi_dung.tai_chinh.ngan_sach.schemas import BudgetCreate, BudgetOut, BudgetUpdate, BudgetProgressOut
+from app.chuc_nang.nguoi_dung.tai_chinh.ngan_sach.canh_bao import check_current_budget_alert
 
 router = APIRouter(prefix="/budgets", tags=["Budgets"])
 
@@ -39,12 +43,14 @@ def list_budget_history(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    selected_year = year or today_vn().year
+    today = today_vn()
+    selected_year = year or today.year
     query = select(Budget).options(selectinload(Budget.changes)).where(Budget.user_id == user.id)
     if budget_id:
         query = query.where(Budget.id == budget_id)
     budgets = db.scalars(query).all()
-    items = [item for budget in budgets for item in history_for_year(db, budget, selected_year)]
+    periods = [period for budget in budgets for period in historical_periods(budget, selected_year, today)]
+    items = progress_for_periods(db, user.id, periods, today)
     return sorted(items, key=lambda item: (item["end_date"], str(item["budget_id"])), reverse=True)
 
 
@@ -83,19 +89,21 @@ def create_budget(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    locked_user(db, user.id, user.token_version)
     values = payload.model_dump()
     if values["is_recurring"]:
         if values["period_type"] == "CUSTOM":
             raise HTTPException(422, "Kỳ tùy chỉnh không lặp lại")
         if values["end_date"] is not None:
-            raise HTTPException(422, "Ngân sách định kỳ chỉ cần ngày bắt đầu và ngày kết thúc áp dụng tùy chọn")
+            raise HTTPException(422, "Ngân sách định kỳ chỉ cần ngày bắt đầu")
         budget = Budget(user_id=user.id, **{**values, "end_date": values["start_date"]})
-        budget.end_date = period_bounds(budget, budget.start_date)[1]
+        bounds = period_bounds(budget, budget.start_date)
+        if bounds is None:
+            raise HTTPException(422, "Kỳ ngân sách không hợp lệ")
+        budget.end_date = bounds[1]
     else:
         if values["end_date"] is None:
             raise HTTPException(422, "Cần chọn ngày kết thúc cho ngân sách tùy chỉnh")
-        if values["recurrence_end_date"] is not None:
-            raise HTTPException(422, "Ngày kết thúc lặp chỉ dành cho ngân sách định kỳ")
         budget = Budget(user_id=user.id, **values)
     if not budget.name or not budget.name.strip():
         category = db.get(Category, budget.category_id) if budget.category_id else None
@@ -104,6 +112,9 @@ def create_budget(
     else:
         budget.name = budget.name.strip()
     _validate_budget(db, user.id, budget)
+    from app.chuc_nang.nguoi_dung.goi_dich_vu.han_muc import live_budget, require_capacity
+    if live_budget(budget, today_vn()):
+        require_capacity(db, user.id, "budgets")
     if budget.is_recurring:
         budget.changes.append(BudgetChange(
             effective_date=budget.start_date, name=budget.name,
@@ -131,29 +142,28 @@ def update_budget(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    locked_user(db, user.id, user.token_version)
     budget = db.scalar(
         select(Budget).where(Budget.id == budget_id, Budget.user_id == user.id)
+        .with_hint(Budget, 'WITH (UPDLOCK, ROWLOCK)', dialect_name='mssql')
+        .execution_options(populate_existing=True)
     )
     if not budget:
         raise HTTPException(status_code=404, detail="Không tìm thấy ngân sách")
 
     values = payload.model_dump(exclude_unset=True)
     timing = values.pop("effective_from", "NEXT")
-    if any(value is None for key, value in values.items() if key != "recurrence_end_date"):
+    recheck_alerts = bool({"amount_limit", "warning_percent", "start_date", "end_date"} & values.keys()) and (
+        not budget.is_recurring or timing == "CURRENT"
+    )
+    if any(value is None for value in values.values()):
         raise HTTPException(status_code=422, detail="Trường ngân sách không được null")
     if budget.is_recurring:
         if {"period_type", "start_date", "end_date"} & values.keys():
-            raise HTTPException(422, "Kỳ và ngày bắt đầu của ngân sách định kỳ không thể đổi; hãy kết thúc rồi tạo cấu hình mới")
+            raise HTTPException(422, "Không thể đổi loại kỳ hoặc ngày bắt đầu của ngân sách định kỳ")
         today = today_vn()
         if budget.recurrence_end_date and budget.recurrence_end_date < today:
             raise HTTPException(409, "Ngân sách đã kết thúc; lịch sử chỉ có thể xem")
-        if "recurrence_end_date" in values:
-            new_end = values.pop("recurrence_end_date")
-            if new_end and new_end < today:
-                raise HTTPException(422, "Ngày kết thúc áp dụng không được lùi về trước hôm nay")
-            budget.recurrence_end_date = new_end
-        if budget.recurrence_end_date and budget.recurrence_end_date < budget.start_date:
-            raise HTTPException(422, "Ngày kết thúc áp dụng phải từ ngày bắt đầu trở đi")
         setting_values = {key: values.pop(key) for key in ("name", "amount_limit", "warning_percent") if key in values}
         if "name" in setting_values and not setting_values["name"].strip():
             raise HTTPException(422, "Tên ngân sách không được chỉ có khoảng trắng")
@@ -164,25 +174,30 @@ def update_budget(
                 if not bounds:
                     raise HTTPException(409, "Ngân sách đã kết thúc")
                 effective = bounds[0]
+            if budget.recurrence_end_date and effective > budget.recurrence_end_date:
+                raise HTTPException(409, "Ngân sách không còn kỳ tiếp theo. Hãy chọn áp dụng ngay.")
             _change_settings(budget, effective, setting_values)
             for key, value in setting_values.items():
                 setattr(budget, key, value)
-        if "is_active" in values:
-            active = values.pop("is_active")
-            # Calendar-day budgets keep transactions already dated today. A
-            # pause/resume takes effect at tomorrow's date boundary.
-            _change_settings(budget, max(budget.start_date, today + timedelta(days=1)), {"is_active": active})
-            budget.is_active = active
         if values:
             raise HTTPException(422, "Trường cập nhật ngân sách không hợp lệ")
         _validate_budget(db, user.id, budget, exclude_id=budget.id)
     else:
-        if "recurrence_end_date" in values:
-            raise HTTPException(422, "Ngân sách cũ có khoảng ngày cố định")
+        from app.chuc_nang.nguoi_dung.goi_dich_vu.han_muc import live_budget, require_capacity
+        counted_before = live_budget(budget, today_vn())
         for key, value in values.items():
             setattr(budget, key, value.strip() if key == "name" else value)
         _validate_budget(db, user.id, budget, exclude_id=budget.id)
+        if not counted_before and live_budget(budget, today_vn()):
+            # Chặn kéo dài một ngân sách đã kết thúc để vượt hạn mức tạo thêm.
+            with db.no_autoflush:
+                require_capacity(db, user.id, "budgets", exclude_budget_id=budget.id)
 
+    if recheck_alerts:
+        # Persist the new period settings before aggregating existing spending.
+        # Both the alert and email outbox remain atomic with this budget edit.
+        db.flush()
+        check_current_budget_alert(db, budget, user)
     _commit_budget(db)
     db.refresh(budget)
     return budget
@@ -202,6 +217,7 @@ def delete_budget(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    locked_user(db, user.id, user.token_version)
     budget = db.scalar(
         select(Budget).where(Budget.id == budget_id, Budget.user_id == user.id)
     )

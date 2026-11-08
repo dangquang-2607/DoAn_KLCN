@@ -13,7 +13,7 @@ import jwt
 from app.dung_chung.config import settings
 
 
-def create_access_token(user_id: str, role: str, token_version: int = 0) -> str:
+def create_access_token(user_id: str, role: str, token_version: int = 0, session_id: str | None = None) -> str:
     """Tạo access token có hạn dùng theo cấu hình runtime."""
     expire = datetime.now(timezone.utc) + timedelta(
         minutes=settings.access_token_expire_minutes
@@ -25,6 +25,8 @@ def create_access_token(user_id: str, role: str, token_version: int = 0) -> str:
         "ver": token_version,
         "exp": expire,
     }
+    if session_id:
+        payload["sid"] = session_id
     return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
 

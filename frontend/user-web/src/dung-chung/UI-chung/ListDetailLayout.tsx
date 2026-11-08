@@ -1,33 +1,17 @@
-/**
- * ============================================================================
- * TÊN FILE: ListDetailLayout.tsx
- * MÀN HÌNH / PHÂN HỆ: Bố cục Master - Detail dùng chung
- * NHÓM VỆ TINH: dung-chung (Bố cục giao diện)
- * MỤC ĐÍCH CỤ THỂ:
- *   Cung cấp bố cục hai cột chuẩn hóa: cột trái danh sách phân loại, cột phải hiển thị
- *   chi tiết bản ghi được chọn; tự động chuyển sang chế độ ngăn kéo (drawer) trên di động.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   listTitle, count, list, selectedKey, title, eyebrow, header, onClose, children.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Default export ListDetailLayout component và component phụ RecordRow.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Tuân thủ quy chuẩn W3C WAI-ARIA cho vùng hiển thị danh sách và chi tiết.
- * ============================================================================
- */
 "use client";
 
 import { useId, useRef, type MouseEvent, type ReactNode } from "react";
 import { ChevronRight, X } from "lucide-react";
 import { Empty } from "./ui";
-import styles from "./ListDetailLayout.module.css";
+import styles from "./CSS/ListDetailLayout.module.css";
 
 /** Khung danh sách/chi tiết dùng chung; không đọc hoặc thay đổi dữ liệu nghiệp vụ. */
 /**
  * Bố cục giao diện hai cột Master - Detail thích ứng đa màn hình.
  */
-export default function ListDetailLayout({ listTitle, count, list, selectedKey, title, eyebrow, header, onClose, children }: {
+export default function ListDetailLayout({ listTitle, count, list, selectedKey, title, eyebrow, header, compactHeader = false, onClose, children }: {
   listTitle: string; count: number; list: ReactNode; selectedKey?: string;
-  title: string; eyebrow: string; header?: ReactNode; onClose: () => void; children: ReactNode;
+  title: string; eyebrow?: string; header?: ReactNode; compactHeader?: boolean; onClose: () => void; children: ReactNode;
 }) {
   const headingId = useId();
   const listRef = useRef<HTMLElement>(null);
@@ -55,17 +39,19 @@ export default function ListDetailLayout({ listTitle, count, list, selectedKey, 
     }
   };
 
+  const heading = <h2 id={headingId} ref={headingRef} tabIndex={-1} className={styles.detailTitle}>{title}</h2>;
+
   return <div className={styles.layout}>
     <section ref={listRef} className={styles.library} aria-label={listTitle} onClickCapture={revealDetails}>
       <div className={styles.listHead}><h2>{listTitle}</h2><span>{count} mục</span><p>Chọn một dòng để xem chi tiết.</p></div>
       {list}
     </section>
-    <aside ref={detailRef} className={styles.inspector} aria-labelledby={headingId}>
+    <aside ref={detailRef} className={`${styles.inspector} ${compactHeader ? styles.compactHeader : ""}`} aria-labelledby={headingId}>
       <div className={styles.detailHead}>
-        <div>{header}<p className="cf-eyebrow">{eyebrow}</p></div>
+        <div>{header}<div>{eyebrow && <p className="cf-eyebrow">{eyebrow}</p>}{compactHeader && heading}</div></div>
         {selectedKey && <button type="button" className="cf-icon-btn" aria-label="Đóng chi tiết" onClick={close}><X size={17} /></button>}
       </div>
-      <h2 id={headingId} ref={headingRef} tabIndex={-1} className={styles.detailTitle}>{title}</h2>
+      {!compactHeader && heading}
       {selectedKey ? children : <Empty title="Chưa chọn mục nào" description="Chọn một dòng trong danh sách để xem thông tin và các thao tác." />}
     </aside>
   </div>;

@@ -1,24 +1,9 @@
-/**
- * ============================================================================
- * TÊN FILE: DashboardLayout.tsx
- * MÀN HÌNH / PHÂN HỆ: Khung không gian làm việc
- * NHÓM VỆ TINH: dung-chung/layouts (Khung dùng chung)
- * MỤC ĐÍCH CỤ THỂ:
- *   Bảo vệ phiên và cung cấp sidebar, header, hồ sơ cho không gian làm việc.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   Props từ component cha, kiểu nghiệp vụ và các primitive UI liên quan.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Xuất DashboardLayout để route hoặc component khác sử dụng.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Không tự thay đổi dữ liệu tài chính; giữ hành vi runtime và khả năng truy cập hiện có.
- * ============================================================================
- */
 "use client";
 /**
  * Khung ứng dụng sau đăng nhập: bảo vệ phiên, điều hướng sidebar/header và
  * chứa các màn nghiệp vụ. Không đặt logic CRUD của từng tính năng tại đây.
  */
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -40,13 +25,53 @@ import {
   ChevronLeft,
   UserRound,
   Activity,
-Command,
+  Command,
+  ShieldCheck,
+  CreditCard,
 } from "lucide-react";
-import api from "@/dung-chung/connect-api/api";
+import api, { clearSession, restoreSession } from "@/dung-chung/connect-api/api";
 import { Loading, ErrorState } from "@/dung-chung/UI-chung/ui";
 import SecuritySettings from "@/dung-chung/xac-thuc/SecuritySettings";
 import type { Profile } from "@/dung-chung/nghiep-vu/finance";
 import NotificationCenter from "../thong-bao/NotificationCenter";
+import styles from "./DashboardLayout.module.css";
+
+const settingsLinks = [
+  { href: "/settings", label: "Tài khoản & bảo mật", icon: ShieldCheck },
+  { href: "/settings/subscription", label: "Gói sử dụng", icon: CreditCard },
+];
+const settingsPageFor = (pathname: string) => [...settingsLinks].reverse().find(item => pathname === item.href || pathname.startsWith(`${item.href}/`));
+
+function SettingsNavigation({ pathname, collapsed, onExpand, onNavigate }: {
+  pathname: string; collapsed: boolean; onExpand: () => void; onNavigate: () => void;
+}) {
+  const id = useId();
+  const active = pathname === "/settings" || pathname.startsWith("/settings/");
+  const [expanded, setExpanded] = useState(active);
+  return <>
+    <button type="button" className={`cf-nav-link ${styles.settingsToggle}`} aria-label="Cài đặt & bảo mật"
+      data-active={active} data-collapsed={collapsed} aria-expanded={expanded && !collapsed} aria-controls={id}
+      onClick={() => {
+        if (collapsed) { onExpand(); setExpanded(true); }
+        else setExpanded(value => !value);
+      }}>
+      <Settings aria-hidden="true" /><span className="cf-nav-label-text">Cài đặt & bảo mật</span>
+      <ChevronRight className={styles.toggleChevron} data-open={expanded} aria-hidden="true" />
+    </button>
+    <div id={id} className={styles.submenu} hidden={!expanded || collapsed}>
+      {settingsLinks.map(item => {
+        const selected = settingsPageFor(pathname)?.href === item.href;
+        const Icon = item.icon;
+        return <Link key={item.href} href={item.href} onClick={onNavigate} aria-current={selected ? "page" : undefined}
+          className={styles.childLink}>
+          {selected && <motion.div layoutId="cfNavActivePill" className="cf-nav-sliding-pill"
+            transition={{ type: "spring", stiffness: 380, damping: 30 }} />}
+          <Icon size={16} aria-hidden="true" /><span>{item.label}</span>
+        </Link>;
+      })}
+    </div>
+  </>;
+}
 
 interface NavItem {
   href: string;
@@ -60,30 +85,71 @@ const groups: { label: string; items: NavItem[] }[] = [
   {
     label: "Không gian tài chính",
     items: [
-      { href: "/", label: "Tổng quan", icon: LayoutDashboard, shortcut: "Ctrl+1" },
-      { href: "/accounts", label: process.env.NEXT_PUBLIC_INDEPENDENT_WALLETS === "true" ? "Ví" : "Ví & tài khoản", icon: Wallet, shortcut: "Ctrl+2" },
-      { href: "/transactions", label: process.env.NEXT_PUBLIC_INDEPENDENT_WALLETS === "true" ? "Sổ thu chi" : "Giao dịch", icon: ArrowLeftRight, shortcut: "Ctrl+3" },
-      { href: "/budgets", label: "Ngân sách", icon: PieChart, shortcut: "Ctrl+4" },
+      {
+        href: "/",
+        label: "Tổng quan",
+        icon: LayoutDashboard,
+        shortcut: "Ctrl+1",
+      },
+      {
+        href: "/accounts",
+        label: "Ví cá nhân",
+        icon: Wallet,
+        shortcut: "Ctrl+2",
+      },
+      {
+        href: "/transactions",
+        label: "Lịch sử giao dịch",
+        icon: ArrowLeftRight,
+        shortcut: "Ctrl+3",
+      },
+      {
+        href: "/budgets",
+        label: "Ngân sách",
+        icon: PieChart,
+        shortcut: "Ctrl+4",
+      },
     ],
   },
   {
     label: "Phân tích & quản lý",
     items: [
-      { href: "/ocr", label: "Hóa đơn AI", icon: ScanLine, isAi: true, shortcut: "Ctrl+5" },
+      {
+        href: "/ocr",
+        label: "Quét hóa đơn",
+        icon: ScanLine,
+        isAi: true,
+        shortcut: "Ctrl+5",
+      },
       {
         href: "/analytics",
         label: "Báo cáo tài chính",
         icon: ChartNoAxesCombined,
         shortcut: "Ctrl+6",
       },
-      { href: "/categories", label: "Danh mục", icon: Tags, shortcut: "Ctrl+7" },
+      {
+        href: "/categories",
+        label: "Danh mục",
+        icon: Tags,
+        shortcut: "Ctrl+7",
+      },
     ],
   },
   {
     label: "Tài khoản",
     items: [
-      { href: "/settings", label: "Cài đặt & bảo mật", icon: Settings, shortcut: "Ctrl+8" },
-      { href: "/support", label: "Trung tâm hỗ trợ", icon: HelpCircle, shortcut: "Ctrl+9" },
+      {
+        href: "/settings",
+        label: "Cài đặt & bảo mật",
+        icon: Settings,
+        shortcut: "Ctrl+8",
+      },
+      {
+        href: "/support",
+        label: "Trung tâm hỗ trợ",
+        icon: HelpCircle,
+        shortcut: "Ctrl+9",
+      },
     ],
   },
 ];
@@ -130,11 +196,12 @@ export default function DashboardLayout({
 
   // Snapshot phía server giữ hydration ổn định; tùy chọn trình duyệt được đọc
   // ngay sau khi React gắn vào HTML hiện có.
-  const collapsed = useSyncExternalStore(
+  const collapsedPreference = useSyncExternalStore(
     subscribeSidebarPreference,
     getSidebarPreference,
     getServerSidebarPreference,
   );
+  const collapsed = collapsedPreference && !open;
   const [tooltipData, setTooltipData] = useState<{
     label: string;
     isAi?: boolean;
@@ -160,7 +227,10 @@ export default function DashboardLayout({
         toggleCollapsed();
         setShowKeyToast(true);
         if (keyToastTimerRef.current) clearTimeout(keyToastTimerRef.current);
-        keyToastTimerRef.current = setTimeout(() => setShowKeyToast(false), 1500);
+        keyToastTimerRef.current = setTimeout(
+          () => setShowKeyToast(false),
+          1500,
+        );
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -177,27 +247,28 @@ export default function DashboardLayout({
   });
 
   useEffect(() => {
-    if (!sessionStorage.getItem("user_access_token")) router.replace("/login");
+    if (!restoreSession()) router.replace("/login");
   }, [router]);
 
   const logout = async () => {
     const token = sessionStorage.getItem("user_refresh_token");
+    clearSession();
+    await cache.cancelQueries();
+    cache.clear();
+    router.replace("/login");
     try {
       if (token) await api.post("/auth/logout", { refresh_token: token });
     } catch {
-    } finally {
-      for (const key of Object.keys(sessionStorage)) { if (key.startsWith("cf-pending-invoice:") || key.startsWith("cf-pending-money:")) sessionStorage.removeItem(key); }
-      sessionStorage.removeItem("user_access_token");
-      sessionStorage.removeItem("user_refresh_token");
-      cache.clear();
-      router.replace("/login");
+      // Local session is already closed, even when the network is unavailable.
     }
   };
 
   if (profile.isPending) return <Loading />;
   if (profile.isError) return <ErrorState retry={() => profile.refetch()} />;
   const user = profile.data;
+  const checkoutPage = pathname === "/settings/subscription/checkout";
   const title =
+    (checkoutPage ? "Thanh toán Premium" : settingsPageFor(pathname)?.label) ||
     groups.flatMap((g) => g.items).find((i) => i.href === pathname)?.label ||
     "CapitalFlow";
 
@@ -219,7 +290,8 @@ export default function DashboardLayout({
           >
             <Command size={14} />
             <span>
-              Phím tắt <strong>Ctrl + B</strong> kích hoạt ({collapsed ? "Thu gọn 72px" : "Mở rộng 244px"})
+              Phím tắt <strong>Ctrl + B</strong> kích hoạt (
+              {collapsed ? "Thu gọn 72px" : "Mở rộng 244px"})
             </span>
           </motion.div>
         )}
@@ -235,18 +307,26 @@ export default function DashboardLayout({
       )}
 
       {/* Thanh điều hướng có thể thu gọn. */}
-      <aside className={`cf-sidebar ${open ? "open" : ""} ${collapsed ? "collapsed" : ""}`}>
+      <aside
+        className={`cf-sidebar ${open ? "open" : ""} ${collapsed ? "collapsed" : ""}`}
+      >
         {/* Nút thu gọn trên đường biên với biểu tượng xoay theo trạng thái. */}
         <button
           className="cf-rail-toggle-btn"
           onClick={toggleCollapsed}
-          title={collapsed ? "Mở rộng menu (Ctrl + B)" : "Thu gọn menu (Ctrl + B)"}
+          title={
+            collapsed ? "Mở rộng menu (Ctrl + B)" : "Thu gọn menu (Ctrl + B)"
+          }
           aria-label="Thu gọn thanh điều hướng"
         >
           <motion.div
             animate={{ rotate: collapsed ? 180 : 0 }}
             transition={{ duration: 0.24, ease: "easeInOut" }}
-            style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
           >
             <ChevronLeft size={14} />
           </motion.div>
@@ -270,7 +350,10 @@ export default function DashboardLayout({
 
         {/* Thẻ nhận diện không gian làm việc hiện tại. */}
         <div className="cf-workspace">
-          <span className="cf-icon" style={{ width: 32, height: 32, flexShrink: 0 }}>
+          <span
+            className="cf-icon"
+            style={{ width: 32, height: 32, flexShrink: 0 }}
+          >
             <Wallet size={16} />
           </span>
           <div>
@@ -307,7 +390,8 @@ export default function DashboardLayout({
                       setTooltipData(null);
                     }}
                   >
-                    <Link
+                    {i.href === "/settings" ? <SettingsNavigation key={pathname} pathname={pathname} collapsed={collapsed}
+                      onExpand={toggleCollapsed} onNavigate={() => setOpen(false)} /> : <Link
                       href={i.href}
                       onClick={() => setOpen(false)}
                       aria-current={isActive ? "page" : undefined}
@@ -337,7 +421,7 @@ export default function DashboardLayout({
                           AI
                         </span>
                       )}
-                    </Link>
+                    </Link>}
 
                     {/* Tooltip dùng vị trí cố định để không bị sidebar cắt. */}
                   </div>
@@ -349,13 +433,17 @@ export default function DashboardLayout({
 
         {/* Chân thanh điều hướng. */}
         <div className="cf-nav-foot">
-          <button className="cf-btn cf-btn-ghost" onClick={logout} title="Đăng xuất">
+          <button
+            className="cf-btn cf-btn-ghost"
+            onClick={logout}
+            title="Đăng xuất"
+          >
             <LogOut />
             <span>Đăng xuất</span>
           </button>
           <p>CapitalFlow · Personal workspace</p>
         </div>
-              {/* Tooltip nổi khi thanh điều hướng đang thu gọn. */}
+        {/* Tooltip nổi khi thanh điều hướng đang thu gọn. */}
         <AnimatePresence>
           {collapsed && tooltipData && (
             <motion.div
@@ -374,7 +462,14 @@ export default function DashboardLayout({
               className="cf-floating-tooltip"
             >
               <span>{tooltipData.label}</span>
-              {tooltipData.isAi && <span className="cf-badge info" style={{ padding: "1px 4px", fontSize: 9 }}>AI</span>}
+              {tooltipData.isAi && (
+                <span
+                  className="cf-badge info"
+                  style={{ padding: "1px 4px", fontSize: 9 }}
+                >
+                  AI
+                </span>
+              )}
               {tooltipData.shortcut && <kbd>{tooltipData.shortcut}</kbd>}
             </motion.div>
           )}
@@ -394,17 +489,17 @@ export default function DashboardLayout({
             {open ? <X size={18} /> : <Menu size={18} />}
           </button>
 
-          
-
           <div className="cf-crumb">
             <span>Không gian cá nhân</span>
             <ChevronRight size={14} />
+            {settingsPageFor(pathname) && <span className={styles.parentCrumb}>
+              <Link href="/settings">Cài đặt & bảo mật</Link><ChevronRight size={14} aria-hidden="true" />
+              {checkoutPage && <><Link href="/settings/subscription">Gói sử dụng</Link><ChevronRight size={14} aria-hidden="true" /></>}
+            </span>}
             <strong>{title}</strong>
           </div>
 
           <div className="cf-spacer" />
-
-          
 
           <NotificationCenter userId={user.id} />
 

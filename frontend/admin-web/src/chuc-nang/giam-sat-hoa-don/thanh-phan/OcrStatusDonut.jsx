@@ -1,22 +1,6 @@
-/**
- * ============================================================================
- * TÊN FILE: OcrStatusDonut.jsx
- * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
- * MÀN HÌNH / PHÂN HỆ: Giám sát Hóa đơn OCR
- * MỤC ĐÍCH CỤ THỂ:
- *   Biểu đồ tròn dạng Donut hiển thị tỷ lệ phân bổ các trạng thái hóa đơn:
- *   hoàn thành (completed), đang xử lý (processing), chờ quét (uploaded), thất bại (failed).
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   Props statusData, thư viện Recharts (PieChart, Cell, ResponsiveContainer).
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Default export OcrStatusDonut component.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Hiển thị tỷ lệ phần trăm chính xác; có chú giải màu sắc rõ ràng cho quản trị viên.
- * ============================================================================
- */
 import { BadgeCheck, CircleAlert, FileClock, ScanLine, UserRoundCheck } from "lucide-react";
-import { decimal as percentage } from "../../../dung-chung/tien-ich/adminPresentation";
-import "./ocr-status-donut.css";
+import { decimal as percentage } from "../../../dung-chung/tien-ich/format";
+import "../CSS/status-donut.css";
 
 const palette = {
   slate: "#8295a5",

@@ -1,23 +1,6 @@
-/**
- * ============================================================================
- * TÊN FILE: finance.ts
- * MÀN HÌNH / PHÂN HỆ: Hạ tầng và tiện ích cốt lõi
- * NHÓM VỆ TINH: dung-chung (Dịch vụ và tiện ích cốt lõi)
- * MỤC ĐÍCH CỤ THỂ:
- *   Cung cấp kiểu dữ liệu tài chính, thông báo và nhãn loại tài khoản dùng chung.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   Hợp đồng dữ liệu API; formatter nằm tại dung-chung/tien-ich/finance.ts.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Xuất kiểu dữ liệu, hằng số và hàm tiện ích cho các module liên quan.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Không đồng bộ đè từ admin-web vì hợp đồng API của hai portal khác nhau.
- * ============================================================================
- */
 export type Money = number | string;
 
 export interface Account {
-  balance_available?: boolean;
-  bank_sync_error?: string | null;
   bank_managed?: boolean;
   bank_read_only?: boolean;
   bank_status?: string;
@@ -78,6 +61,12 @@ export interface Budget {
   remaining_amount: Money;
   usage_percent: Money;
   progress_status: string;
+  period_days: number;
+  elapsed_days: number;
+  remaining_days: number;
+  active_elapsed_days: number;
+  daily_allowance: Money | null;
+  average_daily_spent: Money | null;
   period_type: string;
   start_date: string;
   end_date: string;
@@ -125,16 +114,3 @@ export interface NotificationPage {
   page: number;
   page_size: number;
 }
-
-export const accountTypes: Record<string, string> = {
-  BASIC: "Ví cơ bản",
-  LINKED: "Ví liên kết",
-  CASH: "Tiền mặt",
-  BANK: "Ngân hàng",
-  E_WALLET: "Ví điện tử",
-  CREDIT_CARD: "Thẻ tín dụng",
-  SAVINGS: "Ví tiết kiệm",
-  INVESTMENT: "Đầu tư",
-  CRYPTO: "Tài sản số",
-  OTHER: "Khác",
-};

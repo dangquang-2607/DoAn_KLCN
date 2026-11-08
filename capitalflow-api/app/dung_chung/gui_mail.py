@@ -2,7 +2,7 @@
 
 Vai trò: cung cấp hàm gửi OTP và các email hệ thống khác.
 Đầu vào: địa chỉ email người nhận và nội dung.
-Đầu ra: gửi email qua SMTP sử dụng cấu hình trong settings.
+Đầu ra: gửi email qua SMTP ưu tiên cấu hình lưu trong database.
 Ràng buộc: không log mật khẩu SMTP; phải xử lý lỗi gửi mail an toàn.
 """
 
@@ -10,22 +10,23 @@ import logging
 
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
 
-from app.dung_chung.config import settings
+from app.dung_chung.email.dich_vu import _get_effective_smtp, _smtp_login_password
 
 logger = logging.getLogger(__name__)
 
 
 def _build_mail_config() -> ConnectionConfig:
-    """Tạo cấu hình kết nối SMTP từ settings."""
+    """Đọc cấu hình bền vững mới nhất, dùng settings khi chưa cấu hình database."""
+    smtp = _get_effective_smtp()
     return ConnectionConfig(
-        MAIL_USERNAME=settings.smtp_user,
-        MAIL_PASSWORD=settings.smtp_password,
-        MAIL_FROM=settings.emails_from_email,
-        MAIL_FROM_NAME=settings.emails_from_name,
-        MAIL_PORT=settings.smtp_port,
-        MAIL_SERVER=settings.smtp_host,
-        MAIL_STARTTLS=settings.smtp_tls,
-        MAIL_SSL_TLS=settings.smtp_ssl,
+        MAIL_USERNAME=smtp["smtp_user"],
+        MAIL_PASSWORD=_smtp_login_password(smtp["smtp_host"], smtp["smtp_password"]),
+        MAIL_FROM=smtp["emails_from_email"].strip() or smtp["smtp_user"].strip(),
+        MAIL_FROM_NAME=smtp["emails_from_name"],
+        MAIL_PORT=smtp["smtp_port"],
+        MAIL_SERVER=smtp["smtp_host"],
+        MAIL_STARTTLS=smtp["smtp_tls"] and not smtp["smtp_ssl"],
+        MAIL_SSL_TLS=smtp["smtp_ssl"],
         USE_CREDENTIALS=True,
         VALIDATE_CERTS=True,
     )

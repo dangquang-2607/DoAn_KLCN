@@ -1,0 +1,91 @@
+.workspace { --invoice-font: var(--font-inter, var(--cf-font)); }
+.content { display: grid; gap: 16px; min-width: 0; container-type: inline-size; }
+.content :global(.cf-ocr-grid) { grid-template-columns: 260px minmax(360px, 1.4fr) minmax(240px, 1fr); gap: 16px; }
+.content :global(.cf-ocr-grid) > * { min-width: 0; }
+.content :global(.cf-ocr-list) { grid-row: auto; }
+.content :global(.cf-ocr-preview) { grid-column: auto; }
+.content :global(.cf-panel-body) { padding: 16px; }
+.content :global(.cf-icon-btn) { width: 32px; height: 32px; min-width: 32px; min-height: 32px; padding: 0; }
+.content :global(.cf-date-input-field) { padding-right: 40px; }
+.content :global(.cf-date-input-calendar) { height: 38px; top: 1px; }
+.content textarea:global(.cf-input) { min-height: 80px; height: auto; resize: vertical; }
+.content :global(.cf-field) { min-width: 0; gap: 6px; }
+.content :global(.cf-field) > label { font-family: var(--invoice-font); font-size: 14px; line-height: 20px; font-weight: 600; }
+.content :global(.cf-field) small { font-family: var(--invoice-font); font-size: 13px; line-height: 20px; }
+.content :global(.cf-form), .record { gap: 16px; }
+.content :global(.cf-invoice-section) { padding: 12px; gap: 12px; }
+.content p:not(:global(.cf-eyebrow)), .dialog p { font-family: var(--invoice-font, var(--font-inter, var(--cf-font))); font-size: 14px; line-height: 20px; overflow-wrap: anywhere; }
+.content :global(.cf-panel-body) > p, .dialog p { margin: 0; }
+.content :global(.cf-alert), .dialog :global(.cf-alert) { padding: 10px 12px; font-family: var(--invoice-font, var(--font-inter, var(--cf-font))); font-size: 14px; line-height: 20px; }
+.content :global(.cf-alert) > svg, .dialog :global(.cf-alert) > svg { flex-shrink: 0; }
+.content :global(.cf-tabs) { max-width: 100%; flex-wrap: wrap; }
+.content :global(.cf-tabs) button { min-height: 36px; padding: 8px 12px; font-family: var(--invoice-font); font-size: 14px; line-height: 20px; }
+.content :global(.cf-amount-input-box), .content :global(.cf-amount-input-box.is-total), .content :global(.cf-readonly-value) { min-height: 40px; height: 40px; padding: 0 12px; }
+.content :global(.cf-amount-input-control), .content :global(.cf-amount-input-box.is-total) :global(.cf-amount-input-control), .content :global(.cf-amount-currency-suffix), .content :global(.cf-amount-input-box.is-total) :global(.cf-amount-currency-suffix), .content :global(.cf-readonly-value) { font-family: var(--invoice-font); font-size: 14px; line-height: 20px; }
+.content :global(.cf-amount-input-box.is-total) { background: #f8fbff; }
+.content :global(.cf-ocr-drop) { padding: 12px 16px; font-family: var(--invoice-font); font-size: 14px; line-height: 20px; }
+.content :global(.cf-ocr-drop) > :global(.cf-muted) { font-size: 13px; }
+.content :global(.cf-ocr-document) { padding: 12px; gap: 8px; }
+.content :global(.cf-ocr-document-button) { font-family: var(--invoice-font); font-size: 14px; line-height: 20px; }
+.documentMeta { margin-top: 8px; flex-wrap: wrap; gap: 6px; }
+.content :global(.cf-ocr-document-button) :global(.cf-number), .content :global(.cf-badge), .content :global(.cf-duplicate-label), .content :global(.cf-trash-selection-count), .content :global(.cf-batch-count-badge) { font-family: var(--invoice-font); font-size: 13px; line-height: 20px; }
+.content :global(.cf-badge) { padding: 2px 8px; }
+.content :global(.cf-batch-actions-bar), .content :global(.cf-trash-selection) { padding: 8px 12px; flex-wrap: wrap; }
+.content :global(.cf-batch-btn) { min-height: 32px; padding: 5px 8px; font-size: 13px; }
+.content :global(.cf-pagination) { padding: 12px; font-family: var(--invoice-font); font-size: 13px; line-height: 20px; gap: 8px; }
+.content :global(.cf-page-button) { min-width: 32px; height: 32px; }
+.content :global(.cf-table) { font-family: var(--invoice-font); font-size: 14px; line-height: 20px; }
+.content :global(.cf-item-editor) th { font-size: 13px; line-height: 20px; }
+.content :global(.cf-item-editor) th, .content :global(.cf-item-editor) td { padding: 8px; }
+.content :global(.cf-item-editor) :global(.cf-item-input) { height: 40px; padding: 9px 8px; }
+.content :global(.cf-item-editor) :global(.cf-item-money) { padding-right: 40px; }
+.content :global(.cf-duplicate-review) { padding: 12px; font-family: var(--invoice-font); font-size: 14px; line-height: 20px; }
+.content :global(.cf-duplicate-review) p { margin: 8px 0; }
+.content :global(.cf-duplicate-candidate) p, .content :global(.cf-invoice-trash-text) { font-size: 13px; line-height: 20px; }
+.content :global(.cf-row) { flex-wrap: wrap; gap: 8px; }
+.content label:global(.cf-row) { align-items: flex-start; flex-wrap: nowrap; }
+.content label:global(.cf-row) input { flex-shrink: 0; margin-top: 3px; }
+.content :global(.cf-invoice-trash-container) { padding: 12px 16px 0; }
+.content :global(.cf-invoice-trash-banner) { padding: 12px; flex-wrap: wrap; gap: 8px; }
+.content :global(.cf-category-suggestion) { padding: 12px; flex-wrap: wrap; gap: 8px; font-family: var(--invoice-font); font-size: 14px; line-height: 20px; }
+.content :global(.cf-state) { padding: 28px 16px; }
+.content p.note { font-size: 13px; margin: 0; }
+.duplicates { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 340px) auto; align-items: center; gap: 12px; min-width: 0; padding: 8px 12px; border: 1px solid #e6d4ab; border-radius: var(--cf-control-radius); background: #fffbf2; }
+.duplicateHeading { display: flex; align-items: center; gap: 8px; white-space: nowrap; font-size: 14px; line-height: 20px; }
+.duplicateHeading svg { flex-shrink: 0; color: var(--cf-warning); }
+.duplicateHeading strong { font-weight: 600; }
+.duplicateHint { color: #765b32; font-size: 13px; line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.duplicatePicker { min-width: 0; width: 100%; }
+.duplicateToast { --toast-accent: var(--cf-warning); align-items: center; padding: 12px 14px; background: #fff; }
+.duplicateToast :global(.cf-toast-emblem) { width: 32px; height: 32px; border: 0; background: transparent; box-shadow: none; }
+.duplicateToast :global(.cf-toast-content) { line-height: 20px; }
+.duplicateToast :global(.cf-toast-content) strong { font-weight: 600; }
+.duplicateToast :global(.cf-toast-close) { align-self: flex-start; }
+.addCategory { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; }
+.dialog { display: flex; flex-direction: column; overflow: hidden; max-height: min(90dvh, calc(100dvh - 32px)); max-width: 520px; }
+.dialog > :global(.cf-dialog-head) { flex-shrink: 0; }
+.dialog > :global(.cf-dialog-body) { display: flex; flex-direction: column; overflow: hidden; padding: 0; min-height: 0; }
+.form { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.fields { display: grid; gap: var(--cf-field-gap); padding: var(--cf-dialog-padding); overflow-y: auto; min-height: 0; scrollbar-width: thin; overscroll-behavior: contain; }
+.dialog .fields p { margin: 0; }
+.footer { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; padding: var(--cf-dialog-footer-padding); border-top: 1px solid var(--cf-line); background: #fff; flex-shrink: 0; }
+/* Shared category-restore dialog stays scoped to this page. */
+.content :global(.cf-dialog-card):not(.dialog) { max-width: 520px; max-height: min(90dvh, calc(100dvh - 32px)); }
+.content :global(.cf-dialog-body) { font-family: var(--invoice-font); font-size: 14px; line-height: 20px; }
+.content :global(.cf-dialog-card):not(.dialog) > :global(.cf-dialog-body) { padding: 20px 24px; }
+.content :global(.cf-dialog-body) :global(.cf-form-actions) { margin-top: 0; gap: 8px; flex-wrap: wrap; }
+@container (max-width: 1000px) {
+  .content :global(.cf-ocr-grid) { grid-template-columns: 260px minmax(0, 1fr); }
+  .content :global(.cf-ocr-preview) { grid-column: 2; }
+  .content :global(.cf-ocr-list) { grid-row: span 2; }
+}
+@container (max-width: 740px) {
+  .content :global(.cf-ocr-grid) { grid-template-columns: minmax(0, 1fr); }
+  .content :global(.cf-ocr-preview), .content :global(.cf-ocr-list) { grid-column: auto; grid-row: auto; }
+  .content :global(.cf-ocr-documents) { max-height: 320px; }
+  .duplicates { grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; padding: 8px; }
+  .duplicateHint, .duplicateHeading svg { display: none; }
+}
+@media (max-width: 540px) {
+  .footer > :global(.cf-btn):last-child { flex: 1; }
+}

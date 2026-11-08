@@ -1,5 +1,86 @@
 # Schema hiện tại của CapitalFlow
 
+## QR thanh toán trong CapitalFlow — 08/11/2026
+
+- Revision hiện tại `cfdb_premium_checkout`, sau `cfdb_premium_billing`.
+- Thêm cột nullable `premium_payment_orders.checkout_data` để giữ dữ liệu chuyển
+  khoản và chuỗi VietQR nguyên gốc từ payOS. API chỉ trả QR cho chủ đơn khi đơn
+  đang chờ và còn hạn; không thay đổi cách xác nhận hoặc cấp Premium.
+- `tools/apply_premium_checkout.py --apply` đã tạo backup COPY_ONLY/CHECKSUM,
+  VERIFYONLY, diễn tập upgrade/rollback rồi áp dụng. Fingerprint dữ liệu cũ của
+  28 bảng và các chỉ mục khớp nhau trước/sau; ba đơn đã hủy được giữ nguyên.
+- Alembic check đạt. Cột mới của các đơn cũ để trống, không tạo đơn thu tiền hoặc
+  tự cấp Premium. Downgrade từ chối khi cột có dữ liệu.
+- Backup đã xác minh
+  `C:\Program Files\Microsoft SQL Server\MSSQL16.SQLEXPRESS\MSSQL\Backup\CapitalFlow_pre_premium_checkout_20261108_141824_8576149e.bak`.
+
+## Free/Premium và thanh toán payOS — 08/11/2026
+
+- Revision `cfdb_premium_billing`, sau `cfdb_support_requests`.
+- Thêm `user_subscriptions`, `premium_payment_orders`, `ai_monthly_usage`.
+  Gói dùng chung theo tài khoản, đơn có mã duy nhất, giá/thời hạn được lưu tại lúc
+  tạo. Hạn AI đã dùng vẫn được giữ sau khi hóa đơn/tác vụ OCR bị xóa.
+- Công cụ `tools/apply_premium_billing.py --apply` đã backup COPY_ONLY/CHECKSUM,
+  VERIFYONLY, diễn tập upgrade/downgrade/rollback và đối chiếu fingerprint 25 bảng
+  hiện có trước khi commit. Ba bảng mới rỗng khi áp dụng, không tự cấp Premium
+  hoặc chuyển đổi số dư/dữ liệu tài chính hiện có.
+- Alembic check đạt, truy vấn hạn mức đọc được trên SQL Server cho các user hiện
+  có. Kiểm thử thanh toán/hạn mức trong bộ nhớ với payOS mô phỏng đạt.
+- Backup đã xác minh
+  `C:\Program Files\Microsoft SQL Server\MSSQL16.SQLEXPRESS\MSSQL\Backup\CapitalFlow_pre_premium_billing_20261108_115523_61e1d5e4.bak`.
+- Downgrade từ chối nếu có dữ liệu trong ba bảng mới để bảo toàn lịch sử mua gói.
+
+## Yêu cầu hỗ trợ và phản hồi qua email — 08/11/2026
+
+- Revision `cfdb_support_requests`, sau `cfdb_reporting_cover`.
+- Thêm bảng `support_requests` lưu người gửi, email tài khoản tại lúc gửi, tiêu đề,
+  nội dung và phản hồi của admin. Liên kết tác vụ email qua `reply_job_id` để theo
+  dõi kết quả gửi và chặn gửi lặp.
+- `tools/apply_support_requests.py --apply` đã diễn tập rollback, xác minh backup
+  COPY_ONLY/CHECKSUM bằng VERIFYONLY rồi nâng schema. Fingerprint dữ liệu của
+  24 bảng hiện có trước và sau khớp nhau. Bảng mới rỗng khi áp dụng.
+- Alembic check đạt. Kiểm thử HTTP và SMTP mô phỏng đạt bằng dữ liệu trong bộ nhớ,
+  gồm phân quyền, tiếp nhận lặp, phản hồi lặp, gửi thất bại và kết quả chưa xác định.
+- Backup đã xác minh nằm tại
+  `C:\Program Files\Microsoft SQL Server\MSSQL16.SQLEXPRESS\MSSQL\Backup\CapitalFlow_pre_support_requests_20261108_073126_767000be.bak`.
+- API và worker local đã tải mã mới. User gửi form tại `/support`; admin đọc
+  hộp thư và gửi phản hồi qua email trong mục Hỗ trợ tài khoản.
+
+## Chỉ mục báo cáo thu chi — 07/11/2026
+
+- Revision `cfdb_reporting_cover`, sau `cfdb_retire_user_deletion`.
+- `IX_transactions_reporting` giữ khóa `user_id, kind, transaction_date` và lưu kèm `include_in_reports` để truy vấn báo cáo lọc ngay từ index.
+- SQL Server đã xác minh bản sao lưu trước khi nâng. Đối chiếu nội dung trước và sau khớp cho 11 ngân sách, 14 bản ghi thay đổi ngân sách và 41 giao dịch.
+- Mốc đã lưu của ngân sách cũ vẫn được đọc khi tính tiến độ và lịch sử. Dọn thao tác ghi lịch cũ ở API và user-web không yêu cầu migration riêng.
+- [Biên bản triển khai](../output/budget-retirement-qa/main-deployment.json) và [đối chiếu kết quả đọc](../output/budget-retirement-qa/main-budget-readback.json).
+
+## Gỡ xóa/khôi phục người dùng — 07/11/2026
+
+- Revision `cfdb_retire_user_deletion`, sau `cfdb_support_two_cases`.
+- Đã bỏ `user_deletion_requests`, `user_deletion_files` và sáu cột vòng đời cũ
+  trong `users`; không còn worker hoặc API xóa/khôi phục người dùng.
+- Trước khi áp dụng: 4 tài khoản đều không có trạng thái xóa, 1 yêu cầu cũ đã
+  COMPLETE và không còn tài khoản đích, 0 tệp chờ xử lý, 1 job xóa DONE.
+- Dọn 1 yêu cầu, 1 job, 1 email và 9 sự kiện audit thuộc riêng chức năng đã bỏ.
+  Giữ nguyên 4 tài khoản cùng ví, số dư, giao dịch, hóa đơn và các dữ liệu còn lại.
+- Backup COPY_ONLY/CHECKSUM được VERIFYONLY; diễn tập rollback đạt. Fingerprint
+  của mọi dòng trong 25 bảng được giữ lại khớp với kế hoạch, rồi mới commit.
+- Alembic check đạt. Kiểm thử API bằng dữ liệu mẫu rollback trên SQL Server đạt;
+  kết quả tại [báo cáo hồi quy](../output/admin-web-qa/retirement-user-api.log) và
+  [biên bản đối soát](../output/admin-web-qa/user-deletion-retirement.json).
+- Backup mới nhất của đợt áp dụng và manifest nằm trong thư mục local
+  `.maintenance-backups/CapitalFlow_pre_retire_user_deletion_20261107_035250_bf048722/`;
+  đường dẫn `.bak` đã xác minh được ghi trong manifest, không đưa vào Git.
+- Những mục bên dưới ghi nhận các lần chuyển đổi trước đây. Baseline Alembic
+  cũ vẫn được giữ để upgrade database cũ; các bảng xóa người dùng trong baseline
+  không tồn tại ở schema hiện hành sau revision này.
+
+## Nội dung chuyển tiền — 29/10/2026
+
+- Revision `cfdb_transfer_note`, sau `cfdb_invoice_evidence`.
+- Thêm `wallet_entries.note` (`NVARCHAR(200)`, nullable). Ghi cùng nội dung vào hai bút toán chuyển tiền; lịch sử cũ giữ nguyên với `NULL`.
+- API giới hạn 200 ký tự; bỏ trống dùng tên người gửi + “ chuyển tiền”. Downgrade bị chặn nếu có nội dung đã lưu.
+
 ## Dọn phần legacy có giới hạn — 27/10/2026
 
 - Revision hiện tại: `cfdb_legacy_cleanup`, sau `cfdb_wallet_short_code`.
@@ -28,6 +109,13 @@
   `.maintenance-backups/CapitalFlow_pre_review_cleanup_20261027_095224_b275e7d1/manifest.json`.
 - Downgrade revision này chỉ dựng lại bảng liên kết cũ rỗng; dữ liệu đã dọn cần
   phương án khôi phục từ backup, không thể khôi phục bằng downgrade schema.
+
+## Dấu vết hóa đơn đã ghi sổ — 28/10/2026
+
+- Revision `cfdb_invoice_evidence` sau `cfdb_legacy_cleanup`.
+- Thêm `invoice_posting_evidence`, FK cascade tới giao dịch; không giữ ảnh/PDF hoặc dòng hàng.
+- Cả xóa vĩnh viễn thủ công và dọn 30 ngày đều lưu nhận diện trước khi xóa chứng từ.
+- [Quy tắc nhận diện, giới hạn dữ liệu cũ và kiểm chứng](../docs/invoice-posting-evidence.md).
 
 ## Mã nhận tiền ngắn — 26/10/2026
 

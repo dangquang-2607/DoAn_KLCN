@@ -1,20 +1,3 @@
-/**
- * ============================================================================
- * TÊN FILE: ActionMenu.jsx
- * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
- * MÀN HÌNH / PHÂN HỆ: Thành phần giao diện dùng chung (UI Primitives)
- * NHÓM VỆ TINH: dung-chung (Menu ngữ cảnh)
- * MỤC ĐÍCH CỤ THỂ:
- *   Hiển thị nút menu ba chấm (...) và danh sách tùy chọn thả xuống (Dropdown)
- *   cho từng dòng bản ghi; tự động đóng khi nhấp ra ngoài hoặc bấm Escape.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   Props items, triggerAriaLabel, callback thực thi thao tác.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Default export ActionMenu component.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Hỗ trợ điều hướng bằng bàn phím (ArrowUp, ArrowDown, Enter) chuẩn W3C a11y.
- * ============================================================================
- */
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { MoreHorizontal } from "lucide-react";
@@ -24,7 +7,7 @@ import { MoreHorizontal } from "lucide-react";
 /**
  * Menu tùy chọn thả xuống cho các thao tác trên dòng dữ liệu.
  */
-export default function ActionMenu({ label, actions }) {
+export default function ActionMenu({ label, actions, className = "" }) {
   const [position, setPosition] = useState(null);
   const trigger = useRef(null);
   const menu = useRef(null);
@@ -56,6 +39,6 @@ export default function ActionMenu({ label, actions }) {
       const rect = trigger.current.getBoundingClientRect();
       setPosition(position ? null : { left: Math.max(8, Math.min(rect.right - 230, window.innerWidth - 238)), top: Math.max(8, Math.min(rect.bottom + 6, window.innerHeight - actions.length * 42 - 22)) });
     }}><MoreHorizontal size={18} /></button>
-    {position && createPortal(<div className="cf-admin cf-action-menu-layer"><div ref={menu} id={id} className="cf-action-menu" style={position} role="group" aria-label={label}>{actions.map(({ key, label: itemLabel, Icon, danger, onClick }) => <button key={key} className={danger ? "is-danger" : ""} onClick={() => { trigger.current?.focus(); setPosition(null); onClick(); }}><Icon size={16} />{itemLabel}</button>)}</div></div>, document.body)}
+    {position && createPortal(<div className="cf-admin cf-action-menu-layer"><div ref={menu} id={id} className={`cf-action-menu ${className}`} style={position} role="group" aria-label={label}>{actions.map(({ key, label: itemLabel, Icon, danger, onClick }) => <button key={key} className={danger ? "is-danger" : ""} onClick={() => { trigger.current?.focus(); setPosition(null); onClick(); }}><Icon size={16} />{itemLabel}</button>)}</div></div>, document.body)}
   </>;
 }

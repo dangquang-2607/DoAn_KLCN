@@ -4,9 +4,7 @@ Sử dụng phiên độc lập để ghi nhật ký, không ảnh hưởng phi�
 """
 import json
 import logging
-import traceback
 import uuid
-from datetime import datetime, timezone
 
 from fastapi import Request
 from sqlalchemy.orm import Session
@@ -49,11 +47,13 @@ class AuditMiddleware(BaseHTTPMiddleware):
         if any(path.startswith(p) for p in _SKIP_PREFIXES):
             return await call_next(request)
 
+        request.state.audit_request_id = _safe_uuid(request.headers.get("x-request-id")) or uuid.uuid4()
         # Thực thi request
         response: Response = await call_next(request)
 
-        # Không log lỗi server (5xx)
-        if response.status_code >= 500:
+        # Successful admin mutations already commit their detailed event atomically.
+        # A failed transaction must still leave a separate request/error event.
+        if response.status_code < 400 and getattr(request.state, "admin_audit_written", False):
             return response
 
         # Lấy thông tin user từ state (được set bởi get_current_user dependency)
@@ -69,7 +69,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
             query_params=dict(request.query_params),
             ip_address=_get_client_ip(request),
             user_agent=request.headers.get("user-agent", "")[:1000],
-            request_id=_safe_uuid(request.headers.get("x-request-id")),
+            request_id=request.state.audit_request_id,
         )
 
         return response
@@ -102,7 +102,7 @@ def _write_audit_log(
             ip_address=ip_address,
             user_agent=user_agent,
             request_id=request_id,
-            metadata_json=json.dumps({"query_keys": sorted(query_params)}),
+            metadata_json=json.dumps({"query_keys": sorted(query_params)}) if query_params else None,
         )
         db.add(audit)
         db.commit()
@@ -140,7 +140,7 @@ def _extract_entity(path: str) -> tuple[str | None, uuid.UUID | None]:
     entity_id = None
 
     # Bỏ qua prefix "api/v1".
-    filtered = [p for p in parts if p not in ("api", "v1")]
+    filtered = [p for p in parts if p not in ("api", "v1", "admin")]
 
     if filtered:
         entity_type = filtered[0].upper()

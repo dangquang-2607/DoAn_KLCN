@@ -1,24 +1,8 @@
-/**
- * ============================================================================
- * TÊN FILE: AnalyticsVolumeChart.jsx
- * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
- * MÀN HÌNH / PHÂN HỆ: Phân tích & Vận hành hệ thống
- * MỤC ĐÍCH CỤ THỂ:
- *   Biểu đồ cột/đường trực quan hóa khối lượng giao dịch và số lượng người dùng
- *   mới theo từng ngày/tuần/tháng trong kỳ báo cáo đã chọn.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   Props data, thư viện Recharts (ResponsiveContainer, BarChart, LineChart).
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Default export AnalyticsVolumeChart component.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Tối ưu hiển thị số lượng lớn điểm dữ liệu mà không gây giật lag giao diện.
- * ============================================================================
- */
 import { useState, useMemo } from "react";
-import { useMotionAllowed } from "../../../dung-chung/tien-ich/useMotionAllowed";
-import { number, decimal } from "../../../dung-chung/tien-ich/adminPresentation";
+import { useMotionAllowed } from "../../../dung-chung/tien-ich/hooks";
+import { number, decimal } from "../../../dung-chung/tien-ich/format";
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import "./analytics-volume-chart.css";
+import "../CSS/volume-chart.css";
 
 const ranges = [{ value: 3, label: "3 kỳ" }, { value: 6, label: "6 kỳ" }, { value: "all", label: "Tất cả" }];
 
@@ -64,10 +48,10 @@ export default function AnalyticsVolumeChart({ view, period }) {
     <div className="cf-volume-body">
       <div className="cf-volume-plot" role="img" aria-label={`Biểu đồ giao dịch: ${data.map((item) => `${view.label.toLowerCase()} ${item.label} có ${item.count} giao dịch${item.partial ? ", đang diễn ra" : ""}`).join("; ")}`}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 20, right: 8, left: -15, bottom: 0 }} barCategoryGap="24%">
+          <BarChart data={data} margin={{ top: 20, right: 8, left: 0, bottom: 0 }} barCategoryGap="24%">
             <CartesianGrid vertical={false} stroke="#e7e1db" strokeDasharray="4 6" />
-            <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "#66758a", fontSize: 12 }} dy={9} />
-            <YAxis axisLine={false} tickLine={false} tick={{ fill: "#758194", fontSize: 11 }} width={40} allowDecimals={false} />
+            <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "#66758a", fontSize: 13 }} dy={9} />
+            <YAxis axisLine={false} tickLine={false} tick={{ fill: "#758194", fontSize: 13 }} width={56} allowDecimals={false} />
             <Tooltip cursor={{ fill: "#8474ad0d" }} content={<VolumeTooltip unit={view.label} />} />
             <Bar isAnimationActive={motionAllowed} dataKey="count" radius={[7, 7, 2, 2]}>{data.map((item) => <Cell key={item.id} fill={item.color} stroke={item.id === period.id ? "#243047" : "none"} strokeWidth={item.id === period.id ? 2 : 0} />)}</Bar>
           </BarChart>
@@ -77,9 +61,8 @@ export default function AnalyticsVolumeChart({ view, period }) {
       <aside className="cf-volume-insights" aria-label="Các chỉ báo từ biểu đồ">
         <article className="cf-volume-highlight"><span>KỲ CAO NHẤT TRONG BIỂU ĐỒ</span><strong>{peak ? number.format(peak.count) : "—"}</strong><small>{peak ? `${view.label} ${peak.label} · kỳ đã kết thúc` : "Chưa có kỳ đã kết thúc"}</small></article>
         <div className="cf-volume-stat-grid"><article><span>BÌNH QUÂN</span><strong>{average === null ? "—" : decimal.format(average)}</strong><small>giao dịch / kỳ đã kết thúc</small></article><article className={comparison < 0 ? "is-down" : "is-up"}><span>SO VỚI KỲ ĐỐI CHIẾU</span><strong>{comparisonLabel}</strong><small>{number.format(period.comparableTotal ?? period.total)} so với {number.format(period.previous)} · {period.previousLabel}{comparison === null ? " · Kỳ trước = 0, không tính %" : ""}</small></article></div>
-        <p className="cf-volume-comparison-note">{period.comparisonNote}</p>
       </aside>
     </div>
-    <footer><span className="cf-volume-legend-dot is-up" /> Tăng <span className="cf-volume-legend-dot is-down" /> Giảm <span className="cf-volume-legend-dot is-current" /> Đang diễn ra <span className="cf-volume-legend-dot is-flat" /> Không đổi / chưa có cơ sở so sánh</footer>
+    <footer>{[["up", "Tăng"], ["down", "Giảm"], ["current", "Đang diễn ra"], ["flat", "Không đổi / chưa có cơ sở so sánh"]].map(([tone, label]) => <span className="cf-volume-legend-item" key={tone}><span className={`cf-volume-legend-dot is-${tone}`} aria-hidden="true" />{label}</span>)}</footer>
   </section>;
 }

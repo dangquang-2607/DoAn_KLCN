@@ -1,12 +1,3 @@
-/**
- * ============================================================================
- * TÊN FILE: format.js
- * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
- * MÀN HÌNH / PHÂN HỆ: Tiện ích dùng chung
- * MỤC ĐÍCH CỤ THỂ:
- *   Định dạng tiền tệ, ngày tháng, thông báo lỗi API và xuất báo cáo Excel.
- * ============================================================================
- */
 
 
 // Hiển thị ngày theo định dạng Việt Nam dd/mm/yyyy
@@ -15,20 +6,44 @@ export function formatDateForDisplay(value) {
   return match ? `${match[3]}/${match[2]}/${match[1]}` : value || "";
 }
 
-// Chỉ giữ 8 chữ số ngày/tháng/năm và tự chèn dấu / khi người dùng gõ hoặc dán
+// Chuẩn hóa ngày gõ/dán; giữ nguyên dữ liệu sai để bước kiểm tra từ chối.
 export function formatDateForTyping(value) {
-  const iso = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/.exec((value || "").trim());
+  const text = (value || "").trim();
+  const iso = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/.exec(text);
   if (iso) return `${iso[3].padStart(2, "0")}/${iso[2].padStart(2, "0")}/${iso[1]}`;
-  const digits = (value || "").replace(/\D/g, "").slice(0, 8);
+  const local = /^(\d{1,2})[/.](\d{1,2})[/.](\d{4})$/.exec(text);
+  if (local) return `${local[1].padStart(2, "0")}/${local[2].padStart(2, "0")}/${local[3]}`;
+  // Do not silently truncate a pasted date or turn arbitrary text into a date.
+  if (/[^\d/]/.test(text)) return text;
+  const digits = text.replace(/\D/g, "");
   return [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4)].filter(Boolean).join("/");
+}
+
+// Validate completed segments while still allowing a date to be typed/deleted.
+// February permits 29 until the year is complete, then applies Gregorian rules.
+export function dateInputError(value) {
+  if (!value) return "";
+  const match = /^(\d{1,2})(?:\/(\d{1,2})(?:\/(\d{1,4}))?)?$/.exec(value);
+  if (!match) return "Nhập ngày theo định dạng dd/mm/yyyy.";
+  const [, day, month = "", year = ""] = match;
+  if (Number(day) > 31 || (day.length === 1 && Number(day) > 3) || day === "00")
+    return "Ngày phải từ 01 đến 31.";
+  if (Number(month) > 12 || (month.length === 1 && Number(month) > 1) || month === "00")
+    return "Tháng phải từ 01 đến 12.";
+  if (year === "0000") return "Năm phải từ 0001 đến 9999.";
+  if (month.length === 2) {
+    const leap = year.length < 4 || Number(year) % 400 === 0 || (Number(year) % 4 === 0 && Number(year) % 100 !== 0);
+    const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][Number(month) - 1];
+    if (Number(day) > days) return `Tháng ${month}${year.length === 4 ? ` năm ${year}` : ""} chỉ có ${days} ngày.`;
+  }
+  return "";
 }
 
 export function parseDateForApi(value) {
   const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec((value || "").trim());
   if (!match) return null;
   const [, day, month, year] = match;
-  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
-  if (date.getUTCFullYear() !== Number(year) || date.getUTCMonth() + 1 !== Number(month) || date.getUTCDate() !== Number(day)) return null;
+  if (dateInputError(`${day}/${month}/${year}`)) return null;
   return `${year}-${month}-${day}`;
 }
 
@@ -53,7 +68,7 @@ export function errorMessage(error) {
 }
 
 // Chỉ nhận dữ liệu thuần, không nhận đối tượng formula/hyperlink từ API.
-export async function createExcelWorkbook({ title, scope, columns, rows }) {
+async function createExcelWorkbook({ title, scope, columns, rows }) {
   if (!columns.length || rows.length > 1048571) throw new Error("Dữ liệu vượt giới hạn Excel.");
   const { default: ExcelJS } = await import("exceljs");
   const workbook = new ExcelJS.Workbook();
@@ -127,4 +142,79 @@ export async function exportExcel(name, report) {
   a.download = name.replace(/\.(csv|xlsx)$/i, "") + ".xlsx";
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// Presentation-only helpers. No fixtures, requests or business mutations here.
+export const number = new Intl.NumberFormat("vi-VN");
+
+export const decimal = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 });
+
+export function timestamp(value) {
+  if (!value) return "Chưa ghi nhận";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Chưa ghi nhận" : new Intl.DateTimeFormat("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+  }).format(date);
+}
+
+const actionLabels = {
+  "CREATE_DUPLICATE_CHECK": "Kiểm tra hóa đơn trùng",
+  CREATE_RESOLVE: "Đọc thông tin QR hóa đơn",
+  "CREATE_DUPLICATE_RESOLUTION": "Cập nhật quyết định hóa đơn trùng",
+  CREATE_CONFIRM: "Xác nhận hóa đơn", CREATE_RECORD: "Ghi sổ hóa đơn",
+  CREATE_RESTORE: "Khôi phục dữ liệu", CREATE_OCR: "Yêu cầu nhận diện hóa đơn",
+  "CREATE_BATCH_OCR": "Nhận diện nhiều hóa đơn", "CREATE_BATCH_DELETE": "Xóa nhiều bản ghi",
+  "CREATE_CHANGE_PASSWORD": "Đổi mật khẩu", "CREATE_FIRST_TIME_PASSWORD": "Thiết lập mật khẩu",
+  "CREATE_FORGOT_PASSWORD": "Yêu cầu đặt lại mật khẩu", "CREATE_RESET_PASSWORD": "Đặt lại mật khẩu",
+  CREATE_LOGIN: "Đăng nhập", CREATE_LOGOUT: "Đăng xuất", CREATE_REFRESH: "Làm mới phiên",
+  CREATE_SUGGEST: "Đề xuất danh mục", CREATE_USER: "Tạo tài khoản", USER_CREATE: "Tạo tài khoản",
+  USER_BAN: "Khóa tài khoản", USER_UNBAN: "Mở khóa tài khoản",
+  UPDATE_SMTP_SETTINGS: "Cập nhật SMTP", SEND_TEST_EMAIL: "Gửi thư kiểm thử", OCR_RETRY: "Thử lại OCR",
+  CATEGORY_CREATE: "Tạo danh mục", CATEGORY_UPDATE: "Sửa danh mục", CATEGORY_REORDER: "Sắp xếp danh mục",
+  BAN_USER: "Khóa tài khoản", UNBAN_USER: "Mở khóa tài khoản", RESET_USER_PASSWORD: "Cấp lại mật khẩu",
+  UPDATE_USER_ROLE: "Đổi vai trò", BULK_BAN_USER: "Khóa tài khoản hàng loạt", BULK_UNBAN_USER: "Mở khóa hàng loạt",
+  SUPPORT_CASE_CREATE: "Tạo yêu cầu hỗ trợ", SUPPORT_CASE_ESCALATED: "Chuyển yêu cầu cho admin gốc",
+  SUPPORT_CASE_RESOLVED: "Hoàn tất yêu cầu hỗ trợ", SUPPORT_CASE_OPEN: "Mở yêu cầu hỗ trợ",
+  SUPPORT_REPLY_QUEUED: "Gửi email phản hồi hỗ trợ",
+  CREATE_ACCOUNT: "Tiếp nhận yêu cầu hỗ trợ tài khoản", CREATE_QR: "Tạo QR hóa đơn mô phỏng",
+  CREATE_WALLET: "Tạo ví", UPDATE_WALLET: "Cập nhật ví", DELETE_WALLET: "Đóng ví",
+  CREATE_BOOKKEEPING: "Ghi khoản thu chi", UPDATE_BOOKKEEPING: "Sửa khoản thu chi", DELETE_BOOKKEEPING: "Xóa khoản thu chi",
+  CREATE_BUDGET: "Tạo ngân sách", UPDATE_BUDGET: "Cập nhật ngân sách", DELETE_BUDGET: "Xóa ngân sách",
+};
+
+export const actionLabel = (action) => actionLabels[action?.replaceAll("-", "_")] || action?.replace(/[_-]/g, " ") || "Không xác định";
+
+export function auditResult(code) {
+  return code == null ? { label: "Chưa ghi mã HTTP", tone: "slate" } : code >= 400
+    ? { label: `Lỗi · ${code}`, tone: "coral" } : { label: `HTTP ${code}`, tone: "teal" };
+}
+
+// Old request-only events can contain null snapshots or empty query-key arrays.
+// Preserve false/zero, which are meaningful changes, and omit empty sections.
+export function auditSections(log) {
+  const meaningful = (value) => value != null && value !== "" &&
+    (typeof value !== "object" || Object.values(value).some(meaningful));
+  const fields = {
+    is_active: "Trạng thái truy cập", role: "Vai trò", support_only: "Phạm vi admin hỗ trợ",
+    sessions_revoked: "Thu hồi phiên đăng nhập", temporary_access_issued: "Cấp mật khẩu tạm thời",
+    name: "Tên danh mục", type: "Loại danh mục", sort_order: "Thứ tự",
+    status: "Trạng thái", issue: "Vấn đề hỗ trợ", queued: "Đã xếp hàng gửi thư", retry_queued: "Đã xếp hàng nhận diện lại",
+    smtp_port: "Cổng SMTP", smtp_tls: "Dùng STARTTLS", smtp_ssl: "Dùng SSL / TLS",
+    authentication_updated: "Cập nhật thông tin xác thực gửi thư", query_keys: "Tham số đi kèm",
+  };
+  const codes = { USER: "Người dùng", ADMIN: "Quản trị viên", INCOME: "Thu nhập", EXPENSE: "Chi tiêu",
+    OPEN: "Đang mở", ESCALATED: "Chờ admin gốc", RESOLVED: "Đã xử lý", FAILED: "Thất bại",
+    PENDING: "Đang chờ", PROCESSING: "Đang xử lý", NO_EMAIL: "Mất quyền truy cập email đăng ký", LOCKED: "Tài khoản bị khóa" };
+  const display = (key, value) => {
+    if (key === "is_active") return value ? "Có thể truy cập" : "Đã khóa";
+    if (typeof value === "boolean") return value ? "Có" : "Không";
+    if (typeof value === "string") return codes[value] || value;
+    return typeof value === "object" ? JSON.stringify(value) : String(value);
+  };
+  return [["Trước thay đổi", log?.before], ["Sau thay đổi", log?.after], ["Thông tin bổ sung", log?.metadata]]
+    .filter(([, value]) => meaningful(value))
+    .map(([label, value]) => ({ label, rows: Object.entries(typeof value === "object" ? value : { value })
+      .filter(([, item]) => meaningful(item))
+      .map(([key, item]) => [fields[key] || key, display(key, item)]) }));
 }

@@ -1,30 +1,18 @@
-/**
- * ============================================================================
- * TÊN FILE: InvoiceDetailForm.tsx
- * MÀN HÌNH / PHÂN HỆ: Hóa đơn AI / OCR
- * NHÓM VỆ TINH: thanh-phan (Chức năng con)
- * MỤC ĐÍCH CỤ THỂ:
- *   Kiểm duyệt và chỉnh sửa dữ liệu OCR trước khi tạo khoản chi.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   Props từ component cha, kiểu nghiệp vụ và các primitive UI liên quan.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Xuất InvoiceDetailForm để route hoặc component khác sử dụng.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Giới hạn định dạng/kích thước/số lượng tệp; chỉ tạo khoản chi sau bước người dùng xác nhận.
- * ============================================================================
- */
 "use client";
+import density from "../CSS/invoice-density.module.css";
+import PaymentRecordReview from "@/dung-chung/nghiep-vu/PaymentRecordReview";
+import MoneyInput from "@/dung-chung/UI-chung/MoneyInput";
+import { clearLocalizedValidation, localizeInvalidField } from "@/dung-chung/tien-ich/formValidation";
 import Link from "next/link";
 import { useState, useEffect, type FormEvent } from "react";
 import { Plus, Check, Save, Trash2, FileText, Store, Receipt, CreditCard, Tag } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import api from "@/dung-chung/connect-api/api";
 import DateInput from "@/dung-chung/UI-chung/DateInput";
 import { Field, Alert, Empty } from "@/dung-chung/UI-chung/ui";
 import CategoryRestoreModal from "@/dung-chung/nghiep-vu/danh-muc/CategoryRestoreModal";
-import { archivedCategoryFromError, categoryErrorMessage, type ArchivedCategory } from "@/dung-chung/nghiep-vu/danh-muc/categories";
-import { money, errorMessage } from "@/dung-chung/tien-ich/finance";
-import { type Category } from "@/dung-chung/nghiep-vu/finance";
+import { useCategories, archivedCategoryFromError, categoryErrorMessage, type ArchivedCategory } from "@/dung-chung/nghiep-vu/danh-muc/categories";
+import { money } from "@/dung-chung/tien-ich/finance";
 import type { Invoice, DuplicateCheck } from "../xu-ly/InvoiceTypes";
 import { invoiceError, invoiceMutation } from "../xu-ly/invoiceApi";
 import InvoiceDuplicateReview from "./InvoiceDuplicateReview";
@@ -35,6 +23,50 @@ function cleanMoneyNumber(val: unknown): string {
   if (s.endsWith(".00")) return s.slice(0, -3);
   if (s.endsWith(".0")) return s.slice(0, -2);
   return s;
+}
+
+function formFromInvoice(invoice: Invoice) {
+  return {
+    merchant_name: invoice.merchant_name || "",
+    merchant_address: invoice.merchant_address || "",
+    invoice_date: invoice.invoice_date || "",
+    invoice_time: invoice.invoice_time || "",
+    invoice_number: invoice.invoice_number || "",
+    invoice_symbol: invoice.invoice_symbol || "",
+    merchant_tax_code: invoice.merchant_tax_code || "",
+    payment_method: invoice.payment_method || "",
+    subtotal_amount: cleanMoneyNumber(invoice.subtotal_amount),
+    total_amount: cleanMoneyNumber(invoice.total_amount),
+    tax_amount: cleanMoneyNumber(invoice.tax_amount ?? 0),
+    category_id: invoice.category_id || "",
+    note: invoice.note || "",
+  };
+}
+
+function itemsFromInvoice(invoice: Invoice) {
+  return (invoice.items || []).map((item) => ({
+    name: item.name || "",
+    sku: item.sku || "",
+    unit: item.unit || "",
+    quantity: cleanMoneyNumber(item.quantity),
+    unit_price: cleanMoneyNumber(item.unit_price),
+    discount_amount: cleanMoneyNumber(item.discount_amount),
+    tax_amount: cleanMoneyNumber(item.tax_amount),
+    line_total: cleanMoneyNumber(item.line_total),
+  }));
+}
+
+function invoiceItemPayload(item: ReturnType<typeof itemsFromInvoice>[number]) {
+  return {
+    name: item.name.trim(),
+    sku: item.sku.trim() || null,
+    unit: item.unit.trim() || null,
+    quantity: item.quantity || null,
+    unit_price: item.unit_price || null,
+    discount_amount: item.discount_amount || null,
+    tax_amount: item.tax_amount || null,
+    line_total: item.line_total || null,
+  };
 }
 
 export default function InvoiceDetailForm({
@@ -50,25 +82,10 @@ export default function InvoiceDetailForm({
 }) {
   const cache = useQueryClient();
   const [acceptSeparate, setAcceptSeparate] = useState(false);
-  const categories = useQuery<Category[]>({
-    queryKey: ["categories", "all"],
-    queryFn: async () => (await api.get("/categories", { params: { status: "all" } })).data,
-  });
-  const [form, setForm] = useState({
-    merchant_name: invoice.merchant_name || "",
-    merchant_address: invoice.merchant_address || "",
-    invoice_date: invoice.invoice_date || "",
-    invoice_time: invoice.invoice_time || "",
-    invoice_number: invoice.invoice_number || "",
-    invoice_symbol: invoice.invoice_symbol || "",
-    merchant_tax_code: invoice.merchant_tax_code || "",
-    payment_method: invoice.payment_method || "",
-    subtotal_amount: cleanMoneyNumber(invoice.subtotal_amount),
-    total_amount: cleanMoneyNumber(invoice.total_amount),
-    tax_amount: cleanMoneyNumber(invoice.tax_amount ?? 0),
-    category_id: invoice.category_id || "",
-    note: invoice.note || "",
-  });
+  const [walletEntryId, setWalletEntryId] = useState("");
+  const [autoCategorize, setAutoCategorize] = useState(true);
+  const categories = useCategories("all");
+  const [form, setForm] = useState(() => formFromInvoice(invoice));
   const [tab, setTab] = useState("form"),
     [duplicateAccepted, setDuplicateAccepted] = useState(false),
     [newCategory, setNewCategory] = useState(""),
@@ -76,16 +93,7 @@ export default function InvoiceDetailForm({
     [categoryBusy, setCategoryBusy] = useState(false),
     [restoreCategory, setRestoreCategory] = useState<ArchivedCategory | null>(null),
     [itemDrafts, setItemDrafts] = useState(() =>
-      (invoice.items || []).map((item) => ({
-        name: item.name || "",
-        sku: item.sku || "",
-        unit: item.unit || "",
-        quantity: cleanMoneyNumber(item.quantity),
-        unit_price: cleanMoneyNumber(item.unit_price),
-        discount_amount: cleanMoneyNumber(item.discount_amount),
-        tax_amount: cleanMoneyNumber(item.tax_amount),
-        line_total: cleanMoneyNumber(item.line_total),
-      })),
+      itemsFromInvoice(invoice),
     ),
     [itemsBusy, setItemsBusy] = useState(false),
     [itemsNotice, setItemsNotice] = useState(""),
@@ -96,8 +104,9 @@ export default function InvoiceDetailForm({
   const [checking, setChecking] = useState(false);
   const [revision, setRevision] = useState(invoice.revision);
   const [versionConflict, setVersionConflict] = useState(false);
-  const locked = !!invoice.deleted_at || invoice.status === "CONFIRMED" || invoice.status === "PROCESSING" || busy || checking;
+  const locked = !!invoice.deleted_at || invoice.status === "CONFIRMED" || invoice.status === "PROCESSING" || busy || checking || itemsBusy;
   const field = (key: string, value: string) => {
+    if (key === "total_amount" || key === "invoice_date") { setWalletEntryId(""); setAcceptSeparate(false); }
     setReview(null); setDuplicateAccepted(false);
     setForm((f) => ({ ...f, [key]: value }));
   };
@@ -106,14 +115,7 @@ export default function InvoiceDetailForm({
     merchant_tax_code: form.merchant_tax_code || null, invoice_number: form.invoice_number || null,
     invoice_symbol: form.invoice_symbol || null, invoice_date: form.invoice_date || null,
     invoice_time: form.invoice_time || null, total_amount: form.total_amount || null,
-    items: itemDrafts.map(item => ({
-      name: item.name.trim(), sku: item.sku.trim() || null, unit: item.unit.trim() || null,
-      quantity: item.quantity === "" ? null : Number(item.quantity),
-      unit_price: item.unit_price === "" ? null : Number(item.unit_price),
-      discount_amount: item.discount_amount === "" ? null : Number(item.discount_amount),
-      tax_amount: item.tax_amount === "" ? null : Number(item.tax_amount),
-      line_total: item.line_total === "" ? null : Number(item.line_total),
-    })),
+    items: itemDrafts.map(invoiceItemPayload),
   });
   const inspect = async () => {
     const { data } = await api.post<DuplicateCheck>(`/invoices/${invoice.id}/duplicate-check`, identityFields());
@@ -138,6 +140,8 @@ export default function InvoiceDetailForm({
     try {
       const { data } = await api.get<Invoice>(`/invoices/${invoice.id}`);
       cache.setQueryData(["invoice", invoice.id], data);
+      setForm(formFromInvoice(data)); setItemDrafts(itemsFromInvoice(data));
+      setItemsNotice(""); setAcceptSeparate(false); setWalletEntryId(""); setAutoCategorize(true); setCategoryTouched(false);
       setRevision(data.revision); setReview(null); setDuplicateAccepted(false); setVersionConflict(false); setError("");
     } catch (e) { setError(invoiceError(e).message); } finally { setChecking(false); }
   };
@@ -173,7 +177,6 @@ export default function InvoiceDetailForm({
       setError("Tên mặt hàng không được để trống.");
       return;
     }
-    const numeric = (value: string) => (value === "" ? null : Number(value));
     if (locked || versionConflict) return;
     setChecking(true);
     try {
@@ -186,23 +189,15 @@ export default function InvoiceDetailForm({
       ...form,
       ...identityFields(),
       expected_revision: revision,
+      wallet_entry_id: walletEntryId || null,
+      auto_categorize: autoCategorize && !categoryTouched,
       accept_separate_record: acceptSeparate,
       accept_distinct: current.level === "SUSPECTED" && duplicateAccepted,
       duplicate_review_token: current.level === "SUSPECTED" ? current.review_token : null,
-      total_amount: Number(form.total_amount),
-      tax_amount: Number(form.tax_amount),
-      subtotal_amount: form.subtotal_amount ? Number(form.subtotal_amount) : null,
+      total_amount: form.total_amount,
+      tax_amount: form.tax_amount || "0",
+      subtotal_amount: form.subtotal_amount || null,
       category_id: form.category_id || null,
-      items: itemDrafts.map((item) => ({
-        name: item.name.trim(),
-        sku: item.sku.trim() || null,
-        unit: item.unit.trim() || null,
-        quantity: numeric(item.quantity),
-        unit_price: numeric(item.unit_price),
-        discount_amount: numeric(item.discount_amount),
-        tax_amount: numeric(item.tax_amount),
-        line_total: numeric(item.line_total),
-      })),
     });
     } catch (e) {
       const problem = invoiceError(e); setError(problem.message);
@@ -220,6 +215,7 @@ export default function InvoiceDetailForm({
     );
   };
   const saveItems = async () => {
+    if (locked || versionConflict) return;
     setError("");
     setItemsNotice("");
     if (itemDrafts.some((item) => !item.name.trim())) {
@@ -228,25 +224,18 @@ export default function InvoiceDetailForm({
     }
     setItemsBusy(true);
     try {
-      const numeric = (value: string) => (value === "" ? null : Number(value));
       await api.put(`/invoices/${invoice.id}/items`, {
-        items: itemDrafts.map((item) => ({
-          name: item.name.trim(),
-          sku: item.sku.trim() || null,
-          unit: item.unit.trim() || null,
-          quantity: numeric(item.quantity),
-          unit_price: numeric(item.unit_price),
-          discount_amount: numeric(item.discount_amount),
-          tax_amount: numeric(item.tax_amount),
-          line_total: numeric(item.line_total),
-        })),
+        expected_revision: revision,
+        items: itemDrafts.map(invoiceItemPayload),
       });
+      // A successful compare-and-swap advances exactly this revision. Never
+      // adopt a newer revision from another editor while retaining old drafts.
+      setRevision(revision + 1); setReview(null); setDuplicateAccepted(false);
       await cache.invalidateQueries({ queryKey: ["invoice", invoice.id] });
-      const { data: latest } = await api.get<Invoice>(`/invoices/${invoice.id}`);
-      setRevision(latest.revision); setReview(null); setDuplicateAccepted(false);
       setItemsNotice("Đã lưu các mặt hàng đã hiệu chỉnh.");
     } catch (e) {
-      setError(errorMessage(e));
+      const problem = invoiceError(e); setError(problem.message);
+      if (problem.code === "INVOICE_VERSION_CONFLICT") setVersionConflict(true);
     } finally {
       setItemsBusy(false);
     }
@@ -294,8 +283,11 @@ export default function InvoiceDetailForm({
     }
   };
   return (
-    <div className="cf-panel-body cf-stack" style={{ gap: 18 }}>
-      {!locked && error.includes("Có khoản thanh toán") && <label><input type="checkbox" checked={acceptSeparate} onChange={e => setAcceptSeparate(e.target.checked)} />Tôi đã đối chiếu và xác nhận đây là khoản khác với khoản thanh toán ví.</label>}
+    <div className={`cf-panel-body cf-stack ${density.record}`}>
+      {versionConflict && <button type="button" className="cf-btn" disabled={locked} onClick={reloadRevision}>Tải bản mới (bỏ nội dung đang sửa)</button>}
+      {(error.includes("Có khoản thanh toán") || !!walletEntryId || acceptSeparate) && <PaymentRecordReview invoice
+        amount={form.total_amount} paidOn={form.invoice_date} selected={walletEntryId} separate={acceptSeparate} busy={locked}
+        onSelect={setWalletEntryId} onSeparate={setAcceptSeparate} />}
       {!invoice.deleted_at && invoice.status !== "CONFIRMED" && <>
         {invoice.duplicate_of_invoice_id && <div className="cf-row">
           <button type="button" className="cf-btn" onClick={() => onOpen(invoice.duplicate_of_invoice_id!)}>Mở bản gốc đã liên kết</button>
@@ -327,12 +319,12 @@ export default function InvoiceDetailForm({
       </div>
       {invoice.status === "CONFIRMED" && (
         <Alert persistent kind="success">
-          Hóa đơn đã được ghi nhận. <Link className="cf-inline-link" href={`/transactions?invoice_id=${invoice.id}`}>Xem giao dịch liên quan</Link>. Nếu cần sửa hóa đơn, hãy xóa giao dịch trước để hoàn tiền về ví và mở lại bước kiểm tra.
+          Hóa đơn đã được ghi nhận vào Sổ thu chi. <Link className="cf-inline-link" href={`/transactions?invoice_id=${invoice.id}`}>Xem giao dịch liên quan</Link> để điều chỉnh khoản chi. Thay đổi khoản ghi nhận chỉ cập nhật sổ thu chi, báo cáo và ngân sách; không làm thay đổi số dư hoặc lịch sử thanh toán của ví.
         </Alert>
       )}
       {tab === "items" ? (
         <>
-          {error && <Alert onDismiss={() => setError("")}>{error}</Alert>}
+          {error && <Alert persistent onDismiss={() => setError("")}>{error}</Alert>}
           {itemsNotice && (
             <Alert kind="success" onDismiss={() => setItemsNotice("")}>
               {itemsNotice}
@@ -345,13 +337,21 @@ export default function InvoiceDetailForm({
             />
           ) : (
             <div className="cf-table-wrap cf-item-editor-wrap">
-              <table className="cf-table cf-item-editor">
+              <table className={`cf-table cf-item-editor${locked ? " is-readonly" : ""}`}>
+                <colgroup>
+                  <col className="cf-item-col-name" />
+                  <col className="cf-item-col-unit" />
+                  <col className="cf-item-col-quantity" />
+                  <col className="cf-item-col-price" />
+                  <col className="cf-item-col-total" />
+                  {!locked && <col className="cf-item-col-actions" />}
+                </colgroup>
                 <thead>
                   <tr>
                     <th>Mặt hàng</th>
                     <th>ĐVT</th>
-                    <th>SL</th>
-                    <th>Đơn giá</th>
+                    <th>{locked ? "SL" : "Số lượng"}</th>
+                    <th className="right">Đơn giá</th>
                     <th className="right">Thành tiền</th>
                     {!locked && <th aria-label="Thao tác" />}
                   </tr>
@@ -359,11 +359,10 @@ export default function InvoiceDetailForm({
                 <tbody>
                   {itemDrafts.map((item, index) => (
                     <tr key={index}>
-                      <td className="cf-item-name-cell">
+                      <td className="cf-item-name-cell" data-label="Mặt hàng">
                         {locked ? (
                           <strong>{item.name}{item.unit ? ` - (${item.unit})` : ""}</strong>
                         ) : (
-                          <>
                             <input
                               className="cf-input cf-item-input"
                               aria-label={`Tên mặt hàng ${index + 1}`}
@@ -371,34 +370,30 @@ export default function InvoiceDetailForm({
                               value={item.name}
                               onChange={(e) => updateItem(index, "name", e.target.value)}
                             />
-                            <span className="cf-sub">
-                              Hiển thị: {item.name || "Mặt hàng"}{item.unit ? ` - (${item.unit})` : ""}
-                            </span>
-                          </>
                         )}
                       </td>
-                      <td>
+                      <td data-label="Đơn vị tính">
                         {locked ? item.unit || "—" : (
                           <input className="cf-input cf-item-input cf-item-unit" aria-label={`Đơn vị tính ${index + 1}`} maxLength={50} value={item.unit} onChange={(e) => updateItem(index, "unit", e.target.value)} />
                         )}
                       </td>
-                      <td>
+                      <td data-label="Số lượng">
                         {locked ? Number(item.quantity || 0) : (
                           <input className="cf-input cf-item-input cf-item-number" aria-label={`Số lượng ${index + 1}`} type="number" min="0" step="0.0001" value={item.quantity} onChange={(e) => updateItem(index, "quantity", e.target.value)} />
                         )}
                       </td>
-                      <td>
+                      <td className="right" data-label="Đơn giá">
                         {locked ? money(item.unit_price || 0, invoice.currency) : (
-                          <input className="cf-input cf-item-input cf-item-money" aria-label={`Đơn giá ${index + 1}`} type="number" min="0" step="0.01" value={item.unit_price} onChange={(e) => updateItem(index, "unit_price", e.target.value)} />
+                          <MoneyInput className="cf-input cf-item-input cf-item-money" currency={invoice.currency} aria-label={`Đơn giá ${index + 1}`} value={item.unit_price} onValueChange={(value) => updateItem(index, "unit_price", value)} />
                         )}
                       </td>
-                      <td className="right cf-number">
+                      <td className="right cf-number cf-item-total-cell" data-label="Thành tiền">
                         {locked ? money(item.line_total || 0, invoice.currency) : (
-                          <input className="cf-input cf-item-input cf-item-money" aria-label={`Thành tiền ${index + 1}`} type="number" min="0" step="0.01" value={item.line_total} onChange={(e) => updateItem(index, "line_total", e.target.value)} />
+                          <MoneyInput className="cf-input cf-item-input cf-item-money" currency={invoice.currency} aria-label={`Thành tiền ${index + 1}`} value={item.line_total} onValueChange={(value) => updateItem(index, "line_total", value)} />
                         )}
                       </td>
                       {!locked && (
-                        <td>
+                        <td className="cf-item-actions-cell">
                           <button type="button" className="cf-icon-btn" aria-label={`Xóa mặt hàng ${index + 1}`} onClick={() => setItemDrafts((rows) => rows.filter((_, rowIndex) => rowIndex !== index))}>
                             <Trash2 />
                           </button>
@@ -415,17 +410,15 @@ export default function InvoiceDetailForm({
               <button type="button" className="cf-btn cf-btn-ghost cf-btn-sm" disabled={itemsBusy || itemDrafts.length >= 200} onClick={() => setItemDrafts((rows) => [...rows, { name: "", sku: "", unit: "", quantity: "1", unit_price: "", discount_amount: "", tax_amount: "", line_total: "" }])}>
                 <Plus /> Thêm mặt hàng
               </button>
-              <button type="button" className="cf-btn cf-btn-primary cf-btn-sm" disabled={itemsBusy || busy} onClick={saveItems}>
+              <button type="button" className="cf-btn cf-btn-primary cf-btn-sm" disabled={itemsBusy || busy || versionConflict} onClick={saveItems}>
                 <Save /> {itemsBusy ? "Đang lưu…" : "Lưu chỉnh sửa mặt hàng"}
               </button>
             </div>
           )}
-          <p className="cf-muted" style={{ fontSize: 12 }}>Tên hiển thị được ghép từ tên hàng và đơn vị tính, ví dụ “Giò lụa lợn quế - (Kg)”. Kiểm tra tổng thanh toán tại tab Thông tin trước khi xác nhận.</p>
         </>
       ) : (
-        <form className="cf-form" onSubmit={submit}>
-          {error && <Alert onDismiss={() => setError("")}>{error}</Alert>}
-          {versionConflict && <button type="button" className="cf-btn" disabled={checking} onClick={reloadRevision}>Tải phiên bản mới, giữ nội dung đang sửa</button>}
+        <form className="cf-form" onSubmit={submit} onInvalidCapture={localizeInvalidField} onInputCapture={clearLocalizedValidation} onChangeCapture={clearLocalizedValidation}>
+          {error && <Alert persistent onDismiss={() => setError("")}>{error}</Alert>}
 
           <fieldset
             disabled={locked}
@@ -455,15 +448,6 @@ export default function InvoiceDetailForm({
                     value={form.merchant_address}
                     placeholder="Địa chỉ kinh doanh..."
                     onChange={(e) => field("merchant_address", e.target.value)}
-                  />
-                </Field>
-                <Field label="Mã số thuế người bán">
-                  <input
-                    className="cf-input"
-                    maxLength={100}
-                    value={form.merchant_tax_code}
-                    placeholder="Mã số thuế..."
-                    onChange={(e) => field("merchant_tax_code", e.target.value)}
                   />
                 </Field>
               </div>
@@ -536,30 +520,13 @@ export default function InvoiceDetailForm({
                 <div className="cf-invoice-two-columns">
                   <Field label="Doanh số chưa thuế">
                     <div className="cf-amount-input-box">
-                      <input
-                        className="cf-amount-input-control cf-number"
-                        type="number"
-                        min="0"
-                        step="1"
-                        value={form.subtotal_amount}
-                        placeholder="0"
-                        onChange={(e) => field("subtotal_amount", e.target.value)}
-                      />
+                      <MoneyInput bare className="cf-amount-input-control cf-number" aria-label="Doanh số chưa thuế" value={form.subtotal_amount} onValueChange={(value) => field("subtotal_amount", value)} />
                       <span className="cf-amount-currency-suffix">đ</span>
                     </div>
                   </Field>
                   <Field label="Tiền thuế GTGT">
                     <div className="cf-amount-input-box">
-                      <input
-                        className="cf-amount-input-control cf-number"
-                        type="number"
-                        min="0"
-                        step="1"
-                        required
-                        value={form.tax_amount}
-                        placeholder="0"
-                        onChange={(e) => field("tax_amount", e.target.value)}
-                      />
+                      <MoneyInput bare className="cf-amount-input-control cf-number" required aria-label="Tiền thuế GTGT" value={form.tax_amount} onValueChange={(value) => field("tax_amount", value)} />
                       <span className="cf-amount-currency-suffix">đ</span>
                     </div>
                   </Field>
@@ -570,16 +537,7 @@ export default function InvoiceDetailForm({
                     hint="Tổng tiền đã bao gồm thuế. Đây là số tiền ghi nhận vào khoản chi."
                   >
                     <div className="cf-amount-input-box is-total">
-                      <input
-                        className="cf-amount-input-control cf-number"
-                        type="number"
-                        min="0"
-                        step="1"
-                        required
-                        value={form.total_amount}
-                        placeholder="0"
-                        onChange={(e) => field("total_amount", e.target.value)}
-                      />
+                      <MoneyInput bare className="cf-amount-input-control cf-number" required aria-label="Tổng thanh toán" value={form.total_amount} onValueChange={(value) => field("total_amount", value)} />
                       <span className="cf-amount-currency-suffix">đ</span>
                     </div>
                   </Field>
@@ -595,9 +553,10 @@ export default function InvoiceDetailForm({
                 <Field label="Danh mục chi tiêu">
                   <select
                     className="cf-input"
-                    value={form.category_id}
-                    onChange={(e) => { field("category_id", e.target.value); setCategoryTouched(true); setCategorySuggestion(null); }}
+                    value={form.category_id || (autoCategorize && !categoryTouched ? "__AUTO__" : "")}
+                    onChange={(e) => { const automatic = e.target.value === "__AUTO__"; field("category_id", automatic ? "" : e.target.value); setAutoCategorize(automatic); setCategoryTouched(!automatic); setCategorySuggestion(null); }}
                   >
+                    <option value="__AUTO__">Tự động phân loại</option>
                     <option value="">Chưa phân loại</option>
                     {categories.data
                       ?.filter((c) => c.type === "EXPENSE" && (c.is_active || c.id === form.category_id))
@@ -615,7 +574,7 @@ export default function InvoiceDetailForm({
                   </div>
                 )}
                 {adding ? (
-                  <div className="cf-row" style={{ gap: 8 }}>
+                  <div className={density.addCategory}>
                     <input
                       className="cf-input"
                       aria-label="Tên danh mục mới"

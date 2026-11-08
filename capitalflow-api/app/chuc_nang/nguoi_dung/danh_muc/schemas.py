@@ -9,13 +9,21 @@ Ràng buộc: giữ đúng quyền sở hữu, loại thu/chi và thứ tự hi�
 from uuid import UUID
 from datetime import datetime
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
 from app.chuc_nang.nguoi_dung.danh_muc.luu_tru.danh_muc import CategoryType
-from app.dung_chung.text.unicode import normalize_unicode_text
+from app.dung_chung.text.unicode import normalize_unicode_text, validate_utf16_length
 
 
-class CategoryCreate(BaseModel):
+class _CategoryText(BaseModel):
+    @field_validator("name", "icon", "keywords", check_fields=False)
+    @classmethod
+    def storage_length(cls, value: str | None, info: ValidationInfo) -> str | None:
+        field = info.field_name or "Danh mục"
+        return validate_utf16_length(value, 1000 if field == "keywords" else 100, field)
+
+
+class CategoryCreate(_CategoryText):
     @field_validator("name", mode="before")
     @classmethod
     def valid_name(cls, value):
@@ -32,9 +40,9 @@ class CategoryCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     type: CategoryType
     icon: str | None = Field(default=None, max_length=100)
-    color: str | None = None
+    color: str | None = Field(default=None, max_length=20)
     keywords: str | None = Field(default=None, max_length=1000)
-    sort_order: int = 0
+    sort_order: int = Field(default=0, ge=-2147483648, le=2147483647)
 
     @field_validator("keywords", mode="before")
     @classmethod
@@ -45,7 +53,7 @@ class CategoryCreate(BaseModel):
         return normalized or None
 
 
-class CategoryUpdate(BaseModel):
+class CategoryUpdate(_CategoryText):
     @field_validator("name", mode="before")
     @classmethod
     def valid_name(cls, value):
@@ -63,9 +71,9 @@ class CategoryUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=100)
     type: CategoryType | None = None
     icon: str | None = Field(default=None, max_length=100)
-    color: str | None = None
+    color: str | None = Field(default=None, max_length=20)
     keywords: str | None = Field(default=None, max_length=1000)
-    sort_order: int | None = None
+    sort_order: int | None = Field(default=None, ge=-2147483648, le=2147483647)
     is_active: bool | None = None
 
     @field_validator("keywords", mode="before")
@@ -93,7 +101,7 @@ class CategoryOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class CategoryRestore(BaseModel):
+class CategoryRestore(_CategoryText):
     """Khôi phục ID cũ; chỉ cập nhật metadata người dùng đã xác nhận."""
 
     icon: str | None = Field(default=None, max_length=100)

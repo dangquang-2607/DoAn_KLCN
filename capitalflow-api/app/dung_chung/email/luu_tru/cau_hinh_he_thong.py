@@ -8,7 +8,7 @@ Ràng buộc: giá trị bí mật phải được mã hóa trước khi lưu.
 
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import DateTime, String, Unicode, UnicodeText, Uuid, ForeignKey, Index
+from sqlalchemy import DateTime, Unicode, UnicodeText, Uuid, ForeignKey, Index
 from sqlalchemy.orm import Mapped, mapped_column
 from app.dung_chung.database.nen_tang import Base
 

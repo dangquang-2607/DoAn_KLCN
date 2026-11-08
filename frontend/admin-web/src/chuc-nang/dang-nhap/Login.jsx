@@ -1,24 +1,12 @@
-/**
- * ============================================================================
- * TÊN FILE: Login.jsx
- * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
- * MÀN HÌNH / PHÂN HỆ: Đăng nhập quản trị
- * MỤC ĐÍCH CỤ THỂ:
- *   Điều phối xác thực admin, validation, khóa tạm phía client và đèn tương tác.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   React state/effect, React Router, admin API client và các component login.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Xuất route Login; lưu token vào sessionStorage và điều hướng khi hợp lệ.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Thông báo đăng nhập cố ý không tiết lộ tài khoản có tồn tại; backend vẫn quyết định quyền.
- * ============================================================================
- */
 import "./CSS/login.css";
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { isCancel } from 'axios';
 import { useNavigate } from 'react-router-dom';
 import LampAnimation from './thanh-phan/LampAnimation';
 import LoginForm from './thanh-phan/LoginForm';
-import api from '../../dung-chung/connect-api/api';
+import { useQueryClient } from "@tanstack/react-query";
+import { clearSession } from '../../dung-chung/connect-api/api';
+import { AdminAccessError, requestAdminSession } from '../../dung-chung/xac-thuc/adminSession';
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_SECONDS = 30;
@@ -38,6 +26,7 @@ function formatCountdown(seconds) {
 }
 
 export default function Login() {
+  const cache = useQueryClient();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -45,7 +34,6 @@ export default function Login() {
   const [error, setError] = useState('');
   const [emailError, setEmailError] = useState('');
   const [isShake, setIsShake] = useState(false);
-  const [showForgot, setShowForgot] = useState(false);
   const [failCount, setFailCount] = useState(() => Number.parseInt(sessionStorage.getItem('admin_fail_count') || '0', 10));
   const [lockUntil, setLockUntil] = useState(() => Number.parseInt(sessionStorage.getItem('admin_lock_until') || '0', 10));
   const [countdown, setCountdown] = useState(0);
@@ -57,7 +45,17 @@ export default function Login() {
   const [stars] = useState(() => Array.from({ length: 50 }, (_, index) => ({ id: index, width: Math.random() * 2 + 1, top: Math.random() * 100, left: Math.random() * 100, opacity: Math.random() * 0.7 + 0.1, duration: Math.random() * 3 + 2, delay: Math.random() * 3 })));
   const emailInputRef = useRef(null);
   const dragRef = useRef(false);
+  const submitting = useRef(false);
+  const loginRequest = useRef(null);
+  const shakeTimer = useRef(null);
+  const focusTimer = useRef(null);
   const navigate = useNavigate();
+
+  useEffect(() => () => {
+    loginRequest.current?.abort();
+    clearTimeout(shakeTimer.current);
+    clearTimeout(focusTimer.current);
+  }, []);
 
   // Tự động chuyển đến dashboard nếu phiên đăng nhập đã tồn tại trong sessionStorage.
   useEffect(() => {
@@ -87,9 +85,11 @@ export default function Login() {
   };
 
   const triggerShake = (focusAfter = false) => {
+    clearTimeout(shakeTimer.current);
+    clearTimeout(focusTimer.current);
     setIsShake(true);
-    setTimeout(() => setIsShake(false), 500);
-    if (focusAfter) setTimeout(() => emailInputRef.current?.focus(), 100);
+    shakeTimer.current = setTimeout(() => setIsShake(false), 500);
+    if (focusAfter) focusTimer.current = setTimeout(() => emailInputRef.current?.focus(), 100);
   };
 
   // Ghi nhận thất bại đồng nhất, khóa tạm ở ngưỡng và không tiết lộ nguyên nhân xác thực cụ thể.
@@ -100,12 +100,10 @@ export default function Login() {
       const until = Date.now() + LOCKOUT_SECONDS * 1000;
       setLockUntil(until);
       sessionStorage.setItem('admin_lock_until', until);
-      setError(`Bạn đã nhập sai ${MAX_ATTEMPTS} lần. Tài khoản tạm thời bị khóa trong ${LOCKOUT_SECONDS} giây.`);
-      setShowForgot(true);
+      setError(`Đăng nhập tạm dừng sau ${MAX_ATTEMPTS} lần không thành công. Thử lại sau ${LOCKOUT_SECONDS} giây.`);
     } else {
       const remaining = MAX_ATTEMPTS - newCount;
-      setError(`${message} Còn ${remaining} lần thử trước khi tài khoản bị khóa tạm thời.`);
-      if (newCount >= 3) setShowForgot(true);
+      setError(`${message} Còn ${remaining} lần thử trước khi biểu mẫu tạm dừng.`);
     }
     triggerShake();
   };
@@ -113,29 +111,53 @@ export default function Login() {
   // Xác thực token trước, sau đó đọc /auth/me để bảo đảm tài khoản có vai trò ADMIN.
   const handleLogin = async (event) => {
     event.preventDefault();
-    if (!isValidEmail(email)) { setEmailError('Email không đúng định dạng.'); triggerShake(true); return; }
+    if (submitting.current) return;
+    const normalizedEmail = email.trim();
+    if (!isValidEmail(normalizedEmail)) { setEmailError(normalizedEmail ? 'Email không đúng định dạng.' : 'Vui lòng nhập email.'); triggerShake(true); return; }
+    if (!password) { setError('Vui lòng nhập mật khẩu.'); triggerShake(); return; }
     // oxlint-disable-next-line react/purity -- chỉ đọc thời gian sau sự kiện submit.
     if (lockUntil && Date.now() < lockUntil) { triggerShake(); return; }
-    setLoading(true); setError('');
+    submitting.current = true;
+    const controller = new AbortController();
+    loginRequest.current = controller;
+    setLoading(true); setError(''); setEmailError('');
     try {
-      const { data } = await api.post('/auth/login', { email, password });
-      const token = data.access_token;
-      const meResponse = await api.get('/auth/me', { headers: { Authorization: `Bearer ${token}` } });
-      if (meResponse.data.role.toUpperCase() !== 'ADMIN') { handleFailedAttempt(failCount + 1, 'Email hoặc mật khẩu không chính xác.'); return; }
+      clearSession();
+      await cache.cancelQueries();
+      cache.clear();
+      const data = await requestAdminSession({ email: normalizedEmail, password }, { signal: controller.signal });
+      if (controller.signal.aborted) return;
       sessionStorage.removeItem('admin_fail_count'); sessionStorage.removeItem('admin_lock_until'); setFailCount(0);
-      sessionStorage.setItem('admin_access_token', token);
+      sessionStorage.setItem('admin_access_token', data.access_token);
       if (data.refresh_token) sessionStorage.setItem('admin_refresh_token', data.refresh_token);
-      navigate('/dashboard');
+      navigate('/dashboard', { replace: true });
     } catch (caught) {
+      if (controller.signal.aborted || isCancel(caught)) return;
       const status = caught.response?.status;
-      if (!status || status >= 500) {
-        setError('Hệ thống đang gặp sự cố. Vui lòng thử lại sau ít phút.'); triggerShake(); setLoading(false); return;
+      if (status === 429) {
+        const retryAfter = Number(caught.response.headers?.['retry-after']);
+        const seconds = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : LOCKOUT_SECONDS;
+        const until = Date.now() + seconds * 1000;
+        setLockUntil(until); sessionStorage.setItem('admin_lock_until', until);
+        setError('Bạn thao tác quá nhanh. Vui lòng chờ rồi thử lại.');
+        return;
       }
-      handleFailedAttempt(failCount + 1, 'Email hoặc mật khẩu không chính xác.');
-    } finally { setLoading(false); }
+      if (caught instanceof AdminAccessError || status === 401 || status === 403) {
+        handleFailedAttempt(failCount + 1, 'Email hoặc mật khẩu không chính xác.');
+        return;
+      }
+      if (!status || status >= 500) {
+        setError('Hệ thống đang gặp sự cố. Vui lòng thử lại sau ít phút.'); triggerShake(); return;
+      }
+      setError('Không thể đăng nhập. Vui lòng kiểm tra thông tin và thử lại.');
+    } finally {
+      submitting.current = false;
+      if (!controller.signal.aborted) setLoading(false);
+    }
   };
 
   const onMouseDown = useCallback((event) => {
+    if (event.button !== 0 || submitting.current) return;
     event.preventDefault();
     dragRef.current = true;
     setIsDragging(true);
@@ -161,19 +183,28 @@ export default function Login() {
     pullAmountRef.current = 0;
   }, []);
 
+  const cancelDrag = useCallback(() => {
+    dragRef.current = false;
+    pullAmountRef.current = 0;
+    setIsDragging(false);
+    setCordY(CORD_BASE_Y);
+  }, []);
+
   const onTouchStart = useCallback((event) => {
+    if (event.touches.length !== 1 || submitting.current) { cancelDrag(); return; }
     dragRef.current = true;
     setIsDragging(true);
     startYRef.current = event.touches[0].clientY;
     pullAmountRef.current = 0;
-  }, []);
+  }, [cancelDrag]);
 
   const onTouchMove = useCallback((event) => {
     if (!dragRef.current) return;
+    if (event.touches.length !== 1) { cancelDrag(); return; }
     const delta = event.touches[0].clientY - startYRef.current;
     pullAmountRef.current = Math.max(0, delta);
     setCordY(Math.min(Math.max(CORD_BASE_Y, CORD_BASE_Y + delta), CORD_BASE_Y + 120));
-  }, []);
+  }, [cancelDrag]);
 
   const onTouchEnd = useCallback(() => {
     if (!dragRef.current) return;
@@ -188,17 +219,20 @@ export default function Login() {
 
   useEffect(() => {
     window.addEventListener('mousemove', onMouseMove); window.addEventListener('mouseup', onMouseUp);
-    return () => { window.removeEventListener('mousemove', onMouseMove); window.removeEventListener('mouseup', onMouseUp); };
-  }, [onMouseMove, onMouseUp]);
+    window.addEventListener('blur', cancelDrag);
+    return () => { window.removeEventListener('mousemove', onMouseMove); window.removeEventListener('mouseup', onMouseUp); window.removeEventListener('blur', cancelDrag); };
+  }, [onMouseMove, onMouseUp, cancelDrag]);
 
   const isLocked = countdown > 0;
   const pullOffset = (cordY - CORD_BASE_Y) * 0.3;
   const cordPath = `M ${CORD_START_X} ${CORD_START_Y} Q ${CORD_START_X - 10 + pullOffset * 0.4} ${(CORD_START_Y + cordY) / 2} ${CORD_START_X + 5 + pullOffset * 0.1} ${cordY}`;
   return (
-    <div className="admin-login-screen" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#080810', transition: 'background 1.2s ease', fontFamily: "'Inter', 'Segoe UI', sans-serif", overflow: 'hidden', position: 'relative' }} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+    <div className="admin-login-screen" onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} onTouchCancel={cancelDrag}>
       <LampAnimation stars={stars} lampOn={lampOn} isDragging={isDragging} cordY={cordY} pullOffset={pullOffset} cordPath={cordPath} onMouseDown={onMouseDown} onTouchStart={onTouchStart} />
-      <LoginForm lampOn={lampOn} isShake={isShake} isLocked={isLocked} error={error} emailError={emailError} countdown={countdown} formatCountdown={formatCountdown} emailInputRef={emailInputRef} email={email} password={password} showPassword={showPassword} showForgot={showForgot} loading={loading} onEmailChange={setEmail} onPasswordChange={setPassword} onTogglePassword={() => setShowPassword((current) => !current)} onEmailKeyDown={() => { if (error || emailError) { setError(''); setEmailError(''); setShowForgot(false); } }} onPasswordKeyDown={() => { if (error) { setError(''); setShowForgot(false); } }} onEmailBlur={handleEmailBlur} onSubmit={handleLogin} />
-      {!lampOn && <div style={{ position: 'absolute', bottom: '30px', left: '50%', transform: 'translateX(-50%)', color: 'rgba(255,255,255,0.2)', fontSize: '12px', fontWeight: '500', letterSpacing: '2px', textAlign: 'center', animation: 'admin-login-fadeInOut 3s ease-in-out infinite', whiteSpace: 'nowrap' }}>☝️ Kéo sợi dây để bật đèn...</div>}
+      <LoginForm lampOn={lampOn} isShake={isShake} isLocked={isLocked} error={error} emailError={emailError} countdown={countdown} formatCountdown={formatCountdown} emailInputRef={emailInputRef} email={email} password={password} showPassword={showPassword} loading={loading} onEmailChange={setEmail} onPasswordChange={setPassword} onTogglePassword={() => setShowPassword((current) => !current)} onEmailKeyDown={() => { if (error || emailError) { setError(''); setEmailError(''); } }} onPasswordKeyDown={() => { if (error) { setError(''); } }} onEmailBlur={handleEmailBlur} onSubmit={handleLogin} />
+      <button type="button" className="admin-login-light-toggle" aria-pressed={lampOn} disabled={loading} onClick={() => { cancelDrag(); setLampOn((current) => !current); }}>
+        {lampOn ? "Tắt đèn" : "Bật đèn để đăng nhập"}
+      </button>
     </div>
   );
 }

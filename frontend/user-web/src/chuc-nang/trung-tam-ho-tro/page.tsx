@@ -1,34 +1,27 @@
-/**
- * ============================================================================
- * TÊN FILE: page.tsx
- * MÀN HÌNH / PHÂN HỆ: Trung tâm hỗ trợ
- * NHÓM VỆ TINH: page.tsx (Điều phối)
- * MỤC ĐÍCH CỤ THỂ:
- *   Điều phối dữ liệu, trạng thái và hành vi của màn hình tương ứng.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   TanStack Query, API client, state React và các component vệ tinh của phân hệ.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Xuất page để route hoặc component khác sử dụng.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Không tự thay đổi dữ liệu tài chính; giữ hành vi runtime và khả năng truy cập hiện có.
- * ============================================================================
- */
 "use client";
+import density from "@/dung-chung/CSS/workspace-density.module.css";
+import styles from "./CSS/support.module.css";
 import { PageHead } from "@/dung-chung/UI-chung/ui";
 import FaqAccordion from "./thanh-phan/FaqAccordion";
 import ContactSupportCard from "./thanh-phan/ContactSupportCard";
+import SupportRequestForm from "./thanh-phan/SupportRequestForm";
 
-/** Điều phối nội dung trợ giúp; các khối nội dung tĩnh nằm trong thanh-phan. */
+/** Điều phối form hỗ trợ và nội dung tự trợ giúp. */
 export default function Support() {
   return (
-    <div className="cf-stack">
+    <div className={`cf-stack ${density.workspace}`}>
       <PageHead
         eyebrow="TRỢ GIÚP"
-        title="Bạn muốn bắt đầu từ đâu?"
-        description="Hướng dẫn những thao tác thường dùng trong CapitalFlow."
+        title="Trung tâm hỗ trợ"
+        description="Gửi yêu cầu cho đội hỗ trợ CapitalFlow. Phản hồi sẽ được gửi đến email tài khoản của bạn."
       />
-      <ContactSupportCard />
-      <FaqAccordion />
+      <div className={`${density.content} ${styles.content}`}>
+        <div className={styles.supportGrid}>
+          <SupportRequestForm />
+          <ContactSupportCard />
+        </div>
+        <FaqAccordion />
+      </div>
     </div>
   );
 }

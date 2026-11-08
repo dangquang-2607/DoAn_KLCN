@@ -1,0 +1,98 @@
+/* Scoped to the two overview routes; heading blocks keep their existing styles. */
+.page:global(.adm-live) { gap: 16px; }
+.page :global(.cf-btn) { min-height: var(--cf-control-height); padding: var(--cf-control-padding-y) var(--cf-button-padding-x); border-radius: var(--cf-control-radius); font: 600 var(--cf-control-font-size)/var(--cf-control-line-height) var(--cf-font); }
+.page :global(.cf-data-note), .page :global(.adm-dashboard-footer) { margin: 0; font: 400 13px/20px var(--cf-font); }
+.page :global(.cf-state) { padding: 28px 20px; }
+.page :global(.cf-state) p { font-size: 14px; line-height: 20px; }
+
+.page :global(.adm-ops) { margin: 0; padding: 20px; border-radius: 6px; }
+.page :global(.adm-ops-grid) { gap: 16px; }
+.page :global(.adm-ops-primary) { min-height: 0; padding: 16px; gap: 12px; border-radius: 6px; }
+.page :global(.adm-ops-primary) strong { font-size: 32px; line-height: 1.15; letter-spacing: -.03em; }
+.page :global(.adm-ops-primary) div > span { font: 400 13px/20px var(--cf-font); }
+.page :global(.adm-ops-primary) a { margin-top: 0; max-width: 100%; min-height: 40px; font: 600 14px/20px var(--cf-font); }
+.page :global(.adm-ops-queue) { gap: 8px; }
+.page :global(.adm-ops-queue) article { padding: 12px; gap: 12px; border-radius: 6px; }
+.page :global(.adm-ops-queue) p, .page :global(.adm-ops-queue) small { font: 400 13px/20px var(--cf-font); }
+.page :global(.adm-ops-queue) strong { font: 600 14px/20px var(--cf-font); }
+.page :global(.adm-ops-queue) a { margin-top: 4px; min-height: 28px; font: 600 14px/20px var(--cf-font); }
+.page :global(.adm-ops-state) { font: 600 13px/20px var(--cf-font); letter-spacing: 0; padding: 4px 8px; }
+.page :global(.adm-ops-health) { margin-top: 16px; border-radius: 6px; }
+.page :global(.adm-ops-health) > div { padding: 12px; min-width: 0; }
+.page :global(.adm-ops-health) span { font: 400 13px/20px var(--cf-font); }
+.page :global(.adm-ops-health) strong { font: 600 14px/20px var(--cf-font); overflow-wrap: anywhere; }
+.page :global(.adm-dashboard-kpis) { margin: 0; gap: 16px; }
+.page :global(.adm-feature-kpi), .page :global(.adm-small-kpi) { min-height: 172px; padding: 16px; gap: 12px; border-radius: 6px; }
+.page :global(.adm-feature-kpi) p, .page :global(.adm-small-kpi) p { font: 600 14px/20px var(--cf-font); }
+.page :global(.adm-feature-kpi) strong, .page :global(.adm-small-kpi) strong { font: 700 32px/1.15 var(--cf-font); letter-spacing: -.03em; }
+.page :global(.adm-feature-health), .page :global(.adm-small-kpi) div > span { font: 400 13px/20px var(--cf-font); }
+.page :global(.adm-activity-list) { padding: 0 20px 8px; }
+.page :global(.adm-activity-list) li { padding: 12px 0; }
+.page :global(.adm-activity-list) strong { font: 600 14px/20px var(--cf-font); }
+.page :global(.adm-activity-list) li > div span { font: 400 13px/20px var(--cf-font); white-space: normal; overflow-wrap: anywhere; }
+.page :global(.adm-activity-list) code, .page :global(.adm-activity-list) time { font-size: 13px; line-height: 20px; }
+.page :global(.adm-activity-list) :global(.cf-label) { font-size: 13px; line-height: 20px; padding: 2px 8px; flex-shrink: 0; }
+
+.page :global(.adm-analytics__filter) { padding: 16px 20px 0; border-radius: 6px; gap: 16px; }
+.page :global(.adm-analytics__filter-controls) { gap: 12px; }
+.page :global(.adm-analytics__granularity), .page :global(.cf-volume-range) { padding: 3px; gap: 2px; }
+.page :global(.adm-analytics__granularity) button, .page :global(.cf-volume-range) button { min-height: 32px; min-width: 0; padding: 6px 12px; font: 600 14px/20px var(--cf-font); }
+.page :global(.adm-analytics__period-select) { font: 600 14px/20px var(--cf-font); }
+.page :global(.adm-analytics__period-select) select, .page :global(.adm-analytics__period-select) :global(.cf-input) { min-height: var(--cf-control-height); height: var(--cf-control-height); border-radius: var(--cf-control-radius); padding: 9px 32px 9px 12px; font: 400 var(--cf-control-font-size)/var(--cf-control-line-height) var(--cf-font); }
+.page :global(.adm-analytics__period-select) select { width: 190px; }
+.page :global(.adm-analytics__period-select) :global(.cf-date-input) { flex: 0 1 160px; }
+.page :global(.cf-date-input-calendar) { width: 32px; height: 32px; top: 4px; right: 4px; }
+.page :global(.cf-date-input-error) { font-size: 13px; line-height: 20px; }
+.page :global(.adm-analytics__scope) { margin: 0 -20px; padding: 12px 20px; gap: 12px; flex-wrap: wrap; }
+.page :global(.adm-analytics__scope) p, .page :global(.adm-analytics__scope) > span { font-size: 13px; line-height: 20px; letter-spacing: 0; }
+.page :global(.adm-analytics__metrics) { margin: 0; gap: 16px; }
+.page :global(.adm-analytics__metric) { padding: 16px; gap: 12px; min-height: 152px; border-radius: 6px; }
+.page :global(.adm-analytics__metric-bottom) { flex-wrap: wrap; gap: 8px; }
+.page :global(.adm-analytics__metric-bottom) p { font: 600 14px/20px var(--cf-font); }
+.page :global(.adm-analytics__metric-bottom) strong { font: 700 32px/1.15 var(--cf-font); letter-spacing: -.03em; }
+.page :global(.adm-analytics__metric-bottom) > span { font: 400 13px/20px var(--cf-font); }
+.page :global(.cf-volume) { padding: 20px; border-radius: 6px; }
+.page :global(.cf-volume-body) { gap: 16px; margin-top: 16px; grid-template-columns: minmax(0, 1fr) 300px; }
+.page :global(.cf-volume-plot) { height: 280px; font-family: var(--cf-font); }
+.page :global(.cf-volume-highlight) { min-height: 0; padding: 16px; border-radius: 6px; }
+.page :global(.cf-volume-highlight) span, .page :global(.cf-volume-stat-grid) span { font: 600 13px/20px var(--cf-font); letter-spacing: 0; }
+.page :global(.cf-volume-highlight) strong { font: 700 32px/1.15 var(--cf-font); margin: 8px 0 4px; }
+.page :global(.cf-volume-highlight) small, .page :global(.cf-volume-stat-grid) small { font: 400 13px/20px var(--cf-font); }
+.page :global(.cf-volume-stat-grid) article { padding: 12px; border-radius: 6px; overflow-wrap: anywhere; }
+.page :global(.cf-volume-stat-grid) strong { font: 700 24px/1.2 var(--cf-font); }
+.page :global(.cf-volume) > footer { font: 400 13px/20px var(--cf-font); }
+.page :global(.cf-volume-legend-item) { display: inline-flex; align-items: center; gap: 8px; }
+.page :global(.cf-volume-legend-item) :global(.cf-volume-legend-dot) { margin-left: 0; }
+.page :global(.cf-volume-tooltip) { max-width: min(280px, calc(100vw - 64px)); padding: 10px 12px; pointer-events: none; white-space: normal; }
+.page :global(.cf-volume-tooltip) span, .page :global(.cf-volume-tooltip) small { font: 400 13px/20px var(--cf-font); letter-spacing: 0; }
+.page :global(.cf-volume-tooltip) strong { font: 600 14px/20px var(--cf-font); }
+.page :global(.recharts-tooltip-wrapper) { z-index: 5; }
+.page :global(.adm-analytics__charts) { gap: 16px; }
+.page :global(.adm-analytics__panel) { padding: 20px; border-radius: 6px; }
+.page :global(.adm-analytics__category-list) { gap: 16px; }
+.page :global(.adm-analytics__category-meta), .page :global(.adm-analytics__type-list) li { font: 500 14px/20px var(--cf-font); }
+.page :global(.adm-analytics__category-meta) span { overflow-wrap: anywhere; }
+.page :global(.adm-analytics__rank), .page :global(.adm-analytics__type-share), .page :global(.adm-analytics__donut-hole) span, .page :global(.adm-analytics__panel-footnote) { font: 400 13px/20px var(--cf-font); }
+.page :global(.adm-analytics__donut) { width: 180px; }
+.page :global(.adm-analytics__donut-hole) strong { font: 700 28px/1.15 var(--cf-font); }
+@container (max-width: 1000px) {
+  .page :global(.cf-volume-body) { grid-template-columns: 1fr; }
+  .page :global(.cf-volume-insights) { grid-template-columns: 1fr 1fr; }
+}
+@container (max-width: 550px) {
+  .page :global(.adm-small-kpi), .page :global(.adm-analytics__metric) { display: grid; grid-template-columns: 38px minmax(0, 1fr); align-items: center; min-height: 0; }
+  .page :global(.adm-analytics__metric-bottom) { align-items: start; flex-direction: column; gap: 4px; }
+  .page :global(.adm-ops), .page :global(.adm-analytics__panel), .page :global(.cf-volume) { padding: 16px; }
+  .page :global(.adm-ops-queue) article { grid-template-columns: auto minmax(0, 1fr); }
+  .page :global(.adm-ops-state) { grid-column: 2; justify-self: start; }
+  .page :global(.adm-activity-list) { padding: 0 16px 8px; }
+  .page :global(.adm-activity-list) li { display: grid; grid-template-columns: 35px minmax(0, 1fr); gap: 8px 12px; }
+  .page :global(.adm-activity-list) :global(.cf-label), .page :global(.adm-activity-list) time { grid-column: 2; justify-self: start; margin: 0; }
+  .page :global(.adm-analytics__filter) { padding: 16px 16px 0; }
+  .page :global(.adm-analytics__scope) { margin: 0 -16px; padding: 12px 16px; }
+  .page :global(.adm-analytics__period-select) :global(.cf-period-navigation) { display: grid; grid-template-columns: 1fr; }
+  .page :global(.adm-analytics__period-select) select, .page :global(.adm-analytics__period-select) :global(.cf-date-input) { width: 100%; }
+  .page :global(.cf-volume-head) { flex-direction: column; gap: 12px; }
+  .page :global(.cf-volume-insights) { grid-template-columns: 1fr; }
+  .page :global(.cf-volume-plot) { height: 240px; }
+}

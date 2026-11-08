@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_serializer
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
@@ -12,6 +12,7 @@ from app.chuc_nang.nguoi_dung.dang_nhap.luu_tru.nguoi_dung import User
 from app.chuc_nang.nguoi_dung.tai_chinh.thong_bao.dich_vu import utc_now_naive
 from app.chuc_nang.nguoi_dung.tai_chinh.thong_bao.luu_tru.thong_bao import Notification
 from app.dung_chung.http.phu_thuoc import get_current_user, get_db
+from app.dung_chung.money import normalize_money_message
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
@@ -29,6 +30,10 @@ class NotificationOut(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_serializer('message')
+    def formatted_message(self, value: str) -> str:
+        return normalize_money_message(value)
 
 
 class NotificationPage(BaseModel):

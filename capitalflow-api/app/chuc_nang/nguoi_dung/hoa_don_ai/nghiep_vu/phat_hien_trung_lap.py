@@ -1,6 +1,7 @@
 """User-scoped duplicate evidence, refreshed on review and before posting."""
 from sqlalchemy import and_, or_, select
 from collections import defaultdict
+from typing import Literal
 from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.invoice import Invoice
 from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.invoice_item import InvoiceItem
 from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.luu_tru.giao_dich import Transaction
@@ -40,12 +41,14 @@ def _candidate_rows(db, user_id, invoices):
     conditions = [condition for invoice in invoices for condition in _candidate_conditions(invoice)]
     if not conditions:
         return []
-    return db.execute(select(Invoice, Transaction.id).outerjoin(
+    rows = db.execute(select(Invoice, Transaction.id).outerjoin(
             Transaction, and_(Transaction.invoice_id == Invoice.id, Transaction.user_id == user_id)
         ).where(Invoice.user_id == user_id,
                 Invoice.duplicate_of_invoice_id.is_(None),
                 # Trashed receipts remain reusable until permanently purged.
                 or_(*conditions)).order_by(Invoice.created_at, Invoice.id)).all()
+    from .posting_evidence import archived_candidates
+    return list(rows) + archived_candidates(db, user_id, invoices)
 
 
 def inspect_duplicate_batch(db, user_id, invoices):
@@ -83,8 +86,10 @@ def inspect_duplicates(db, user_id, invoice, *, rows=None, baskets=None):
         same_retail_receipt = bool(same_date_amount
             and receipt_matches(invoice.invoice_number, other.invoice_number)
             and address_matches(invoice.merchant_address, other.merchant_address))
-        retail = retail_reason(invoice, other, basket, baskets.get(other.id, ())) if same_date_amount else None
-        score = 100 if same_file or same_identity else similarity_percent(invoice, other, basket, baskets.get(other.id, ()))
+        comparison_basket = digest(basket) if basket and getattr(other, 'purged', False) else basket
+        other_basket = other.basket_hash if getattr(other, 'purged', False) else baskets.get(other.id, ())
+        retail = retail_reason(invoice, other, comparison_basket, other_basket) if same_date_amount else None
+        score = 100 if same_file or same_identity else similarity_percent(invoice, other, comparison_basket, other_basket)
         if not (same_file or same_identity or same_purchase or same_retail_receipt or retail or score >= 50):
             continue
         # Earlier draft is canonical. It must remain confirmable when a
@@ -106,14 +111,17 @@ def inspect_duplicates(db, user_id, invoice, *, rows=None, baskets=None):
             "level": level, "reason": reason, "status": other.status, "similarity_percent": score,
             "merchant_name": other.merchant_name, "invoice_date": other.invoice_date.isoformat() if other.invoice_date else None,
             "total_amount": str(other.total_amount) if other.total_amount is not None else None, "currency": other.currency,
-            "deleted_at": other.deleted_at.isoformat() if other.deleted_at else None, "revision": other.revision})
+            "deleted_at": other.deleted_at.isoformat() if other.deleted_at else None, "revision": other.revision,
+            "purged": bool(getattr(other, 'purged', False))})
         evidence.append([str(other.id), other.revision, str(transaction_id or ""), level,
-                         content_snapshot(other), baskets.get(other.id, ()), score])
+                         content_snapshot(other), other_basket, score])
     candidates.sort(key=lambda c: (-c["similarity_percent"], c["level"] != "EXACT", c["transaction_id"] is None, c["invoice_id"]))
-    level = "EXACT" if any(c["level"] == "EXACT" for c in candidates) else "SUSPECTED" if candidates else "NONE"
+    overall_level: Literal["NONE", "SUSPECTED", "EXACT"] = (
+        "EXACT" if any(c["level"] == "EXACT" for c in candidates) else "SUSPECTED" if candidates else "NONE"
+    )
     # Include all evidence, even when only the first 20 candidates are returned.
     token = digest([str(user_id), str(invoice.id), invoice.revision, content_snapshot(invoice), basket, evidence])
-    return {"level": level, "can_override": level == "SUSPECTED", "review_token": token,
+    return {"level": overall_level, "can_override": overall_level == "SUSPECTED", "review_token": token,
             "candidate_count": len(candidates), "candidates": candidates[:20], "score_version": 1,
             "similarity_percent": max((c["similarity_percent"] for c in candidates), default=0)}
 

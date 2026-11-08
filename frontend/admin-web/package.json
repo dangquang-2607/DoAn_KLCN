@@ -5,8 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "demo": "npm run build && vite preview --host 127.0.0.1 --port 5173 --strictPort",
     "build": "vite build",
     "lint": "oxlint",
+    "test": "node tools/verify-admin-web.mjs && node tools/verify-structure.mjs",
+    "test:dev": "node tools/verify-dev-runtime.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

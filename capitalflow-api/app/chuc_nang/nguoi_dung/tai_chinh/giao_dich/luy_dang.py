@@ -5,7 +5,6 @@ import json
 from functools import wraps
 from fastapi import HTTPException
 from fastapi.encoders import jsonable_encoder
-from sqlalchemy import select
 from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.luu_tru.ban_ghi_luy_dang import IdempotencyRecord
 from app.chuc_nang.nguoi_dung.dang_nhap.nghiep_vu.session_management import locked_user
 
@@ -18,7 +17,7 @@ def idempotent_money(fn):
         if request is None:
             raise RuntimeError("Idempotent API requires request context")
         key = request.headers.get("Idempotency-Key", "")
-        if not 8 <= len(key) <= 128 or not all(c.isalnum() or c in "-_" for c in key):
+        if not 8 <= len(key) <= 128 or not all(c.isascii() and (c.isalnum() or c in "-_") for c in key):
             raise HTTPException(status_code=428, detail="Cần Idempotency-Key hợp lệ cho thao tác tài chính")
         body = {k: jsonable_encoder(v) for k,v in kwargs.items() if k not in {"db","user","background_tasks"}}
         digest = hashlib.sha256(json.dumps([request.method, request.url.path, body], sort_keys=True, ensure_ascii=True).encode()).hexdigest()

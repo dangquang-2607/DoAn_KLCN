@@ -1,22 +1,6 @@
-/**
- * ============================================================================
- * TÊN FILE: OperationsCenter.jsx
- * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
- * MÀN HÌNH / PHÂN HỆ: Bảng điều khiển quản trị (Dashboard)
- * MỤC ĐÍCH CỤ THỂ:
- *   Cung cấp trung tâm thao tác điều hành nhanh cho quản trị viên: lối tắt đến
- *   quản lý người dùng, giám sát hóa đơn OCR, cấu hình SMTP và nhật ký kiểm toán.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   React Router (Link, useNavigate), Lucide icons.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Default export OperationsCenter component.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Các liên kết được phân quyền chặt chẽ theo vai trò quản trị viên.
- * ============================================================================
- */
 import { Activity, ArrowRight, CheckCircle2, CircleAlert, Clock3, FileClock, LockKeyhole, ScanLine, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
-import { decimal, number } from "../../../dung-chung/tien-ich/adminPresentation";
+import { decimal, number } from "../../../dung-chung/tien-ich/format";
 
 /**
  * Trung tâm điều hướng nhanh các tác vụ vận hành cốt lõi.

@@ -25,7 +25,7 @@ REPOSITORY_ROOT = DATABASE_ROOT.parent
 API_ROOT = REPOSITORY_ROOT / "capitalflow-api"
 sys.path.insert(0, str(API_ROOT))
 
-# Import tập trung đăng ký đủ 17 bảng nghiệp vụ vào Base.metadata.
+# Import tập trung đăng ký các bảng nghiệp vụ hiện hành vào Base.metadata.
 import app.dung_chung.database.dang_ky_mo_hinh  # noqa: E402,F401
 from app.dung_chung.config import settings  # noqa: E402
 from app.dung_chung.database.nen_tang import Base  # noqa: E402

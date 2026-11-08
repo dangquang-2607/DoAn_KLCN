@@ -1,22 +1,8 @@
-/**
- * ============================================================================
- * TÊN FILE: InvoiceIntakeFeedback.tsx
- * MÀN HÌNH / PHÂN HỆ: Nhận diện hóa đơn AI (OCR)
- * NHÓM VỆ TINH: thanh-phan (Thành phần giao diện con)
- * MỤC ĐÍCH CỤ THỂ:
- *   Hiển thị phản hồi tức thì về tiến trình tiếp nhận hóa đơn tải lên, bao gồm
- *   trạng thái xử lý OCR, cảnh báo trùng lặp tệp và các nút hành động (thử lại, mở xem).
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   Danh sách UploadEntry, kết quả UploadResult, trạng thái busy/checking.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Default export InvoiceIntakeFeedback component.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Giải phóng bộ nhớ URL đối tượng xem trước (revokeObjectURL) khi unmount.
- * ============================================================================
- */
-import { Modal } from "@/dung-chung/UI-chung/ui";
+import Link from "next/link";
 import { useEffect, useState } from "react";
-import type { UploadEntry, UploadResult } from "../xu-ly/InvoiceTypes";
+import { Files } from "lucide-react";
+import type { UploadEntry } from "../xu-ly/InvoiceTypes";
+import styles from "../CSS/invoice-density.module.css";
 
 /**
  * Tạo và dọn dẹp URL cục bộ để người dùng xem nhanh ảnh hóa đơn đối chiếu.
@@ -34,21 +20,26 @@ function LocalPreview({ file }: { file: File }) {
 /**
  * Hộp phản hồi trạng thái tiếp nhận và xử lý hóa đơn tải lên.
  */
-export default function InvoiceIntakeFeedback({ entries, match, busy, checking, onRetry, onOpen, onRemove, onDismiss }: {
-  entries: UploadEntry[]; match: UploadResult | null; busy: boolean; checking: boolean;
+export default function InvoiceIntakeFeedback({ entries, progress, busy, checking, onRetry, onOpen, onRemove }: {
+  entries: UploadEntry[]; progress: { name: string; index: number; total: number } | null; busy: boolean; checking: boolean;
   onRetry: (file: File, ticket?: string) => void; onOpen: (id: string) => void;
-  onRemove: (file: File) => void; onDismiss: () => void;
+  onRemove: (file: File) => void;
 }) {
+  const duplicates = entries.flatMap(entry => entry.result && entry.result.outcome !== "CREATED" ? [{ file: entry.file, result: entry.result }] : []);
+  const [duplicateIndex, setDuplicateIndex] = useState(0);
+  const selectedIndex = Math.min(duplicateIndex, Math.max(0, duplicates.length - 1));
+  const selectedDuplicate = duplicates[selectedIndex];
   return <>
-    {checking && <p role="status">Đang kiểm tra hóa đơn… Tệp được nhận diện và đối chiếu trước khi thêm vào danh sách.</p>}
+    {checking && <p role="status">{progress ? `Đang nhận diện và đối chiếu ảnh ${progress.index}/${progress.total} · ${progress.name}` : "Đang kiểm tra ảnh hóa đơn…"}</p>}
     {entries.some(e => e.error) && <div className="cf-panel-body cf-stack" aria-label="Kết quả kiểm tra trước tải lên">
       {entries.filter(e => e.error).map((entry, index) => <section key={index} className="cf-duplicate-review">
         {entry.issue?.upload_ticket && <span className="cf-duplicate-label">Nghi trùng</span>}
         <p>{entry.file.name}: {entry.error}</p>
+        {entry.issue?.transaction_id && entry.issue.matched_invoice_id && <Link className="cf-inline-link" href={`/transactions?invoice_id=${entry.issue.matched_invoice_id}`}>Xem khoản chi đã ghi sổ</Link>}
         {entry.issue?.upload_ticket && <LocalPreview file={entry.file} />}
         {entry.issue?.duplicate_check?.candidates.map(c => <p key={c.invoice_id}>
           {c.merchant_name || "Hóa đơn"} · {c.similarity_percent}% · {c.invoice_date}
-          <button className="cf-btn cf-btn-sm" disabled={busy} onClick={() => onOpen(c.invoice_id)}>Đối chiếu hóa đơn nghi trùng</button>
+          {c.purged ? <><span> · Chứng từ gốc đã xóa vĩnh viễn. </span><Link className="cf-inline-link" href={`/transactions?invoice_id=${c.invoice_id}`}>Đối chiếu khoản chi</Link></> : <button className="cf-btn cf-btn-sm" disabled={busy} onClick={() => onOpen(c.invoice_id)}>Đối chiếu hóa đơn nghi trùng</button>}
         </p>)}
         {entry.issue?.blockers?.map(c => <p key={c.id}>
           {c.filename || "Hóa đơn cũ"}
@@ -62,13 +53,18 @@ export default function InvoiceIntakeFeedback({ entries, match, busy, checking, 
         </div>
       </section>)}
     </div>}
-    {match && <Modal title="Hóa đơn đã tồn tại" onClose={onDismiss}>
-      <div className="cf-form">
-        <p>{match.match_kind === "DATA" ? "Đã nhận diện và tìm thấy hóa đơn trùng dữ liệu." : "Tệp này đã được tải lên trước đó."} Không tạo thêm bản mới.</p>
-        {match.outcome === "RESTORE_REQUIRED" && <p>Bản cũ đang trong Thùng rác. Mở bản cũ để khôi phục nếu cần.</p>}
-        {match.outcome === "ALREADY_CONFIRMED" && <p>Hóa đơn đã ghi sổ; không tạo thêm khoản chi.</p>}
-        <button className="cf-btn cf-btn-primary" onClick={() => { onOpen(match.id); onDismiss(); }}>Mở hóa đơn đã có</button>
+    {duplicates.length > 0 && <section className={styles.duplicates} aria-label="Ảnh trùng hóa đơn đã có">
+      <div className={styles.duplicateHeading}>
+        <Files size={18} aria-hidden="true" />
+        <strong>{duplicates.length} ảnh trùng</strong>
       </div>
-    </Modal>}
+      <span className={styles.duplicateHint}>Không tạo thêm hóa đơn.</span>
+      <select className={`cf-input ${styles.duplicatePicker}`} aria-label="Chọn ảnh trùng để mở hóa đơn" title={selectedDuplicate.file.name} disabled={busy} value={selectedIndex} onChange={event => setDuplicateIndex(Number(event.target.value))}>
+        {duplicates.map(({ file, result }, index) => <option key={index} value={index}>
+          {file.name} · {result.outcome === "RESTORE_REQUIRED" ? "Trong Thùng rác" : result.outcome === "ALREADY_CONFIRMED" ? "Đã ghi sổ" : result.match_kind === "DATA" ? "Khớp dữ liệu hóa đơn đã có" : "Đã tải lên trước đó"}
+        </option>)}
+      </select>
+      <button type="button" className="cf-btn cf-btn-sm" disabled={busy} onClick={() => onOpen(selectedDuplicate.result.id)}>Mở hóa đơn</button>
+    </section>}
   </>;
 }

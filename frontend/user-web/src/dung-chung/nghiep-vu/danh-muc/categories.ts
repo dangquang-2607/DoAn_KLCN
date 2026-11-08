@@ -1,23 +1,18 @@
-/**
- * ============================================================================
- * TÊN FILE: categories.ts
- * MÀN HÌNH / PHÂN HỆ: Quản lý Danh mục & OCR
- * NHÓM VỆ TINH: dung-chung (Nghiệp vụ dùng chung)
- * MỤC ĐÍCH CỤ THỂ:
- *   Xử lý phân giải lỗi xung đột khi tạo mới danh mục bị trùng tên (HTTP 409 Conflict),
- *   trích xuất thông tin danh mục đã lưu trữ để hỗ trợ khôi phục tức thì.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   Axios error, kiểu Category từ finance module.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Kiểu ArchivedCategory, hàm archivedCategoryFromError, categoryConflictMessage.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Phân biệt danh mục hệ thống mặc định và danh mục cá nhân đã ẩn.
- * ============================================================================
- */
 /** Hợp đồng lỗi danh mục để tạo mới và khôi phục dùng chung giữa Danh mục và OCR. */
+import { useQuery } from "@tanstack/react-query";
+import api from "@/dung-chung/connect-api/api";
 import { isAxiosError } from "axios";
 import { errorMessage } from "@/dung-chung/tien-ich/finance";
 import { type Category } from "@/dung-chung/nghiep-vu/finance";
+
+export function useCategories(status?: "all" | "archived") {
+  return useQuery({
+    queryKey: status ? ["categories", status] : ["categories"],
+    queryFn: async () => (await api.get<Category[]>("/categories", {
+      params: status ? { status } : undefined,
+    })).data,
+  });
+}
 
 export type ArchivedCategory = Pick<Category, "id" | "name" | "type">;
 

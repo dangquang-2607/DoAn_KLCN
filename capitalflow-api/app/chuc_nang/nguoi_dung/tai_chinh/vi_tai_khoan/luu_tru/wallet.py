@@ -1,4 +1,4 @@
-"""Independent demo wallets. Their money ledger never feeds personal income/expense."""
+"""Ví mô phỏng và lịch sử biến động số dư gắn với bản ghi thu chi."""
 import uuid
 from datetime import datetime
 from decimal import Decimal
@@ -59,6 +59,7 @@ class WalletEntry(Base):
     kind: Mapped[str] = mapped_column(String(20), nullable=False)
     merchant_name: Mapped[str | None] = mapped_column(Unicode(150), nullable=True)
     bill_reference: Mapped[str | None] = mapped_column(Unicode(100), nullable=True)
+    note: Mapped[str | None] = mapped_column(Unicode(200), nullable=True)
     amount: Mapped[Decimal] = mapped_column(Numeric(19, 2), nullable=False)
     balance_after: Mapped[Decimal] = mapped_column(Numeric(19, 2), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.sysutcdatetime())

@@ -17,6 +17,12 @@ def parse_amount(raw: Any) -> Decimal:
 
     if raw is None:
         return Decimal("0")
+    # XML already supplies Decimal; never interpret its scale as grouping.
+    if isinstance(raw, (Decimal, int, float)) and not isinstance(raw, bool):
+        result = Decimal(str(raw))
+        if not result.is_finite():
+            raise ValueError("Invalid OCR numeric value")
+        return result
     value = str(raw).strip().replace("đ", "").replace("VND", "").replace("vnd", "").replace(" ", "")
     if not value:
         return Decimal("0")
@@ -24,21 +30,48 @@ def parse_amount(raw: Any) -> Decimal:
         raise ValueError("Invalid OCR numeric value")
 
     # Phân biệt dấu phân cách hàng nghìn với phần thập phân trước khi đổi Decimal.
-    if re.match(r"^-?\d{1,3}([.,]\d{3})+$", value):
+    if "," in value and "." in value:
+        decimal_mark = "," if value.rfind(",") > value.rfind(".") else "."
+        grouping = "." if decimal_mark == "," else ","
+        pattern = rf"-?\d{{1,3}}(?:{re.escape(grouping)}\d{{3}})+{re.escape(decimal_mark)}\d+"
+        if not re.fullmatch(pattern, value):
+            raise ValueError("Invalid OCR numeric value")
+        value = value.replace(grouping, "").replace(decimal_mark, ".")
+    elif re.fullmatch(r"-?\d{1,3}(?:\.\d{3})+|-?\d{1,3}(?:,\d{3})+", value):
         value = re.sub(r"[.,]", "", value)
-    elif re.match(r"^-?\d+[.,]\d{1,2}$", value):
+    elif re.fullmatch(r"-?\d+[.,]\d+", value):
         value = value.replace(",", ".")
-    elif "," in value and "." in value:
-        value = value.replace(",", "")
-    elif value.count(".") > 1:
-        value = value.replace(".", "")
-    elif value.count(",") > 1:
-        value = value.replace(",", "")
+    elif "." in value or "," in value:
+        raise ValueError("Invalid OCR numeric value")
 
     try:
         return Decimal(value)
     except Exception as exc:
         raise ValueError("Invalid OCR numeric value") from exc
+
+
+class UnsupportedInvoiceCurrency(ValueError):
+    pass
+
+
+class UnknownInvoiceCurrency(ValueError):
+    pass
+
+
+def draft_currency(raw: Any) -> str:
+    try:
+        return require_vnd_currency(raw)
+    except UnknownInvoiceCurrency:
+        return "VND"
+
+
+def require_vnd_currency(raw: Any) -> str:
+    value = re.sub(r"\s+", "", str(raw or "")).upper()
+    if not value:
+        raise UnknownInvoiceCurrency("Chưa xác định được tiền tệ của hóa đơn. Hãy dùng chứng từ ghi rõ VND.")
+    if value not in {"VND", "VNĐ", "Đ", "₫", "ĐỒNG", "ĐỒNGVIỆTNAM"}:
+        raise UnsupportedInvoiceCurrency("Chỉ hỗ trợ hóa đơn bằng VND; chưa hỗ trợ quy đổi ngoại tệ.")
+    return "VND"
 
 
 def parse_date(raw: Any) -> date | None:

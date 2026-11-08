@@ -11,35 +11,53 @@ from decimal import Decimal
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.dung_chung.text.unicode import validate_utf16_length
 
 from app.chuc_nang.nguoi_dung.tai_chinh.ngan_sach.luu_tru.ngan_sach import BudgetPeriod
 
 
 class BudgetCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str | None = Field(default=None, max_length=150, description="Để trống để tự đặt tên")
     category_id: UUID | None = None
-    amount_limit: Decimal = Field(..., gt=Decimal("0"), description="Hạn mức chi tiêu")
+    amount_limit: Decimal = Field(..., gt=Decimal("0"), max_digits=19, decimal_places=2, description="Hạn mức chi tiêu")
     currency: Literal["VND"] = "VND"
     period_type: BudgetPeriod = BudgetPeriod.MONTHLY
     start_date: date
     end_date: date | None = None
     is_recurring: bool = False
-    recurrence_end_date: date | None = None
-    warning_percent: Decimal = Field(default=Decimal("80.00"), gt=Decimal("0"), le=Decimal("100"), description="% cảnh báo khi gần chạm hạn mức")
+    warning_percent: Decimal = Field(default=Decimal("80.00"), gt=Decimal("0"), le=Decimal("100"), max_digits=5, decimal_places=2, description="% cảnh báo khi gần chạm hạn mức")
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str | None) -> str | None:
+        value = value.strip() if value is not None else None
+        return validate_utf16_length(value, 150, "Tên ngân sách")
 
 
 class BudgetUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str | None = Field(default=None, min_length=1, max_length=150)
-    amount_limit: Decimal | None = Field(default=None, gt=Decimal("0"))
+    amount_limit: Decimal | None = Field(default=None, gt=Decimal("0"), max_digits=19, decimal_places=2)
     currency: Literal["VND"] | None = None
     period_type: BudgetPeriod | None = None
     start_date: date | None = None
     end_date: date | None = None
-    warning_percent: Decimal | None = Field(default=None, gt=Decimal("0"), le=Decimal("100"))
-    is_active: bool | None = None
-    recurrence_end_date: date | None = None
+    warning_percent: Decimal | None = Field(default=None, gt=Decimal("0"), le=Decimal("100"), max_digits=5, decimal_places=2)
     effective_from: Literal["CURRENT", "NEXT"] = "NEXT"
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str | None) -> str | None:
+        if value is not None:
+            value = value.strip()
+            if not value:
+                raise ValueError("Tên ngân sách không được chỉ có khoảng trắng")
+        return validate_utf16_length(value, 150, "Tên ngân sách")
 
 
 class BudgetOut(BaseModel):
@@ -90,5 +108,11 @@ class BudgetProgressOut(BaseModel):
     usage_percent: Decimal
     # SAFE | WARNING | EXCEEDED
     progress_status: str
+    period_days: int
+    elapsed_days: int
+    remaining_days: int
+    active_elapsed_days: int
+    daily_allowance: Decimal | None
+    average_daily_spent: Decimal | None
 
     model_config = {"from_attributes": True}

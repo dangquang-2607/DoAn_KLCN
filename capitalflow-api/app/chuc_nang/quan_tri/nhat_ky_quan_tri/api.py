@@ -1,5 +1,6 @@
 """Admin-only audit search and detail. Credentials are never returned."""
 import json
+import math
 import re
 from datetime import date, datetime, time, timedelta
 from typing import Literal
@@ -13,12 +14,12 @@ from app.dung_chung.http.phu_thuoc import get_db, require_admin
 from app.chuc_nang.quan_tri.nhat_ky_quan_tri.luu_tru.nhat_ky import AuditLog
 from app.chuc_nang.nguoi_dung.dang_nhap.luu_tru.nguoi_dung import User
 
-from app.chuc_nang.quan_tri.dung_chung.tien_ich import _iso_utc
+from app.chuc_nang.quan_tri.dung_chung.tien_ich import _iso_utc, _search_pattern
 
 router = APIRouter()
 GROUPS = {
     "auth": ["auth", "session", "sessions"],
-    "users": ["user", "users", "user_deletion"],
+    "users": ["user", "users"],
     "categories": ["category", "categories"],
     "ocr": ["invoice", "invoices", "ocr_job", "ocr"],
     "email": ["email", "emails", "settings", "smtp"],
@@ -34,7 +35,7 @@ _LIST_FIELDS = (
 _ACTOR_FIELDS = (User.id, User.full_name, User.email)
 
 
-def safe_json(raw: str | None):
+def safe_json(raw: str | None, *, public_category: bool = False):
     """Bound payload size/depth and recursively redact secret-bearing keys."""
     if not raw:
         return None
@@ -42,20 +43,30 @@ def safe_json(raw: str | None):
         return {"note": "Dữ liệu quá lớn để hiển thị"}
     try:
         value = json.loads(raw)
-    except (ValueError, TypeError):
+    except (ValueError, TypeError, RecursionError):
         return {"note": "Không có dữ liệu JSON hợp lệ"}
 
-    def clean(item, depth=0):
+    enums = {"role": {"USER", "ADMIN"}, "type": {"INCOME", "EXPENSE"},
+             "status": {"OPEN", "ESCALATED", "RESOLVED", "FAILED", "PENDING", "PROCESSING"},
+             "issue": {"NO_EMAIL", "LOCKED"}}
+
+    def clean(item, depth=0, key: str | None = None):
         if depth > 5:
             return "[Đã rút gọn]"
         if isinstance(item, dict):
-            return {str(key)[:100]: "[Đã ẩn]" if SENSITIVE_KEY.search(str(key)) else clean(child, depth + 1)
+            return {str(key)[:100]: "[Đã ẩn]" if SENSITIVE_KEY.search(str(key)) else clean(child, depth + 1, str(key))
                     for key, child in list(item.items())[:50]}
         if isinstance(item, list):
             return [clean(child, depth + 1) for child in item[:30]]
         # Free text can carry credentials from request bodies and upstream errors.
         if isinstance(item, str):
+            if key is not None and item in enums.get(key, set()):
+                return item
+            if public_category and depth == 1 and key in {"name", "icon", "color"}:
+                return item[:150]
             return "[Nội dung văn bản đã ẩn]"
+        if isinstance(item, float) and not math.isfinite(item):
+            return None
         return item
 
     return clean(value)
@@ -93,8 +104,8 @@ def audit_logs(
         raise HTTPException(422, "Ngày bắt đầu phải trước ngày kết thúc")
     conditions = []
     if search.strip():
-        term = search.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        match = or_(*(field.ilike(f"%{term}%", escape="\\") for field in
+        term = _search_pattern(search)
+        match = or_(*(field.ilike(term, escape="\\") for field in
                       [AuditLog.action, AuditLog.entity_type, User.full_name, User.email]))
         try:
             identifier = UUID(search.strip())
@@ -104,7 +115,7 @@ def audit_logs(
                 match = or_(match, AuditLog.id == int(search.strip()))
         conditions.append(match)
     if group:
-        routes = {"auth": ["/api/v1/auth/"], "users": ["/api/v1/admin/users", "/api/v1/admin/user-deletions"],
+        routes = {"auth": ["/api/v1/auth/"], "users": ["/api/v1/admin/users"],
                   "categories": ["/api/v1/admin/categories", "/api/v1/categories"],
                   "ocr": ["/api/v1/admin/system/ocr", "/api/v1/invoices"], "email": ["/api/v1/admin/email/"]}
         conditions.append(or_(func.lower(AuditLog.entity_type).in_(GROUPS[group]),
@@ -116,7 +127,7 @@ def audit_logs(
     elif result == "unknown":
         conditions.append(AuditLog.status_code.is_(None))
     # Inputs are Vietnam calendar days; stored timestamps are UTC.
-    if start_date:
+    if start_date and start_date > date.min:
         conditions.append(AuditLog.created_at >= datetime.combine(start_date, time.min) - timedelta(hours=7))
     if end_date:
         conditions.append(AuditLog.created_at < datetime.combine(end_date, time.min) + timedelta(days=1, hours=-7))
@@ -124,11 +135,19 @@ def audit_logs(
     if search.strip():
         count_query = count_query.outerjoin(User, AuditLog.user_id == User.id)
     total = db.scalar(count_query) or 0
-    rows = db.execute(select(AuditLog, User)
-                      .options(load_only(*_LIST_FIELDS, raiseload=True), load_only(*_ACTOR_FIELDS, raiseload=True))
-                      .outerjoin(User, AuditLog.user_id == User.id)
-                      .where(*conditions).order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
-                      .offset((page - 1) * page_size).limit(page_size)).all()
+    page_ids = select(AuditLog.id).where(*conditions)
+    if search.strip():
+        page_ids = page_ids.outerjoin(User, AuditLog.user_id == User.id)
+    page_ids = page_ids.order_by(AuditLog.created_at.desc(), AuditLog.id.desc()).offset(
+        (page - 1) * page_size
+    ).limit(page_size).subquery()
+    rows = db.execute(
+        select(AuditLog, User)
+        .options(load_only(*_LIST_FIELDS, raiseload=True), load_only(*_ACTOR_FIELDS, raiseload=True))
+        .join(page_ids, page_ids.c.id == AuditLog.id)
+        .outerjoin(User, AuditLog.user_id == User.id)
+        .order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
+    ).all()
     return {"items": [serialize(log, actor) for log, actor in rows], "total": total,
             "page": page, "page_size": page_size}
 
@@ -143,5 +162,6 @@ def audit_detail(log_id: int = Path(ge=1), db: Session = Depends(get_db), admin:
     return {**serialize(log, actor), "request_id": str(log.request_id) if log.request_id else None,
             "route": (log.route or "").split("?", 1)[0] or None,
             "ip_address": log.ip_address, "user_agent": log.user_agent,
-            "before": safe_json(log.old_values_json), "after": safe_json(log.new_values_json),
+            "before": safe_json(log.old_values_json, public_category=log.entity_type == "category" and log.action in {"CATEGORY_CREATE", "CATEGORY_UPDATE"}),
+            "after": safe_json(log.new_values_json, public_category=log.entity_type == "category" and log.action in {"CATEGORY_CREATE", "CATEGORY_UPDATE"}),
             "metadata": safe_json(log.metadata_json)}

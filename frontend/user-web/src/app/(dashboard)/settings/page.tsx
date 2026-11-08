@@ -1,19 +1,13 @@
-/**
- * ============================================================================
- * TÊN FILE: page.tsx
- * MÀN HÌNH / PHÂN HỆ: Cài đặt & Bảo mật
- * NHÓM VỆ TINH: app (Route Next.js App Router)
- * MỤC ĐÍCH CỤ THỂ:
- *   Điểm định tuyến cho phân hệ Cài đặt hồ sơ người dùng, đổi mật khẩu và quản lý phiên.
- *   Chuyển tiếp hiển thị sang component trang cài đặt bảo mật.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   Component trang cài đặt từ phân hệ cai-dat-bao-mat.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Default export đại diện cho trang /settings.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Xác thực đa lớp khi thay đổi thông tin xác thực nhạy cảm.
- * ============================================================================
- */
+import { redirect } from "next/navigation";
+import Settings from "@/chuc-nang/cai-dat-bao-mat/page";
+import { checkoutPath, validPaymentId } from "@/chuc-nang/cai-dat-bao-mat/xu-ly/subscription";
 
-// Route Next.js: Cài đặt và bảo mật
-export { default } from "@/chuc-nang/cai-dat-bao-mat/page";
+// Các đơn payOS đã tạo trước khi tách menu vẫn quay lại đường dẫn cũ.
+export default async function SettingsPage({ searchParams }: {
+  searchParams: Promise<{ payment_order?: string | string[] }>;
+}) {
+  const { payment_order: order } = await searchParams;
+  const id = validPaymentId(order);
+  if (id) redirect(checkoutPath(id));
+  return <Settings />;
+}

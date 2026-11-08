@@ -1,25 +1,13 @@
-/**
- * ============================================================================
- * TÊN FILE: page.tsx
- * MÀN HÌNH / PHÂN HỆ: Đăng nhập / Đăng ký
- * NHÓM VỆ TINH: page.tsx (Điều phối)
- * MỤC ĐÍCH CỤ THỂ:
- *   Điều phối dữ liệu, trạng thái và hành vi của màn hình tương ứng.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   TanStack Query, API client, state React và các component vệ tinh của phân hệ.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Xuất page để route hoặc component khác sử dụng.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Không ghi log mật khẩu/token; khóa thao tác khi đang gửi và xử lý phiên hết hạn nhất quán.
- * ============================================================================
- */
 ﻿﻿'use client';
 
 /** Điều phối đăng nhập, đăng ký, khôi phục và đổi mật khẩu lần đầu. */
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence, useMotionValue, useSpring, useTransform, type Variants } from 'framer-motion';
-import api from '@/dung-chung/connect-api/api';
+import Link from 'next/link';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
+import api, { clearSession, saveSession } from '@/dung-chung/connect-api/api';
+import { useQueryClient } from '@tanstack/react-query';
+import { newPasswordError, passwordCharacterCount } from '@/dung-chung/xac-thuc/passwordPolicy';
 import {
   Activity, Shield, Zap, Eye, EyeOff, CheckCircle2,
   AlertCircle, ArrowRight, Lock, Mail, User as UserIcon,
@@ -60,41 +48,49 @@ function FieldError({ msg }: { msg?: string }) {
   );
 }
 
-// ─── Cấu hình hiệu ứng xuất hiện tuần tự cho nội dung biểu mẫu ─────────────────
+// ─── Hiệu ứng chuyển cảnh đồng bộ theo chuyển động trượt 1:1 siêu mượt ─────────
 const formFadeVariants: Variants = {
-  hidden: { opacity: 0, scale: 0.96 },
+  hidden: {
+    opacity: 0,
+    pointerEvents: 'none',
+    transition: {
+      duration: 0.24,
+      ease: [0.65, 0, 0.35, 1],
+    },
+  },
   visible: {
     opacity: 1,
-    scale: 1,
+    pointerEvents: 'auto',
     transition: {
-      duration: 0.28,
-      ease: [0.25, 1, 0.5, 1],
-      staggerChildren: 0.04,
-      delayChildren: 0.1,
+      duration: 0.38,
+      delay: 0.18,
+      ease: [0.65, 0, 0.35, 1],
     },
   },
   exit: {
     opacity: 0,
-    scale: 0.96,
-    transition: { duration: 0.18, ease: 'easeOut' },
+    pointerEvents: 'none',
+    transition: {
+      duration: 0.24,
+      ease: [0.65, 0, 0.35, 1],
+    },
   },
 };
 
 const formItemVariants: Variants = {
-  hidden: { opacity: 0, y: 10 },
+  hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    y: 0,
     transition: {
-      type: 'spring',
-      stiffness: 320,
-      damping: 24,
+      duration: 0.32,
+      ease: [0.65, 0, 0.35, 1],
     },
   },
 };
 
 export default function LoginPage() {
   const router = useRouter();
+  const cache = useQueryClient();
 
   // ── Trạng thái tab: true là đăng nhập, false là đăng ký.
   const [isLogin, setIsLogin] = useState(true);
@@ -154,6 +150,9 @@ export default function LoginPage() {
     const savedFailCount = parseInt(sessionStorage.getItem('user_fail_count') || '0', 10);
     const savedLockUntil = parseInt(sessionStorage.getItem('user_lock_until') || '0', 10);
     queueMicrotask(() => {
+      if (new URLSearchParams(window.location.search).get('reason') === 'invalid-session') {
+        setError('Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại để tiếp tục.');
+      }
       setFailCount(Number.isFinite(savedFailCount) ? savedFailCount : 0);
       setLockUntil(Number.isFinite(savedLockUntil) ? savedLockUntil : 0);
     });
@@ -211,38 +210,13 @@ export default function LoginPage() {
     return () => clearInterval(timer);
   }, [forgotResendCountdown]);
 
-  // ── Hiệu ứng thị sai 3D phản hồi theo vị trí chuột.
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
 
-  const springConfig = { damping: 25, stiffness: 120 };
-  const smoothMouseX = useSpring(mouseX, springConfig);
-  const smoothMouseY = useSpring(mouseY, springConfig);
-
-  const rotateX = useTransform(smoothMouseY, [-300, 300], [3.5, -3.5]);
-  const rotateY = useTransform(smoothMouseX, [-300, 300], [-3.5, 3.5]);
-
-  // Ánh xạ vị trí chuột thành chuyển động thị sai; không liên quan dữ liệu xác thực.
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!window.matchMedia('(min-width: 1024px) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)').matches) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - (rect.left + rect.width / 2);
-    const y = e.clientY - (rect.top + rect.height / 2);
-    mouseX.set(x);
-    mouseY.set(y);
-  };
-
-  // Đưa hiệu ứng thị sai về vị trí cân bằng khi con trỏ rời khung.
-  const handleMouseLeave = () => {
-    mouseX.set(0);
-    mouseY.set(0);
-  };
 
   // ── Tính độ mạnh mật khẩu để phản hồi trước khi gửi.
   const getPasswordStrength = (pass: string) => {
     let score = 0;
-    if (pass.length >= 6) score++;
-    if (pass.length >= 8) score++;
+    if (passwordCharacterCount(pass) >= 6) score++;
+    if (passwordCharacterCount(pass) >= 8) score++;
     if (/[A-Z]/.test(pass)) score++;
     if (/[0-9]/.test(pass)) score++;
     if (/[^A-Za-z0-9]/.test(pass)) score++;
@@ -261,7 +235,7 @@ export default function LoginPage() {
   // ── Xử lý đăng nhập và khởi tạo phiên người dùng.
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (remainingLockSec > 0) return;
+    if (loading || remainingLockSec > 0) return;
 
     let hasErr = false;
     setLoginEmailError('');
@@ -295,13 +269,9 @@ export default function LoginPage() {
       const { access_token, refresh_token, must_change_password } = res.data;
 
       // Lưu token theo lựa chọn duy trì đăng nhập của người dùng.
-      sessionStorage.setItem('user_access_token', access_token);
-      if (refresh_token) sessionStorage.setItem('user_refresh_token', refresh_token);
-      
-      if (loginRemember) {
-        localStorage.setItem('user_access_token', access_token);
-        if (refresh_token) localStorage.setItem('user_refresh_token', refresh_token);
-      }
+      saveSession(access_token, refresh_token, loginRemember);
+      await cache.cancelQueries();
+      cache.clear();
 
       // Tải hồ sơ từ /auth/me để xác định trạng thái thiết lập tài khoản.
       try {
@@ -365,6 +335,7 @@ export default function LoginPage() {
   // ── Xử lý đăng ký tài khoản mới.
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     let hasErr = false;
     setRegNameError('');
     setRegEmailError('');
@@ -375,19 +346,22 @@ export default function LoginPage() {
     if (!registerName.trim()) {
       setRegNameError('Vui lòng nhập họ và tên của bạn');
       hasErr = true;
+    } else if (registerName.normalize('NFC').trim().length > 150) {
+      setRegNameError('Họ và tên vượt quá giới hạn 150 ký tự.');
+      hasErr = true;
     }
     if (!registerEmail.trim()) {
       setRegEmailError('Vui lòng nhập địa chỉ email');
       hasErr = true;
-    } else if (!isValidEmail(registerEmail)) {
+    } else if (!isValidEmail(registerEmail.trim())) {
       setRegEmailError('Email không hợp lệ');
       hasErr = true;
     }
     if (!registerPassword) {
       setRegPassError('Vui lòng tạo mật khẩu');
       hasErr = true;
-    } else if (registerPassword.length < 6) {
-      setRegPassError('Mật khẩu phải có ít nhất 6 ký tự');
+    } else if (newPasswordError(registerPassword)) {
+      setRegPassError(newPasswordError(registerPassword));
       hasErr = true;
     }
     if (registerPassword !== registerConfirm) {
@@ -431,7 +405,8 @@ export default function LoginPage() {
   // ── Gửi OTP cho luồng khôi phục mật khẩu.
   const handleSendForgotOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!forgotEmail.trim() || !isValidEmail(forgotEmail)) {
+    if (forgotLoading) return;
+    if (!forgotEmail.trim() || !isValidEmail(forgotEmail.trim())) {
       setForgotError('Vui lòng nhập địa chỉ email hợp lệ');
       return;
     }
@@ -452,12 +427,13 @@ export default function LoginPage() {
   // ── Xác minh OTP và đặt mật khẩu mới.
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!forgotOtp.trim()) {
+    if (forgotLoading) return;
+    if (!/^\d{6}$/.test(forgotOtp.trim())) {
       setForgotError('Vui lòng nhập mã OTP 6 số');
       return;
     }
-    if (!forgotNewPassword || forgotNewPassword.length < 6) {
-      setForgotError('Mật khẩu mới phải từ 6 ký tự');
+    if (newPasswordError(forgotNewPassword)) {
+      setForgotError(newPasswordError(forgotNewPassword));
       return;
     }
     if (forgotNewPassword !== forgotConfirmPassword) {
@@ -485,8 +461,9 @@ export default function LoginPage() {
   // ── Xử lý thiết lập mật khẩu riêng trong lần đăng nhập đầu.
   const handleFirstTimeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!firstTimePass || firstTimePass.length < 6) {
-      setFirstTimeError('Mật khẩu mới phải có ít nhất 6 ký tự');
+    if (firstTimeLoading) return;
+    if (newPasswordError(firstTimePass)) {
+      setFirstTimeError(newPasswordError(firstTimePass));
       return;
     }
     if (firstTimePass !== firstTimeConfirmPass) {
@@ -497,10 +474,18 @@ export default function LoginPage() {
     setFirstTimeLoading(true);
     setFirstTimeError('');
     try {
-      await api.post('/auth/first-time-password', { new_password: firstTimePass.trim() });
+      await api.post('/auth/first-time-password', { new_password: firstTimePass });
+      clearSession(true, true);
+      await cache.cancelQueries();
+      cache.clear();
       setFirstTimeSuccess(true);
       setTimeout(() => {
-        router.push('/');
+        setShowFirstTimeModal(false);
+        setFirstTimePass('');
+        setFirstTimeConfirmPass('');
+        setFirstTimeSuccess(false);
+        setLoginPassword('');
+        setSuccessToast('Đã thiết lập mật khẩu. Vui lòng đăng nhập lại bằng mật khẩu mới.');
       }, 1000);
     } catch (err: unknown) {
       const detail = apiFailure(err).response?.data?.detail;
@@ -512,14 +497,12 @@ export default function LoginPage() {
 
   return (
     <div
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
       className={`${styles.page} bg-[#F8FAFC] text-slate-800 flex items-center justify-center p-4 sm:p-6 lg:p-10 relative overflow-hidden font-sans selection:bg-blue-600 selection:text-white`}
     >
       {/* ── Nền chuyển sắc động theo phong cách Cobalt sáng. ── */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-[25%] -left-[15%] w-[650px] h-[650px] rounded-full bg-blue-100/70 blur-[130px]" />
-        <div className="absolute -bottom-[25%] -right-[15%] w-[700px] h-[700px] rounded-full bg-indigo-100/60 blur-[140px]" />
+        <div className="absolute -top-[25%] -left-[15%] w-[650px] h-[650px] rounded-full bg-blue-100/60 blur-[130px]" />
+        <div className="absolute -bottom-[25%] -right-[15%] w-[700px] h-[700px] rounded-full bg-slate-200/50 blur-[140px]" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-sky-50/50 blur-[100px]" />
         {/* Họa tiết lưới nền nhẹ. */}
         <div
@@ -538,7 +521,7 @@ export default function LoginPage() {
             initial={{ opacity: 0, y: -20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -20, scale: 0.95 }}
-            className="fixed top-6 z-50 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-xl shadow-emerald-500/20 flex items-center gap-3 border border-emerald-400/30 text-sm font-semibold"
+            className="fixed top-6 z-50 bg-emerald-600 text-white px-5 py-3 rounded-[6px] shadow-xl shadow-emerald-500/20 flex items-center gap-3 border border-emerald-400/30 text-sm font-semibold"
           >
             <CheckCircle2 className="w-5 h-5 text-emerald-100" />
             <span>{successToast}</span>
@@ -546,15 +529,9 @@ export default function LoginPage() {
         )}
       </AnimatePresence>
 
-      {/* ── Khung nổi 3D với bố cục hai phần trượt. ── */}
+      {/* ── Khung cố định chuẩn Swiss 6px, chỉ hai cột bên trong trượt ngang. ── */}
       <motion.div
-        style={{
-          rotateX,
-          rotateY,
-          transformStyle: 'preserve-3d',
-          perspective: 1400,
-        }}
-        className={`${styles.card} ${isLogin ? '' : styles.register} w-full max-w-5xl bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-[32px] shadow-[0_24px_60px_-15px_rgba(30,58,138,0.14),0_10px_30px_-10px_rgba(0,0,0,0.04)] overflow-hidden relative z-10 transition-shadow duration-500 ${
+        className={`${styles.card} ${isLogin ? '' : styles.register} w-full max-w-5xl bg-white border border-slate-200/90 rounded-[6px] shadow-[0_24px_60px_-15px_rgba(15,35,70,0.12),0_10px_30px_-10px_rgba(0,0,0,0.04)] overflow-hidden relative z-10 transition-shadow duration-500 ${
           isShake ? 'animate-shake' : ''
         }`}
       >
@@ -564,110 +541,112 @@ export default function LoginPage() {
               KHỐI 1: Giới thiệu sản phẩm (trượt trái/phải từ 0% đến 140%)
               ══════════════════════════════════════════════════════════════════════ */}
           <div
-            className={`${styles.showcase} hidden lg:flex lg:w-5/12 bg-gradient-to-br from-blue-600 via-indigo-600 to-slate-900 p-10 flex-col justify-between relative overflow-hidden text-white z-20 shadow-2xl`}
+            className={`${styles.showcase} hidden lg:flex lg:w-5/12 bg-gradient-to-br from-[#0f2347] via-[#16335f] to-[#0a1832] p-10 flex-col justify-between relative overflow-hidden text-white z-20 shadow-2xl`}
           >
-            {/* Quầng sáng nền và điểm nhấn hiệu ứng kính. */}
-            <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-72 h-72 bg-blue-400/20 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3 pointer-events-none" />
+            {/* Quầng sáng nền dịu mắt, hòa sắc tự nhiên không gắt chói */}
+            <div className="absolute top-0 right-0 w-80 h-80 bg-sky-400/[0.08] rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-72 h-72 bg-blue-500/[0.08] rounded-full blur-2xl translate-y-1/3 -translate-x-1/3 pointer-events-none" />
             
             {/* Đầu trang và nhận diện thương hiệu. */}
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-8">
-                <div className="w-11 h-11 rounded-2xl bg-white/15 backdrop-blur-md border border-white/25 flex items-center justify-center shadow-lg shadow-black/10">
-                  <Activity className="w-6 h-6 text-white" />
+                <div className="w-11 h-11 rounded-[6px] bg-white/[0.08] border border-white/15 flex items-center justify-center shadow-sm">
+                  <Activity className="w-6 h-6 text-sky-400" />
                 </div>
                 <div>
                   <span className="font-extrabold text-2xl tracking-tight text-white flex items-center gap-1.5">
                     CapitalFlow
-                    <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-white/20 border border-white/30 text-blue-100">
+                    <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-sky-500/15 border border-sky-400/25 text-sky-200">
                       AI 3D
                     </span>
                   </span>
-                  <p className="text-xs text-blue-100/80 font-medium">Hệ sinh thái quản trị tài chính đa kênh</p>
+                  <p className="text-xs text-slate-300 font-medium">Hệ sinh thái quản trị tài chính đa kênh</p>
                 </div>
               </div>
 
-              {/* Chuyển đổi nội dung động bằng AnimatePresence. */}
-              <AnimatePresence mode="wait">
+              {/* Chuyển đổi nội dung động bằng AnimatePresence mượt mà. */}
+              <div className="grid">
+              <AnimatePresence initial={false}>
                 {isLogin ? (
                   <motion.div
                     key="showcase-login"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    transition={{ duration: 0.28 }}
-                    className="space-y-4"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.35, delay: 0.18, ease: [0.65, 0, 0.35, 1] }}
+                    className="space-y-4 [grid-area:1/1]"
                   >
-                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/15 border border-white/25 text-xs font-semibold text-blue-100 backdrop-blur-md shadow-sm">
+                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.08] border border-white/15 text-xs font-semibold text-slate-200 shadow-sm">
                       <Sparkles className="w-3.5 h-3.5 text-amber-300" />
                       <span>Chào mừng quay trở lại</span>
                     </div>
                     <h2 className="text-3xl font-extrabold text-white tracking-tight leading-snug">
                       Nắm bắt dòng tiền, <br />
-                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-200 via-sky-100 to-white">
+                      <span className="text-sky-300">
                         Kiến tạo tương lai.
                       </span>
                     </h2>
-                    <p className="text-sm text-blue-100/85 leading-relaxed">
+                    <p className="text-sm text-slate-300/90 leading-relaxed">
                       Theo dõi chi tiêu thời gian thực, quét hóa đơn bằng AI OCR và nhận báo cáo ngân sách tự động chỉ với 1 cú click.
                     </p>
                   </motion.div>
                 ) : (
                   <motion.div
                     key="showcase-register"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    transition={{ duration: 0.28 }}
-                    className="space-y-4"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.35, delay: 0.18, ease: [0.65, 0, 0.35, 1] }}
+                    className="space-y-4 [grid-area:1/1]"
                   >
-                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-400/20 border border-emerald-300/30 text-xs font-semibold text-emerald-200 backdrop-blur-md shadow-sm">
+                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-400/15 border border-emerald-300/25 text-xs font-semibold text-emerald-300 shadow-sm">
                       <Zap className="w-3.5 h-3.5 text-emerald-300" />
                       <span>Miễn phí 100% trải nghiệm</span>
                     </div>
                     <h2 className="text-3xl font-extrabold text-white tracking-tight leading-snug">
                       Khởi đầu tự do tài chính, <br />
-                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-200 via-teal-100 to-white">
+                      <span className="text-emerald-300">
                         Thông minh & An toàn.
                       </span>
                     </h2>
-                    <p className="text-sm text-blue-100/85 leading-relaxed">
+                    <p className="text-sm text-slate-300/90 leading-relaxed">
                       Thiết lập tài khoản trong 30 giây để kích hoạt AI phân tích danh mục, quản lý đa ví và bảo mật dữ liệu chuẩn ngân hàng.
                     </p>
                   </motion.div>
                 )}
               </AnimatePresence>
+              </div>
             </div>
 
-            {/* Nhãn tính năng nổi 3D. */}
-            <div className="relative z-10 my-6">
-              <AnimatePresence mode="wait">
+            {/* Khối tính năng nổi bật. */}
+            <div className="relative z-10 my-6 grid">
+              <AnimatePresence initial={false}>
                 {isLogin ? (
                   <motion.div
                     key="badge-login"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ duration: 0.28 }}
-                    className="bg-white/10 backdrop-blur-xl border border-white/20 p-4 rounded-2xl space-y-3 shadow-xl"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.35, delay: 0.18, ease: [0.65, 0, 0.35, 1] }}
+                    className="[grid-area:1/1] bg-white/[0.06] border border-white/10 p-4 rounded-[6px] space-y-3 shadow-sm"
                   >
-                    <div className="flex items-center justify-between text-xs text-blue-100">
+                    <div className="flex items-center justify-between text-xs text-slate-100">
                       <span className="font-semibold flex items-center gap-1.5">
-                        <TrendingUp className="w-4 h-4 text-emerald-300" /> Hiệu suất ngân sách
+                        <TrendingUp className="w-4 h-4 text-emerald-400" /> Hiệu suất ngân sách
                       </span>
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-bold">
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/20 text-emerald-300 text-[11px] font-bold">
                         +24.8% Tiết kiệm
                       </span>
                     </div>
-                    <div className="w-full bg-white/15 h-2 rounded-full overflow-hidden">
+                    <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: '76%' }}
-                        transition={{ duration: 1, ease: 'easeOut' }}
+                        transition={{ duration: 0.72, ease: [0.65, 0, 0.35, 1] }}
                         className="bg-gradient-to-r from-sky-400 to-emerald-400 h-full rounded-full"
                       />
                     </div>
-                    <div className="flex items-center justify-between text-[11px] text-blue-200/80 pt-1">
+                    <div className="flex items-center justify-between text-[11px] text-slate-300/80 pt-1">
                       <span>OCR Hóa đơn AI: Hoạt động</span>
                       <span>Bảo mật 2 lớp: Bật</span>
                     </div>
@@ -675,26 +654,26 @@ export default function LoginPage() {
                 ) : (
                   <motion.div
                     key="badge-register"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ duration: 0.28 }}
-                    className="bg-white/10 backdrop-blur-xl border border-white/20 p-4 rounded-2xl space-y-3 shadow-xl"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.35, delay: 0.18, ease: [0.65, 0, 0.35, 1] }}
+                    className="[grid-area:1/1] bg-white/[0.06] border border-white/10 p-4 rounded-[6px] space-y-3 shadow-sm"
                   >
-                    <div className="flex items-center justify-between text-xs text-blue-100">
+                    <div className="flex items-center justify-between text-xs text-slate-100">
                       <span className="font-semibold flex items-center gap-1.5">
-                        <ShieldCheck className="w-4 h-4 text-sky-300" /> Đặc quyền thành viên
+                        <ShieldCheck className="w-4 h-4 text-sky-400" /> Đặc quyền thành viên
                       </span>
-                      <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-sky-200 text-[11px] font-bold">
+                      <span className="px-2 py-0.5 rounded-full bg-sky-500/15 border border-sky-400/20 text-sky-200 text-[11px] font-bold">
                         Trọn đời
                       </span>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-[11px] text-blue-100/90 pt-1">
-                      <div className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1.5 rounded-lg">
-                        <Check className="w-3.5 h-3.5 text-emerald-300" /> Không giới hạn ví
+                    <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-200 pt-1">
+                      <div className="flex items-center gap-1.5 bg-white/[0.06] border border-white/10 px-2.5 py-1.5 rounded-[6px]">
+                        <Check className="w-3.5 h-3.5 text-emerald-400" /> Không giới hạn ví
                       </div>
-                      <div className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1.5 rounded-lg">
-                        <Check className="w-3.5 h-3.5 text-emerald-300" /> Quét ảnh tự động
+                      <div className="flex items-center gap-1.5 bg-white/[0.06] border border-white/10 px-2.5 py-1.5 rounded-[6px]">
+                        <Check className="w-3.5 h-3.5 text-emerald-400" /> Quét ảnh tự động
                       </div>
                     </div>
                   </motion.div>
@@ -703,12 +682,12 @@ export default function LoginPage() {
             </div>
 
             {/* Các dấu hiệu tin cậy ở chân khối giới thiệu. */}
-            <div className="relative z-10 pt-4 border-t border-white/15 flex items-center justify-between text-[11px] text-blue-100/70 font-medium">
+            <div className="relative z-10 pt-4 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-300/80 font-medium">
               <span className="flex items-center gap-1.5">
-                <Shield className="w-3.5 h-3.5 text-emerald-300" /> Mã hóa AES-256
+                <Shield className="w-3.5 h-3.5 text-emerald-400" /> Mã hóa AES-256
               </span>
               <span className="flex items-center gap-1.5">
-                <Landmark className="w-3.5 h-3.5 text-sky-300" /> Liên kết ngân hàng demo
+                <Landmark className="w-3.5 h-3.5 text-sky-400" /> Liên kết ngân hàng
               </span>
             </div>
           </div>
@@ -722,42 +701,34 @@ export default function LoginPage() {
             
             {/* ── Bộ chuyển tab phân đoạn nổi phía trên. ── */}
             <div className="flex items-center justify-between gap-3 mb-6 sm:mb-8">
-              {/* Điều khiển phân đoạn với nền chỉ báo chuyển động. */}
-              <div className="relative p-1 bg-slate-100/90 border border-slate-200/80 rounded-2xl flex items-center shadow-inner max-w-xs w-full">
+              {/* Điều khiển phân đoạn với nền chỉ báo chuyển động mượt mà 500ms. */}
+              <div className="relative p-1 bg-slate-100/90 border border-slate-200/80 rounded-[6px] flex items-center shadow-inner max-w-xs w-full">
+                {/* Thanh trượt CSS mượt mà không gây reflow layout */}
+                <div
+                  className={`absolute left-1 top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-[6px] shadow-[0_2px_8px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] border border-slate-200/60 z-0 transition-transform duration-500 ease-[cubic-bezier(0.65,0,0.35,1)] ${
+                    isLogin ? 'translate-x-0' : 'translate-x-[calc(100%+8px)]'
+                  }`}
+                />
                 <button
                   type="button"
                   onClick={() => switchTab(true)}
-                  className={`relative flex-1 py-2.5 rounded-xl text-xs font-bold transition-colors duration-200 flex items-center justify-center gap-1.5 z-10 ${
+                  className={`relative flex-1 py-2.5 rounded-[6px] text-xs font-bold transition-colors duration-300 flex items-center justify-center gap-1.5 z-10 ${
                     isLogin ? 'text-blue-700' : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
                   <LogIn className="w-3.5 h-3.5" />
                   <span>Đăng Nhập</span>
-                  {isLogin && (
-                    <motion.div
-                      layoutId="activeTabIndicatorA"
-                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                      className="absolute inset-0 bg-white rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] border border-slate-200/60 -z-10"
-                    />
-                  )}
                 </button>
 
                 <button
                   type="button"
                   onClick={() => switchTab(false)}
-                  className={`relative flex-1 py-2.5 rounded-xl text-xs font-bold transition-colors duration-200 flex items-center justify-center gap-1.5 z-10 ${
+                  className={`relative flex-1 py-2.5 rounded-[6px] text-xs font-bold transition-colors duration-300 flex items-center justify-center gap-1.5 z-10 ${
                     !isLogin ? 'text-blue-700' : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
                   <UserPlus className="w-3.5 h-3.5" />
                   <span>Đăng Ký</span>
-                  {!isLogin && (
-                    <motion.div
-                      layoutId="activeTabIndicatorA"
-                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                      className="absolute inset-0 bg-white rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.06),0_1px_2px_rgba(0,0,0,0.04)] border border-slate-200/60 -z-10"
-                    />
-                  )}
                 </button>
               </div>
 
@@ -775,7 +746,7 @@ export default function LoginPage() {
                   initial={{ opacity: 0, y: -10, scale: 0.98 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -10, scale: 0.98 }}
-                  className="mb-6 p-4 rounded-2xl bg-rose-50 border border-rose-200/80 text-rose-700 text-xs sm:text-sm font-medium flex items-start gap-3 shadow-sm"
+                  className="mb-6 p-4 rounded-[6px] bg-rose-50 border border-rose-200/80 text-rose-700 text-xs sm:text-sm font-medium flex items-start gap-3 shadow-sm"
                 >
                   <AlertCircle className="w-5 h-5 flex-shrink-0 text-rose-600 mt-0.5" />
                   <div className="flex-1">
@@ -792,19 +763,18 @@ export default function LoginPage() {
               )}
             </AnimatePresence>
 
-            {/* ── Hoán đổi biểu mẫu bằng chuyển động lò xo. ── */}
-            <div className="relative min-h-[400px]">
-              <AnimatePresence mode="wait">
-                {isLogin ? (
-                  /* ── BIỂU MẪU ĐĂNG NHẬP ────────────────────────────────── */
+            {/* Hai form cùng ô lưới để giữ bố cục khi chuyển cảnh. */}
+            <div className="relative grid min-h-[460px]">
+              {/* Hai form luôn giữ chỗ; form ẩn không nhận focus hay thao tác. */}
                   <motion.form
                     key="form-login-option-a"
                     variants={formFadeVariants}
-                    initial="hidden"
-                    animate="visible"
-                    exit="exit"
+                    initial={false}
+                    animate={isLogin ? "visible" : "hidden"}
+                    inert={!isLogin}
+                    aria-hidden={!isLogin}
                     onSubmit={handleLogin}
-                    className="space-y-5"
+                    className="space-y-5 [grid-area:1/1] self-center"
                   >
                     <motion.div variants={formItemVariants}>
                       <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
@@ -824,7 +794,8 @@ export default function LoginPage() {
                         <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
                           <Mail className="w-4 h-4" />
                         </div>
-                        <input
+                        {/* Chrome iOS adds autofill attributes such as __gcruniqueid before hydration. */}
+                        <input suppressHydrationWarning
                           type="email"
                           aria-label="Email"
                           autoComplete="username"
@@ -835,7 +806,7 @@ export default function LoginPage() {
                           }}
                           placeholder="name@gmail.com"
                           disabled={loading || remainingLockSec > 0}
-                          className={`w-full pl-10 pr-4 py-3 bg-slate-50/70 hover:bg-slate-50 focus:bg-white text-slate-900 text-sm font-medium rounded-xl border transition-all duration-200 outline-none shadow-sm ${
+                          className={`w-full pl-10 pr-4 py-3 bg-slate-50/70 hover:bg-slate-50 focus:bg-white text-slate-900 text-sm font-medium rounded-[6px] border transition-all duration-200 outline-none shadow-sm ${
                             loginEmailError
                               ? 'border-rose-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10'
                               : 'border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10'
@@ -868,8 +839,9 @@ export default function LoginPage() {
                         <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
                           <Lock className="w-4 h-4" />
                         </div>
-                        <input
+                        <input suppressHydrationWarning
                           type={showLoginPass ? 'text' : 'password'}
+                          aria-label="Mật khẩu đăng nhập"
                           value={loginPassword}
                           onChange={(e) => {
                             setLoginPassword(e.target.value);
@@ -877,7 +849,7 @@ export default function LoginPage() {
                           }}
                           placeholder="••••••••"
                           disabled={loading || remainingLockSec > 0}
-                          className={`w-full pl-10 pr-11 py-3 bg-slate-50/70 hover:bg-slate-50 focus:bg-white text-slate-900 text-sm font-medium rounded-xl border transition-all duration-200 outline-none shadow-sm ${
+                          className={`w-full pl-10 pr-11 py-3 bg-slate-50/70 hover:bg-slate-50 focus:bg-white text-slate-900 text-sm font-medium rounded-[6px] border transition-all duration-200 outline-none shadow-sm ${
                             loginPassError
                               ? 'border-rose-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10'
                               : 'border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10'
@@ -886,6 +858,8 @@ export default function LoginPage() {
                         <button
                           type="button"
                           onClick={() => setShowLoginPass(!showLoginPass)}
+                          aria-label={showLoginPass ? 'Ẩn mật khẩu đăng nhập' : 'Hiện mật khẩu đăng nhập'}
+                          aria-pressed={showLoginPass}
                           className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
                         >
                           {showLoginPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -897,7 +871,7 @@ export default function LoginPage() {
                     {/* Tùy chọn ghi nhớ và tự động duy trì phiên. */}
                     <motion.div variants={formItemVariants} className="flex items-center justify-between pt-1">
                       <label className="flex items-center gap-2 cursor-pointer select-none">
-                        <input
+                        <input suppressHydrationWarning
                           type="checkbox"
                           checked={loginRemember}
                           onChange={(e) => setLoginRemember(e.target.checked)}
@@ -914,7 +888,7 @@ export default function LoginPage() {
                         whileTap={{ scale: 0.98 }}
                         type="submit"
                         disabled={loading || remainingLockSec > 0}
-                        className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-700 text-white text-sm font-bold shadow-lg shadow-blue-600/20 hover:shadow-xl hover:shadow-blue-600/30 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
+                        className="w-full py-3.5 px-6 rounded-[6px] bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-700 text-white text-sm font-bold shadow-lg shadow-blue-600/20 hover:shadow-xl hover:shadow-blue-600/30 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
                       >
                         {loading ? (
                           <>
@@ -947,18 +921,21 @@ export default function LoginPage() {
                           Đăng ký miễn phí ngay
                         </button>
                       </p>
+                      <Link href="/account-support" className="mt-2 inline-block text-xs font-semibold text-blue-600 hover:underline">
+                        Cần hỗ trợ đăng nhập?
+                      </Link>
                     </motion.div>
                   </motion.form>
-                ) : (
-                  /* ── BIỂU MẪU ĐĂNG KÝ ──────────────────────────────────── */
+              {/* BIỂU MẪU ĐĂNG KÝ */}
                   <motion.form
                     key="form-register-option-a"
                     variants={formFadeVariants}
-                    initial="hidden"
-                    animate="visible"
-                    exit="exit"
+                    initial={false}
+                    animate={isLogin ? "hidden" : "visible"}
+                    inert={isLogin}
+                    aria-hidden={isLogin}
                     onSubmit={handleRegister}
-                    className="space-y-4"
+                    className="space-y-4 [grid-area:1/1] self-center"
                   >
                     <motion.div variants={formItemVariants}>
                       <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
@@ -978,7 +955,7 @@ export default function LoginPage() {
                         <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
                           <UserIcon className="w-4 h-4" />
                         </div>
-                        <input
+                        <input suppressHydrationWarning
                           type="text"
                           value={registerName}
                           onChange={(e) => {
@@ -987,7 +964,7 @@ export default function LoginPage() {
                           }}
                           placeholder="Nguyễn Văn A"
                           disabled={loading}
-                          className={`w-full pl-10 pr-4 py-2.5 bg-slate-50/70 hover:bg-slate-50 focus:bg-white text-slate-900 text-sm font-medium rounded-xl border transition-all duration-200 outline-none shadow-sm ${
+                          className={`w-full pl-10 pr-4 py-2.5 bg-slate-50/70 hover:bg-slate-50 focus:bg-white text-slate-900 text-sm font-medium rounded-[6px] border transition-all duration-200 outline-none shadow-sm ${
                             regNameError
                               ? 'border-rose-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10'
                               : 'border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10'
@@ -1006,7 +983,7 @@ export default function LoginPage() {
                         <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
                           <Mail className="w-4 h-4" />
                         </div>
-                        <input
+                        <input suppressHydrationWarning
                           type="email"
                           value={registerEmail}
                           onChange={(e) => {
@@ -1015,7 +992,7 @@ export default function LoginPage() {
                           }}
                           placeholder="name@gmail.com"
                           disabled={loading}
-                          className={`w-full pl-10 pr-4 py-2.5 bg-slate-50/70 hover:bg-slate-50 focus:bg-white text-slate-900 text-sm font-medium rounded-xl border transition-all duration-200 outline-none shadow-sm ${
+                          className={`w-full pl-10 pr-4 py-2.5 bg-slate-50/70 hover:bg-slate-50 focus:bg-white text-slate-900 text-sm font-medium rounded-[6px] border transition-all duration-200 outline-none shadow-sm ${
                             regEmailError
                               ? 'border-rose-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10'
                               : 'border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10'
@@ -1036,8 +1013,9 @@ export default function LoginPage() {
                           <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
                             <Lock className="w-4 h-4" />
                           </div>
-                          <input
+                          <input suppressHydrationWarning
                             type={showRegisterPass ? 'text' : 'password'}
+                            aria-label="Mật khẩu đăng ký"
                             value={registerPassword}
                             onChange={(e) => {
                               setRegisterPassword(e.target.value);
@@ -1045,7 +1023,7 @@ export default function LoginPage() {
                             }}
                             placeholder="Ít nhất 6 ký tự"
                             disabled={loading}
-                            className={`w-full pl-10 pr-10 py-2.5 bg-slate-50/70 hover:bg-slate-50 focus:bg-white text-slate-900 text-sm font-medium rounded-xl border transition-all duration-200 outline-none shadow-sm ${
+                            className={`w-full pl-10 pr-10 py-2.5 bg-slate-50/70 hover:bg-slate-50 focus:bg-white text-slate-900 text-sm font-medium rounded-[6px] border transition-all duration-200 outline-none shadow-sm ${
                               regPassError
                                 ? 'border-rose-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10'
                               : 'border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10'
@@ -1054,6 +1032,8 @@ export default function LoginPage() {
                           <button
                             type="button"
                             onClick={() => setShowRegisterPass(!showRegisterPass)}
+                            aria-label={showRegisterPass ? 'Ẩn mật khẩu đăng ký' : 'Hiện mật khẩu đăng ký'}
+                            aria-pressed={showRegisterPass}
                             className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
                           >
                             {showRegisterPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -1071,8 +1051,9 @@ export default function LoginPage() {
                           <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
                             <Lock className="w-4 h-4" />
                           </div>
-                          <input
+                          <input suppressHydrationWarning
                             type={showRegisterConfirm ? 'text' : 'password'}
+                            aria-label="Xác nhận mật khẩu đăng ký"
                             value={registerConfirm}
                             onChange={(e) => {
                               setRegisterConfirm(e.target.value);
@@ -1080,7 +1061,7 @@ export default function LoginPage() {
                             }}
                             placeholder="Nhập lại mật khẩu"
                             disabled={loading}
-                            className={`w-full pl-10 pr-10 py-2.5 bg-slate-50/70 hover:bg-slate-50 focus:bg-white text-slate-900 text-sm font-medium rounded-xl border transition-all duration-200 outline-none shadow-sm ${
+                            className={`w-full pl-10 pr-10 py-2.5 bg-slate-50/70 hover:bg-slate-50 focus:bg-white text-slate-900 text-sm font-medium rounded-[6px] border transition-all duration-200 outline-none shadow-sm ${
                               regConfirmError
                                 ? 'border-rose-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10'
                                 : 'border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10'
@@ -1089,6 +1070,8 @@ export default function LoginPage() {
                           <button
                             type="button"
                             onClick={() => setShowRegisterConfirm(!showRegisterConfirm)}
+                            aria-label={showRegisterConfirm ? 'Ẩn xác nhận mật khẩu' : 'Hiện xác nhận mật khẩu'}
+                            aria-pressed={showRegisterConfirm}
                             className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
                           >
                             {showRegisterConfirm ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -1129,7 +1112,7 @@ export default function LoginPage() {
                     {/* Xác nhận đồng ý điều khoản sử dụng. */}
                     <motion.div variants={formItemVariants} className="pt-1">
                       <label className="flex items-start gap-2.5 cursor-pointer select-none">
-                        <input
+                        <input suppressHydrationWarning
                           type="checkbox"
                           checked={agreeTerms}
                           onChange={(e) => setAgreeTerms(e.target.checked)}
@@ -1155,7 +1138,7 @@ export default function LoginPage() {
                         whileTap={{ scale: 0.98 }}
                         type="submit"
                         disabled={loading}
-                        className="w-full py-3 px-6 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-700 text-white text-sm font-bold shadow-lg shadow-blue-600/20 hover:shadow-xl hover:shadow-blue-600/30 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
+                        className="w-full py-3 px-6 rounded-[6px] bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-700 text-white text-sm font-bold shadow-lg shadow-blue-600/20 hover:shadow-xl hover:shadow-blue-600/30 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
                       >
                         {loading ? (
                           <>
@@ -1185,8 +1168,6 @@ export default function LoginPage() {
                       </p>
                     </motion.div>
                   </motion.form>
-                )}
-              </AnimatePresence>
             </div>
           </div>
         </div>

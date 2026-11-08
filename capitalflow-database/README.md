@@ -28,22 +28,42 @@ bản schema sau khi giai đoạn chuyển đổi hoàn tất.
 
 ## Lệnh vận hành
 
-Đợt dọn có giới hạn ngày 27/10/2026 đã nâng database chính lên
-`cfdb_legacy_cleanup`. Chạy `tools/apply_review_cleanup.py` để kiểm tra chỉ đọc;
-thêm `--apply` mới tạo/xác minh backup, diễn tập rollback và áp dụng. Công cụ
-chỉ bỏ bảng liên kết theo ví cũ khi rỗng, dọn token thuộc family hết hạn toàn bộ
-không còn token con được giữ lại tham chiếu, và OTP hết hạn đã quá cửa sổ giới
-hạn yêu cầu 60 giây. Không tự chạy khi API/worker khởi động và không tự lập lịch.
+QR thanh toán trong CapitalFlow dùng revision hiện tại `cfdb_premium_checkout`,
+sau `cfdb_premium_billing`. `tools/apply_premium_checkout.py` mặc định chỉ đọc
+preflight; `--apply` backup/VERIFYONLY, diễn tập rollback, nâng và đối soát dữ
+liệu/chỉ mục hiện có. Database local đã nâng ngày 08/11/2026. Chỉ thêm một cột
+nullable giữ QR payOS, không tạo đơn thanh toán; downgrade chặn khi cột có dữ liệu.
 
-Cờ `--resume-failed-purge` chỉ dành cho yêu cầu ImportError đã được rà soát,
-yêu cầu đúng một user PURGE_PENDING không có ví/dữ liệu tài chính/tệp. Yêu cầu
-này đã hoàn tất; không dùng lại cờ trên trạng thái hiện tại. Công cụ sử dụng dịch
-vụ purge trong transaction, không phát thư hoặc chạy tác vụ ngoài phạm vi.
+Free/Premium dùng revision `cfdb_premium_billing`, sau `cfdb_support_requests`.
+`tools/apply_premium_billing.py` mặc định diễn tập nâng/hạ và rollback; `--apply`
+xác minh backup rồi nâng và đối chiếu mọi dữ liệu hiện có. Database local đã
+nâng ngày 08/11/2026, không chạy lại công cụ trên revision mới. Ba bảng mới không
+thay đổi cấu trúc hoặc dữ liệu người dùng/tài chính cũ. Không hạ migration khi
+đã có giao dịch hoặc lượt sử dụng; đường downgrade có kiểm tra chặn mất dữ liệu.
 
-Giữ nguyên accounts, thông báo/ngân sách lịch sử, log, khóa chống gửi lặp,
-3 view cũ và bộ sơ đồ SSMS. Downgrade `cfdb_legacy_cleanup` chỉ khôi phục bảng
-cũ rỗng; khôi phục dữ liệu đã xóa phải dựa vào backup đã VERIFYONLY.
-Xem [kết quả triển khai và backup](CURRENT_SCHEMA.md).
+Yêu cầu hỗ trợ qua form dùng revision `cfdb_support_requests`, sau
+`cfdb_reporting_cover`. `tools/apply_support_requests.py` diễn tập nâng schema
+và rollback; `--apply` xác minh backup rồi nâng và đối chiếu dữ liệu hiện có.
+Database local đã nâng ngày 08/11/2026, không chạy lại công cụ trên revision mới.
+Khi triển khai mã mới, API cần bảng `support_requests` và worker cần tải lại để
+nhận tác vụ `send_support_reply`. Email dùng cấu hình SMTP hiện hành, kết quả
+xem tại Nhật ký email với loại Phản hồi hỗ trợ. Kiểm tra luồng bằng
+`capitalflow-api/tools/verify_support_requests.py` dùng dữ liệu trong bộ nhớ và
+SMTP mô phỏng, không gửi email thật.
+
+Gỡ vòng đời xóa/khôi phục người dùng: migration `cfdb_retire_user_deletion`,
+sau `cfdb_support_two_cases`. `tools/retire_user_deletion.py` mặc định chỉ đọc;
+`--apply` tạo backup COPY_ONLY/CHECKSUM, chạy VERIFYONLY, diễn tập rollback rồi
+mới áp dụng. Công cụ chặn nếu còn tài khoản/yêu cầu/tác vụ xóa chưa giải quyết,
+đối chiếu mọi dòng được giữ lại trước khi commit. Phạm vi gồm hai bảng lịch sử,
+sáu cột vòng đời cũ và bản ghi email/job/nhật ký của riêng chức năng đã bỏ.
+Không xóa người dùng, ví, giao dịch hoặc hóa đơn. Khôi phục phần đã dọn dùng
+bản backup đã xác minh; downgrade không dựng lại dữ liệu giả.
+
+Công cụ một lần `apply_review_cleanup.py` và runner xóa người dùng trước
+baseline đã được gỡ. Những migration Alembic đã áp dụng vẫn được giữ để nâng
+cấp database cũ đúng thứ tự; chúng không đăng ký chức năng xóa người dùng vào API.
+Xem [trạng thái schema và kết quả đối soát](CURRENT_SCHEMA.md).
 
 Chỉ dùng email (sau `cfdb_phone_verify`): chạy `tools/apply_email_only.py --apply`
 để backup, diễn tập và bỏ dữ liệu điện thoại mà giữ nguyên người dùng/tài chính.
@@ -119,7 +139,8 @@ schema hoặc khôi phục từ bản sao lưu đã kiểm chứng.
 
 Revision `cfdb_recurring_budgets` giữ nguyên các ngân sách có khoảng ngày cố
 định, bổ sung cấu hình tuần/tháng/năm lặp tự động và lịch thay đổi hạn mức,
-ngưỡng, tạm dừng/tiếp tục theo ngày hiệu lực. Tiến độ và lịch sử kỳ được tính
+ngưỡng theo ngày hiệu lực. Các mốc tạm dừng/tiếp tục và ngày dừng lặp đã lưu
+được giữ để đọc dữ liệu cũ. Tiến độ và lịch sử kỳ được tính
 từ giao dịch; không cần job tạo thêm ngân sách mỗi tháng. Migration đã được kiểm
 chứng trên SQL Server tạm; nâng database chính với backup và đối chiếu bằng
 `tools/apply_recurring_budgets.py`. Database chính đã

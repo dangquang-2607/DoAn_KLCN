@@ -53,21 +53,10 @@ def diagnose():
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
             stage = "schema"
-            versions = set(connection.scalars(text("SELECT version FROM dbo.schema_migrations")))
-            required = {
-                "20260910_financial_integrity",
-                "20260910_resilience",
-                "20260914_user_deletion",
-                "20260915_invoice_review_fields",
-                "20260916_category_management",
-                "20260917_auto_category_classification",
-                "20260918_database_cleanup",
-                "20260918_remove_unused_columns",
-                "20260918_worker_lane_index",
-            }
-            if not required.issubset(versions):
+            revision = connection.scalar(text("SELECT version_num FROM dbo.alembic_version"))
+            if revision != "cfdb_retire_user_deletion":
                 return {"ready": False, "stage": stage, "code": "MIGRATIONS_MISSING"}
-            for table in ("users", "accounts", "transactions", "invoices", "background_jobs", "idempotency_records", "user_deletion_requests", "user_deletion_files"):
+            for table in ("users", "accounts", "transactions", "invoices", "background_jobs", "idempotency_records"):
                 # Identifier lấy từ allowlist nội bộ cố định, không bao giờ lấy từ input người dùng.
                 connection.exec_driver_sql("SELECT TOP (0) * FROM dbo." + table)
         stage = "upload_storage"

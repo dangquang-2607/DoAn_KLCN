@@ -32,6 +32,22 @@ def check_revision(invoice, expected, *, required=False):
                  revision=invoice.revision)
 
 
+def require_complete_invoice(invoice):
+    missing = []
+    if not (invoice.merchant_name or "").strip():
+        missing.append("merchant_name")
+    if invoice.invoice_date is None:
+        missing.append("invoice_date")
+    if invoice.total_amount is None or invoice.total_amount <= 0:
+        missing.append("total_amount")
+    if missing:
+        raise HTTPException(422, detail={
+            "code": "INVOICE_INCOMPLETE",
+            "message": "Bổ sung cửa hàng, ngày hóa đơn và tổng tiền dương trước khi ghi sổ.",
+            "missing_fields": missing,
+        })
+
+
 def record_event(db, invoice, action, **details):
     db.add(InvoiceEvent(user_id=invoice.user_id, invoice_id=invoice.id, action=action,
                         revision=invoice.revision or 1,

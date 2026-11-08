@@ -61,6 +61,8 @@ def purge_expired_invoices(sessions, *, instant=None, limit=100, user_id=None):
 def purge_invoice(db: Session, invoice: Invoice) -> None:
     """Gỡ quan hệ con, enqueue xóa file rồi đánh dấu xóa bản ghi hóa đơn."""
 
+    from .posting_evidence import preserve_posting_evidence
+    preserve_posting_evidence(db, invoice)
     db.execute(
         update(Transaction)
         .where(Transaction.invoice_id == invoice.id)
@@ -85,9 +87,17 @@ def safe_delete_invoice(db: Session, invoice: Invoice) -> None:
     """Move to trash for 30 days, retaining source file and posted transaction."""
     if invoice.deleted_at:
         return
-    invoice.deleted_at = utc_now()
+    instant = utc_now()
+    invoice.deleted_at = instant
     invoice.revision += 1
     if invoice.status == "PROCESSING":
         invoice.status = "FAILED"
-    db.execute(delete(OcrJob).where(OcrJob.invoice_id == invoice.id))
+    # Keep completed/failed measurements while the receipt is recoverable.
+    # Cancel active work so restoring the receipt cannot revive an old result.
+    db.execute(update(OcrJob).where(
+        OcrJob.invoice_id == invoice.id,
+        OcrJob.status.in_({"QUEUED", "PROCESSING"}),
+    ).values(status="CANCELLED", completed_at=instant, processing_ms=None,
+             progress_percent=100, error_code="INVOICE_TRASHED",
+             error_message="Đã dừng nhận diện vì hóa đơn được chuyển vào Thùng rác."))
     record_event(db, invoice, "TRASH", expires_at=trash_expires_at(invoice))

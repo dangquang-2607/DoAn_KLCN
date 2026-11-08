@@ -1,5 +1,4 @@
 """Post an invoice atomically with user-scoped deduplication and replay protection."""
-import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
 from fastapi import HTTPException
@@ -7,19 +6,18 @@ from sqlalchemy import select, delete
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.invoice_item import InvoiceItem
 from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.luu_tru.giao_dich import Transaction, TransactionType, TransactionSource
-from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.so_cai import create_transaction
 from app.chuc_nang.nguoi_dung.danh_muc.phan_loai import suggest_category
 from app.dung_chung.tac_vu_nen.hang_doi import enqueue
 from .chuan_hoa_hoa_don import refresh_identity, parse_invoice_time
 from .phat_hien_trung_lap import inspect_duplicates
-from .vong_doi import lock_invoice, require_visible, check_revision, record_event, conflict
+from .vong_doi import lock_invoice, require_visible, require_complete_invoice, check_revision, record_event, conflict
 from .luy_dang import begin_operation, finish_operation
 
 
-def confirm(db, user, invoice_id, payload, *, record_only=False):
+def confirm(db, user, invoice_id, payload):
     for attempt in range(3):
         try:
-            return _confirm(db, user, invoice_id, payload, record_only=record_only)
+            return _confirm(db, user, invoice_id, payload)
         except IntegrityError:
             db.rollback()
             conflict("INVOICE_WRITE_CONFLICT", "Dữ liệu hóa đơn vừa thay đổi. Hãy tải lại trước khi thử lại.")
@@ -35,13 +33,15 @@ def confirm(db, user, invoice_id, payload, *, record_only=False):
             raise
 
 
-def _confirm(db, user, invoice_id, payload, *, record_only=False):
-    pending, replay = begin_operation(db, user, "invoice-record" if record_only else "invoice-confirm", {"invoice_id": str(invoice_id), "payload": payload.model_dump(mode="json")})
+def _confirm(db, user, invoice_id, payload):
+    pending, replay = begin_operation(db, user, "invoice-record", {"invoice_id": str(invoice_id), "payload": payload.model_dump(mode="json")})
     if replay is not None:
         db.rollback()
         return replay
     invoice = lock_invoice(db, user, invoice_id)
-    if record_only and invoice.currency != 'VND':
+    if invoice.currency in (None, "", "UNK"):
+        invoice.currency = "VND"
+    elif invoice.currency != 'VND':
         raise HTTPException(422, "Sổ thu chi hiện chỉ hỗ trợ hóa đơn bằng VND")
     existing = db.scalar(select(Transaction).where(Transaction.invoice_id == invoice.id, Transaction.user_id == user.id))
     if existing:
@@ -90,6 +90,7 @@ def _confirm(db, user, invoice_id, payload, *, record_only=False):
 
     if "invoice_time" in payload.model_fields_set:
         invoice.invoice_time = parse_invoice_time(payload.invoice_time)
+    require_complete_invoice(invoice)
     refresh_identity(invoice)
     # SessionLocal disables autoflush: compare the actual edited item rows,
     # not a stale basket from before this confirmation request.
@@ -115,7 +116,7 @@ def _confirm(db, user, invoice_id, payload, *, record_only=False):
             "category_source": "MANUAL",
             "category_was_auto": False,
         }
-    else:
+    elif payload.auto_categorize:
         item_names = (
             [item.name for item in payload.items]
             if payload.items is not None
@@ -137,24 +138,31 @@ def _confirm(db, user, invoice_id, payload, *, record_only=False):
                 "category_was_auto": True,
             }
 
-    creator = create_transaction
-    if record_only:
-        from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.bookkeeping import create_record
-        creator = create_record
+    from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.bookkeeping import create_record
+    from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.payment_records import linked_record, check_possible_payment
     linked_txn = None
-    if record_only:
-        from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.payment_records import linked_record, check_possible_payment
-        if payload.wallet_entry_id:
-            linked_txn,evidence=linked_record(db,user.id,payload.wallet_entry_id)
-            if linked_txn.invoice_id:
-                raise HTTPException(409,'Khoản thanh toán đã gắn hóa đơn khác. Hãy mở hóa đơn đã có.')
-            if final_amount != -evidence.amount:
-                raise HTTPException(422,'Tổng hóa đơn phải khớp số tiền thanh toán khi liên kết')
-            linked_txn.invoice_id=invoice.id
-        else:
-            from app.chuc_nang.nguoi_dung.tai_chinh.ngan_sach.ky_han import today_vn
-            check_possible_payment(db,user.id,final_amount,invoice.invoice_date or today_vn(),payload.accept_separate_record)
-    txn = linked_txn if linked_txn is not None else creator(
+    if payload.wallet_entry_id:
+        linked_txn,evidence=linked_record(db,user.id,payload.wallet_entry_id)
+        if linked_txn.invoice_id:
+            raise HTTPException(409,'Khoản thanh toán đã gắn hóa đơn khác. Hãy mở hóa đơn đã có.')
+        if final_amount != -evidence.amount:
+            raise HTTPException(422,'Tổng hóa đơn phải khớp số tiền thanh toán khi liên kết')
+        if not category_id and payload.auto_categorize:
+            category_id=linked_txn.category_id
+            category_metadata={key: getattr(linked_txn, key) for key in (
+                'category_source', 'category_confidence', 'category_was_auto')}
+        linked_txn.invoice_id=invoice.id
+        linked_txn.category_id=category_id
+        from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.so_cai import _verify_category_ownership
+        if category_id:
+            _verify_category_ownership(db, category_id, user.id, TransactionType.EXPENSE)
+        linked_txn.category_source=category_metadata.get('category_source')
+        linked_txn.category_confidence=category_metadata.get('category_confidence')
+        linked_txn.category_was_auto=category_metadata.get('category_was_auto', False)
+    else:
+        from app.chuc_nang.nguoi_dung.tai_chinh.ngan_sach.ky_han import today_vn
+        check_possible_payment(db,user.id,final_amount,invoice.invoice_date or today_vn(),payload.accept_separate_record)
+    txn = linked_txn if linked_txn is not None else create_record(
         db=db,
         user_id=user.id,
         source=TransactionSource.OCR,
@@ -167,7 +175,7 @@ def _confirm(db, user, invoice_id, payload, *, record_only=False):
         transaction_date=invoice.invoice_date or datetime.now().date(),
         note=payload.note,
         invoice_id=invoice.id,
-        **({'include_in_reports':payload.include_in_reports} if record_only else {}),
+        include_in_reports=payload.include_in_reports,
         **category_metadata,
     )
 

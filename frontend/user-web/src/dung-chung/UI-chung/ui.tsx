@@ -1,18 +1,3 @@
-/**
- * ============================================================================
- * TÊN FILE: ui.tsx
- * MÀN HÌNH / PHÂN HỆ: Thiết kế dùng chung
- * NHÓM VỆ TINH: dung-chung/UI-chung (UI dùng chung)
- * MỤC ĐÍCH CỤ THỂ:
- *   Cung cấp các primitive giao diện dùng chung của user-web.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   Props React, icon Lucide và các design token CSS dùng chung.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Xuất ui để route hoặc component khác sử dụng.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Không chứa secret hoặc tự thay đổi dữ liệu nghiệp vụ; luôn tôn trọng khả năng truy cập.
- * ============================================================================
- */
 "use client";
 import Toast from "./Toast";
 import { MotionValue } from "./Motion";
@@ -252,19 +237,8 @@ export function Pagination({
     </div>
   );
 }
-export function Modal({
-  title,
-  children,
-  onClose,
-  busy = false,
-}: {
-  title: string;
-  children: ReactNode;
-  onClose: () => void;
-  busy?: boolean;
-}) {
+export function useDialogFocus(onClose: () => void, busy: boolean, preserveFocus = false) {
   const ref = useRef<HTMLDivElement>(null);
-  const id = useId();
   const closeRef = useRef(onClose);
   useEffect(() => {
     closeRef.current = onClose;
@@ -279,7 +253,7 @@ export function Modal({
           'button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href],[tabindex="0"]',
         ) || [],
       );
-    focusable()[0]?.focus();
+    if (!preserveFocus || !ref.current?.contains(document.activeElement)) focusable()[0]?.focus();
     const key = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !busy) closeRef.current();
       if (e.key === "Tab") {
@@ -305,7 +279,25 @@ export function Modal({
       document.removeEventListener("keydown", key);
       prior?.focus();
     };
-  }, [busy]);
+  }, [busy, preserveFocus]);
+  return ref;
+}
+
+export function Modal({
+  title,
+  children,
+  onClose,
+  busy = false,
+  className,
+}: {
+  title: string;
+  children: ReactNode;
+  onClose: () => void;
+  busy?: boolean;
+  className?: string;
+}) {
+  const ref = useDialogFocus(onClose, busy);
+  const id = useId();
   return (
     <div
       className="cf-dialog"
@@ -314,7 +306,7 @@ export function Modal({
       }}
     >
       <div
-        className="cf-dialog-card"
+        className={`cf-dialog-card${className ? ` ${className}` : ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={id}

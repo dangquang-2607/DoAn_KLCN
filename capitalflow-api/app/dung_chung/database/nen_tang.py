@@ -6,10 +6,7 @@ Vai trò: làm gốc metadata cho toàn bộ model SQLAlchemy.
 Ràng buộc: thay đổi metadata gốc có thể ảnh hưởng mọi migration và model.
 """
 
-import uuid
-from datetime import datetime
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import DateTime, func, Uuid
+from sqlalchemy.orm import DeclarativeBase
 
 class Base(DeclarativeBase):
     pass

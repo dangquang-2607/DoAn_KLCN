@@ -23,13 +23,13 @@ class InvoiceMetricsRoute(APIRoute):
                 # Whitelist only bounded enum values; file/JSON payloads never reach the logger.
                 if isinstance(response, JSONResponse) and len(response.body) < 65536:
                     try:
-                        data = json.loads(response.body)
+                        data = json.loads(bytes(response.body))
                         if isinstance(data, dict):
                             if data.get('outcome') in {'CREATED', 'REUSED_DRAFT', 'ALREADY_CONFIRMED', 'RESTORE_REQUIRED'}:
                                 metric['outcome'] = data['outcome']
                             if data.get('level') in {'NONE', 'SUSPECTED', 'EXACT'}:
                                 metric['duplicate_level'] = data['level']
-                    except (ValueError, UnicodeError, TypeError):
+                    except (ValueError, TypeError):
                         pass
                 return response
             except RequestValidationError:

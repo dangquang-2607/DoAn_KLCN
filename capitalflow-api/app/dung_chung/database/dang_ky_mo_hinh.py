@@ -18,6 +18,7 @@ from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan.luu_tru.account import Acco
 from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan.luu_tru.wallet import Wallet, WalletEntry, UserBankLink, DemoBankBalance
 from app.chuc_nang.nguoi_dung.tai_chinh.thong_bao.luu_tru.thong_bao import Notification
 from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.invoice import Invoice
+from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.posting_evidence import InvoicePostingEvidence
 from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.lich_su import InvoiceEvent
 from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.invoice_item import InvoiceItem
 from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.tac_vu_ocr import OcrJob
@@ -25,11 +26,12 @@ from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.luu_tru.giao_dich import Trans
 from app.chuc_nang.nguoi_dung.tai_chinh.ngan_sach.luu_tru.ngan_sach import Budget, BudgetPeriod, BudgetChange
 from app.chuc_nang.nguoi_dung.dang_nhap.luu_tru.refresh_token import RefreshToken
 from app.chuc_nang.quan_tri.nhat_ky_quan_tri.luu_tru.nhat_ky import AuditLog
-from app.chuc_nang.quan_tri.nguoi_dung.luu_tru.xoa_nguoi_dung import UserDeletionRequest, UserDeletionFile
+from app.chuc_nang.quan_tri.ho_tro.luu_tru import AccountSupportCase, SupportRequest
+from app.chuc_nang.nguoi_dung.goi_dich_vu.luu_tru import Subscription, PaymentOrder, AiUsage
 
 __all__ = [
     "Base", "User", "UserRole", "Category", "CategoryType", "Account", "AccountType",
     "Invoice", "InvoiceItem", "OcrJob", "Transaction", "TransactionType", "Budget", "BudgetPeriod", "BudgetChange",
-    "RefreshToken", "AuditLog", "SystemSetting", "UserDeletionRequest", "UserDeletionFile", "Notification",
-    "PasswordResetOTP",
+    "RefreshToken", "AuditLog", "SystemSetting", "Notification",
+    "PasswordResetOTP", "AccountSupportCase", "SupportRequest", "Subscription", "PaymentOrder", "AiUsage",
 ]

@@ -7,25 +7,35 @@ Ràng buộc: không log mật khẩu/OTP; HTML động phải được escape v
 """
 
 from html import escape
-import os
 import smtplib
 import ssl
+from pathlib import Path
+from email.utils import formataddr
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timezone
 import uuid
 import logging
+from contextlib import contextmanager
+from contextvars import ContextVar
 from typing import TypedDict
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, text
+from sqlalchemy.orm import lazyload
 
 from app.dung_chung.config import settings
+from app.dung_chung.money import format_vnd, format_percent
 from app.dung_chung.security.secrets import unseal
 from app.dung_chung.database.session import SessionLocal
 from app.dung_chung.email.luu_tru.nhat_ky_email import EmailLog
 from app.chuc_nang.nguoi_dung.dang_nhap.luu_tru.nguoi_dung import User
 
 logger = logging.getLogger("capitalflow.email")
+_delivery_job_id: ContextVar[uuid.UUID | None] = ContextVar("email_delivery_job_id", default=None)
+
+
+class EmailDeliveryUncertain(RuntimeError):
+    """The same job must not automatically transmit again without a known outcome."""
 
 
 class SMTPConfig(TypedDict):
@@ -49,13 +59,35 @@ def _bool_setting(values: dict[str, str | None], key: str, fallback: bool) -> bo
     return value.strip().lower() in {"true", "1", "yes"} if value is not None else fallback
 
 
-
 def _smtp_login_password(host: str, password: str) -> str:
     """Chấp nhận App Password Google dạng bốn nhóm mà không sửa các bí mật khác."""
     import re
     if host.strip().lower() == "smtp.gmail.com" and re.fullmatch(r"[a-z]{4}(?:\s+[a-z]{4}){3}", password.strip()):
         return "".join(password.split())
     return password
+
+
+def _load_smtp_from_db(db: Session) -> SMTPConfig | None:
+    """Dùng cùng cách giải mã cấu hình cho API quản trị và mọi luồng gửi thư."""
+    from app.dung_chung.email.luu_tru.cau_hinh_he_thong import SystemSetting
+
+    keys = ("smtp_host", "smtp_port", "smtp_user", "smtp_password",
+            "smtp_tls", "smtp_ssl", "emails_from_email", "emails_from_name")
+    rows = db.scalars(select(SystemSetting).where(SystemSetting.key.in_(keys))).all()
+    if len(rows) < 3:
+        return None
+    values = {row.key: row.value for row in rows}
+    password = values.get("smtp_password")
+    return {
+        "smtp_host": _text_setting(values, "smtp_host", settings.smtp_host),
+        "smtp_port": int(values["smtp_port"]) if values.get("smtp_port") else settings.smtp_port,
+        "smtp_user": _text_setting(values, "smtp_user", settings.smtp_user),
+        "smtp_password": unseal(password) if password is not None else settings.smtp_password,
+        "smtp_tls": _bool_setting(values, "smtp_tls", settings.smtp_tls),
+        "smtp_ssl": _bool_setting(values, "smtp_ssl", settings.smtp_ssl),
+        "emails_from_email": _text_setting(values, "emails_from_email", settings.emails_from_email),
+        "emails_from_name": _text_setting(values, "emails_from_name", settings.emails_from_name),
+    }
 
 
 def _get_effective_smtp() -> SMTPConfig:
@@ -65,28 +97,10 @@ def _get_effective_smtp() -> SMTPConfig:
     emails_from_email, emails_from_name.
     """
     try:
-        from app.dung_chung.email.luu_tru.cau_hinh_he_thong import SystemSetting
-        from sqlalchemy import select as sa_select
-        db = SessionLocal()
-        try:
-            keys = ["smtp_host", "smtp_port", "smtp_user", "smtp_password",
-                     "smtp_tls", "smtp_ssl", "emails_from_email", "emails_from_name"]
-            rows = db.scalars(sa_select(SystemSetting).where(SystemSetting.key.in_(keys))).all()
-            if rows and len(rows) >= 3:
-                result: dict[str, str | None] = {row.key: row.value for row in rows}
-                stored_password = result.get("smtp_password")
-                return {
-                    "smtp_host": _text_setting(result, "smtp_host", settings.smtp_host),
-                    "smtp_port": int(result["smtp_port"]) if result.get("smtp_port") else settings.smtp_port,
-                    "smtp_user": _text_setting(result, "smtp_user", settings.smtp_user),
-                    "smtp_password": unseal(stored_password) if stored_password else settings.smtp_password,
-                    "smtp_tls": _bool_setting(result, "smtp_tls", settings.smtp_tls),
-                    "smtp_ssl": _bool_setting(result, "smtp_ssl", settings.smtp_ssl),
-                    "emails_from_email": _text_setting(result, "emails_from_email", settings.emails_from_email),
-                    "emails_from_name": _text_setting(result, "emails_from_name", settings.emails_from_name),
-                }
-        finally:
-            db.close()
+        with SessionLocal() as db:
+            config = _load_smtp_from_db(db)
+            if config is not None:
+                return config
     except Exception as e:
         logger.warning("SMTP configuration lookup failed (%s)", type(e).__name__)
 
@@ -242,7 +256,48 @@ def _get_base_html_template(title: str, preheader: str, body_content: str) -> st
 
 class EmailService:
     @staticmethod
-    def _log_delivery(recipient: str, subject: str, email_type: str, status: str, error_message: str | None = None, db: Session | None = None, user_id: uuid.UUID | None = None) -> None:
+    @contextmanager
+    def delivery_job(job_id):
+        token = _delivery_job_id.set(uuid.UUID(str(job_id)))
+        try:
+            yield
+        finally:
+            _delivery_job_id.reset(token)
+
+    @staticmethod
+    def _prepare_job_delivery(recipient, subject, email_type):
+        """Persist a per-job sending fence before any SMTP side effect."""
+        identifier = _delivery_job_id.get()
+        if identifier is None:
+            return False
+        with SessionLocal() as db:
+            if db.get_bind().dialect.name == "mssql":
+                db.execute(text(
+                    "DECLARE @r INT; EXEC @r=sys.sp_getapplock @Resource=:resource, "
+                    "@LockMode='Exclusive', @LockOwner='Transaction', @LockTimeout=5000; "
+                    "IF @r<0 THROW 51011,'Email delivery busy',1;"
+                ), {"resource": "capitalflow_email:" + str(identifier)})
+            row = db.scalar(select(EmailLog).options(lazyload(EmailLog.user)).where(EmailLog.id == identifier))
+            if row and (row.recipient != recipient or row.email_type != email_type or row.subject != subject):
+                raise EmailDeliveryUncertain("DELIVERY_ID_CONFLICT")
+            if row and row.status in {"SENT", "LOGGED_DEV"}:
+                return True
+            if row and row.status in {"SENDING", "UNKNOWN"}:
+                row.status = "UNKNOWN"
+                row.error_message = "DELIVERY_UNCONFIRMED"
+                db.commit()
+                raise EmailDeliveryUncertain("DELIVERY_UNCONFIRMED")
+            if row:
+                row.status = "SENDING"
+                row.error_message = None
+            else:
+                db.add(EmailLog(id=identifier, recipient=recipient, subject=subject,
+                                email_type=email_type, status="SENDING"))
+            db.commit()
+        return False
+
+    @staticmethod
+    def _log_delivery(recipient: str, subject: str, email_type: str, status: str, error_message: str | None = None, db: Session | None = None, user_id: uuid.UUID | None = None, log_id: uuid.UUID | None = None) -> bool:
         """Ghi nhận lịch sử gửi email vào CSDL"""
         def _do_write(session: Session) -> None:
             nonlocal user_id
@@ -252,92 +307,125 @@ class EmailService:
                     if found_uid:
                         user_id = found_uid
                 except Exception as ex:
-                    logger.debug(f"Không thể tra cứu user_id theo recipient: {ex}")
+                    logger.debug("Email owner lookup failed (%s)", type(ex).__name__)
 
-            log_entry = EmailLog(
-                id=uuid.uuid4(),
-                user_id=user_id,
-                recipient=recipient,
-                subject=subject,
-                email_type=email_type,
-                status=status,
-                error_message=error_message,
-                created_at=datetime.now(timezone.utc)
-            )
-            session.add(log_entry)
+            identifier = log_id or _delivery_job_id.get()
+            log_entry = session.scalar(select(EmailLog).options(lazyload(EmailLog.user))
+                                      .where(EmailLog.id == identifier)) if identifier else None
+            if log_entry and log_entry.status in {"SENT", "LOGGED_DEV"}:
+                return
+            if log_entry is None:
+                log_entry = EmailLog(id=identifier or uuid.uuid4(), recipient=recipient,
+                                     subject=subject, email_type=email_type,
+                                     created_at=datetime.now(timezone.utc))
+                session.add(log_entry)
+            log_entry.user_id = user_id
+            log_entry.status = status
+            log_entry.error_message = error_message
             session.commit()
 
         if db:
             try:
                 _do_write(db)
+                return True
             except Exception as e:
-                logger.error(f"Lỗi ghi log email với session có sẵn: {e}")
+                logger.error("Email delivery log failed (%s)", type(e).__name__)
+                return False
         else:
             with SessionLocal() as session:
                 try:
                     _do_write(session)
+                    return True
                 except Exception as e:
-                    logger.error(f"Lỗi ghi log email: {e}")
+                    logger.error("Email delivery log failed (%s)", type(e).__name__)
+                    return False
 
     @staticmethod
-    def _save_preview_html(recipient: str, email_type: str, html_content: str) -> str | None:
-        """Lưu bản HTML xem trước trong uploads/emails/ khi chạy ở chế độ Dual-Mode Console"""
+    def _save_preview_html(recipient: str, email_type: str, html_content: str, preview_id: uuid.UUID) -> str | None:
+        """Private test-email artifacts; filenames never contain recipient data."""
         try:
-            folder = os.path.join(settings.upload_dir, "emails")
-            os.makedirs(folder, exist_ok=True)
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{timestamp}_{recipient.replace('@', '_at_')}_{email_type}.html"
-            filepath = os.path.join(folder, filename)
-            with open(filepath, "w", encoding="utf-8") as f:
-                f.write(html_content)
-            return filepath
-        except Exception as e:
-            logger.warning(f"Không thể lưu file HTML xem trước: {e}")
+            folder = Path(settings.upload_dir) / "emails"
+            folder.mkdir(parents=True, exist_ok=True)
+            filepath = folder / f"{preview_id}.html"
+            filepath.write_text(html_content, encoding="utf-8")
+            return str(filepath)
+        except Exception as exc:
+            logger.warning("Email preview write failed (%s)", type(exc).__name__)
             return None
 
     @classmethod
-    def send_email_sync(cls, recipient: str, subject: str, html_content: str, email_type: str, db: Session | None = None, user_id: uuid.UUID | None = None, redact_log_recipient: bool = False) -> bool:
+    def send_email_sync(cls, recipient: str, subject: str, html_content: str, email_type: str, db: Session | None = None, user_id: uuid.UUID | None = None) -> bool:
         """Thực hiện gửi email theo cơ chế Dual-Mode (Gửi thật nếu có SMTP, Console Preview nếu chưa cấu hình)"""
-        cfg = _get_effective_smtp()
-        has_smtp_creds = bool(cfg["smtp_user"] and cfg["smtp_password"] and cfg["smtp_user"].strip())
-        log_recipient = "erased-user@redacted.invalid" if redact_log_recipient else recipient
-
-        if not has_smtp_creds:
-            cls._log_delivery(log_recipient, subject, email_type, "FAILED", "SMTP_NOT_CONFIGURED", db, user_id=user_id)
-            return False
-
-        # ── GỬI THẬT QUA SMTP ─────────────────────────────────────────────────
+        if cls._prepare_job_delivery(recipient, subject, email_type):
+            return True
+        accepted = False
+        transmission_started = False
         try:
+            cfg = _get_effective_smtp()
+            has_smtp_creds = bool(cfg["smtp_user"] and cfg["smtp_password"] and cfg["smtp_user"].strip())
+            if not has_smtp_creds and email_type == "TEST_EMAIL":
+                preview_id = _delivery_job_id.get() or uuid.uuid4()
+                if cls._save_preview_html(recipient, email_type, html_content, preview_id):
+                    saved = cls._log_delivery(recipient, subject, email_type, "LOGGED_DEV", None, db, user_id=user_id, log_id=preview_id)
+                    if saved is False and _delivery_job_id.get():
+                        raise EmailDeliveryUncertain("PREVIEW_LOG_UNCONFIRMED")
+                    return True
+                cls._log_delivery(recipient, subject, email_type, "FAILED", "PREVIEW_WRITE_FAILED", db, user_id=user_id)
+                return False
+            if not has_smtp_creds:
+                cls._log_delivery(recipient, subject, email_type, "FAILED", "SMTP_NOT_CONFIGURED", db, user_id=user_id)
+                return False
+
             msg = MIMEMultipart("alternative")
             msg["Subject"] = subject
-            msg["From"] = f"{cfg["emails_from_name"]} <{cfg["smtp_user"]}>"
+            sender = cfg["emails_from_email"].strip() or cfg["smtp_user"].strip()
+            msg["From"] = formataddr((cfg["emails_from_name"], sender))
             msg["To"] = recipient
 
             part = MIMEText(html_content, "html", "utf-8")
             msg.attach(part)
+            serialized = msg.as_string()
 
             if cfg["smtp_ssl"] or cfg["smtp_port"] == 465:
                 context = ssl.create_default_context()
                 with smtplib.SMTP_SSL(cfg["smtp_host"], cfg["smtp_port"], context=context, timeout=15) as server:
                     server.login(cfg["smtp_user"], _smtp_login_password(cfg["smtp_host"], cfg["smtp_password"]))
-                    server.sendmail(cfg["smtp_user"], recipient, msg.as_string())
+                    transmission_started = True
+                    server.sendmail(sender, recipient, serialized)
+                    accepted = True
             else:
                 with smtplib.SMTP(cfg["smtp_host"], cfg["smtp_port"], timeout=15) as server:
                     if cfg["smtp_tls"]:
                         context = ssl.create_default_context()
                         server.starttls(context=context)
                     server.login(cfg["smtp_user"], _smtp_login_password(cfg["smtp_host"], cfg["smtp_password"]))
-                    server.sendmail(cfg["smtp_user"], recipient, msg.as_string())
+                    transmission_started = True
+                    server.sendmail(sender, recipient, serialized)
+                    accepted = True
 
-            logger.info("Đã gửi email thành công đến %s (%s)", log_recipient, email_type)
-            cls._log_delivery(log_recipient, subject, email_type, "SENT", None, db, user_id=user_id)
-            return True
-
+        except EmailDeliveryUncertain:
+            raise
         except Exception as e:
             err_msg = type(e).__name__
-            logger.error("Lỗi gửi SMTP đến %s: %s", log_recipient, err_msg)
-            cls._log_delivery(log_recipient, subject, email_type, "FAILED", err_msg, db, user_id=user_id)
-            return False
+            if not accepted:
+                refused = isinstance(e, (smtplib.SMTPRecipientsRefused, smtplib.SMTPSenderRefused, smtplib.SMTPHeloError)) or (
+                    isinstance(e, smtplib.SMTPDataError) and 400 <= e.smtp_code < 600)
+                if transmission_started and not refused:
+                    cls._log_delivery(recipient, subject, email_type, "UNKNOWN", "DELIVERY_UNCONFIRMED", db, user_id=user_id)
+                    if _delivery_job_id.get():
+                        raise EmailDeliveryUncertain("DELIVERY_UNCONFIRMED") from e
+                    return False
+                logger.error("Gửi SMTP thất bại (%s): %s", email_type, err_msg)
+                cls._log_delivery(recipient, subject, email_type, "FAILED", err_msg, db, user_id=user_id)
+                return False
+            # sendmail đã được SMTP chấp nhận; lỗi QUIT không được kích hoạt gửi lại.
+            logger.warning("Lỗi đóng SMTP sau khi nhận email (%s): %s", email_type, err_msg)
+
+        logger.info("Máy chủ SMTP đã nhận email (%s)", email_type)
+        saved = cls._log_delivery(recipient, subject, email_type, "SENT", None, db, user_id=user_id)
+        if saved is False and _delivery_job_id.get():
+            raise EmailDeliveryUncertain("ACCEPTED_LOG_UNCONFIRMED")
+        return True
 
     # ══════════════════════════════════════════════════════════════════════════
     # CÁC MẪU EMAIL CHUYÊN BIỆT THEO NGHIỆP VỤ
@@ -391,15 +479,15 @@ class EmailService:
         return cls.send_email_sync(recipient, subject, html, "WELCOME", db, user_id=user_id)
 
     @classmethod
-    def send_budget_alert_email(cls, recipient: str, full_name: str, category_name: str, budget_amount: float, spent_amount: float, percentage: float, db: Session | None = None, user_id: uuid.UUID | None = None) -> bool:
+    def send_budget_alert_email(cls, recipient: str, full_name: str, category_name: str, budget_amount: float, spent_amount: float, percentage: float, db: Session | None = None, user_id: uuid.UUID | None = None, warning_percent: float = 80.0) -> bool:
         """Gửi cảnh báo khi chi tiêu chạm ngưỡng hoặc vượt ngân sách"""
         is_exceeded = percentage >= 100.0
-        status_label = "ĐÃ VƯỢT ĐỊNH MỨC" if is_exceeded else "CẢNH BÁO TIỆM CẬN (80%)"
-        subject = f"⚠️ Cảnh báo Ngân sách: Danh mục '{category_name}' {status_label} ({percentage:.1f}%)"
+        status_label = ("ĐÃ VƯỢT ĐỊNH MỨC" if percentage > 100 else "ĐÃ ĐẠT ĐỊNH MỨC") if is_exceeded else f"ĐẠT NGƯỠNG CẢNH BÁO ({format_percent(warning_percent, 2).rstrip("0").rstrip(",")}%)"
+        subject = f"⚠️ Cảnh báo Ngân sách: Danh mục '{category_name}' {status_label} ({format_percent(percentage)}%)"
         
         body = f"""
         <p>Xin chào <strong>{escape(full_name)}</strong>,</p>
-        <p>Hệ thống ghi nhận chi tiêu của bạn trong tháng cho danh mục <strong>{escape(category_name)}</strong> đã đạt mức cảnh báo.</p>
+        <p>Hệ thống ghi nhận chi tiêu trong kỳ của ngân sách <strong>{escape(category_name)}</strong> đã đạt mức cảnh báo. Ngưỡng bạn đặt: <strong>{format_percent(warning_percent, 2).rstrip("0").rstrip(",")}%</strong>.</p>
         
         <div class="{'alert-card' if is_exceeded else 'info-card'}" style="{'border-left-color: #f59e0b; background: #fffbeb;' if not is_exceeded else ''}">
           <h3 style="margin: 0 0 10px 0; color: {'#991b1b' if is_exceeded else '#92400e'};">📊 Chi tiết Định mức Ngân sách:</h3>
@@ -410,28 +498,28 @@ class EmailService:
             </tr>
             <tr>
               <td style="padding: 4px 0; color: #64748b;">Hạn mức đã đặt:</td>
-              <td style="padding: 4px 0; font-weight: 700; text-align: right;">{budget_amount:,.0f} đ</td>
+              <td style="padding: 4px 0; font-weight: 700; text-align: right;">{format_vnd(budget_amount)}</td>
             </tr>
             <tr>
               <td style="padding: 4px 0; color: #64748b;">Số tiền đã chi:</td>
-              <td style="padding: 4px 0; font-weight: 700; color: {'#dc2626' if is_exceeded else '#d97706'}; text-align: right;">{spent_amount:,.0f} đ</td>
+              <td style="padding: 4px 0; font-weight: 700; color: {'#dc2626' if is_exceeded else '#d97706'}; text-align: right;">{format_vnd(spent_amount)}</td>
             </tr>
             <tr>
               <td style="padding: 4px 0; color: #64748b;">Tỷ lệ đã sử dụng:</td>
-              <td style="padding: 4px 0; font-weight: 900; color: {'#dc2626' if is_exceeded else '#d97706'}; text-align: right;">{percentage:.1f}%</td>
+              <td style="padding: 4px 0; font-weight: 900; color: {'#dc2626' if is_exceeded else '#d97706'}; text-align: right;">{format_percent(percentage)}%</td>
             </tr>
           </table>
         </div>
 
         <p style="font-size: 14px; color: #475569;">
-          {'Vui lòng cân nhắc điều chỉnh kế hoạch chi tiêu để tránh thâm hụt tài chính.' if is_exceeded else 'Bạn đang tiến gần đến giới hạn ngân sách đã đề ra, hãy chú ý các khoản chi tiếp theo nhé!'}
+          {'Vui lòng cân nhắc điều chỉnh kế hoạch chi tiêu để tránh thâm hụt tài chính.' if is_exceeded else 'Chi tiêu đã đạt ngưỡng cảnh báo bạn đặt. Hãy kiểm tra các khoản chi tiếp theo.'}
         </p>
 
         <div style="text-align: center; margin: 24px 0;">
           <a href="{settings.frontend_url}/budgets" class="btn">Xem Chi Tiết Ngân Sách →</a>
         </div>
         """
-        html = _get_base_html_template("Cảnh Báo Ngân Sách Chi Tiêu", f"Danh mục {category_name} đã đạt {percentage:.1f}% hạn mức", body)
+        html = _get_base_html_template("Cảnh Báo Ngân Sách Chi Tiêu", f"Danh mục {category_name} đã đạt {format_percent(percentage)}% hạn mức", body)
         return cls.send_email_sync(recipient, subject, html, "BUDGET_ALERT", db, user_id=user_id)
 
     @classmethod
@@ -442,49 +530,13 @@ class EmailService:
         <p>Đây là email kiểm thử được gửi từ hệ thống <strong>CapitalFlow</strong> để xác nhận cấu hình máy chủ gửi thư SMTP.</p>
         
         <div class="info-card">
-          <p style="margin: 0; color: #166534; font-weight: 600;">✅ Kết nối máy chủ gửi thư hoạt động hoàn hảo!</p>
+          <p style="margin: 0; color: #166534; font-weight: 600;">Nội dung email kiểm thử CapitalFlow</p>
           <p style="margin: 6px 0 0 0; color: #15803d; font-size: 13px;"><strong>Nội dung thử nghiệm:</strong> {escape(message)}</p>
           <p style="margin: 4px 0 0 0; color: #15803d; font-size: 13px;"><strong>Thời gian phát:</strong> {datetime.now().strftime('%H:%M:%S %d/%m/%Y')}</p>
         </div>
         """
         html = _get_base_html_template("Kiểm Thử Kết Nối Email", "Email kiểm thử đường truyền SMTP", body)
         return cls.send_email_sync(recipient, subject, html, "TEST_EMAIL", db, user_id=user_id)
-
-    @classmethod
-    def send_account_created_by_admin_email(cls, recipient: str, full_name: str, temp_password: str, role: str = "USER", db: Session | None = None, user_id: uuid.UUID | None = None) -> bool:
-        """Gửi email thông báo khi tài khoản được tạo mới bởi Quản trị viên kèm mật khẩu kích hoạt tạm thời"""
-        role_vn = "Quản trị viên (ADMIN)" if role.upper() == "ADMIN" else "Người dùng (USER)"
-        subject = "🎉 Tài khoản CapitalFlow của bạn đã được khởi tạo bởi Quản trị viên"
-        body = f"""
-        <p>Xin chào <strong>{escape(full_name)}</strong>,</p>
-        <p>Quản trị viên hệ thống vừa khởi tạo tài khoản truy cập nền tảng <strong>CapitalFlow</strong> dành cho bạn với vai trò <strong>{role_vn}</strong>.</p>
-        
-        <div class="info-card">
-          <h3 style="margin: 0 0 10px 0; color: #166534;">🔐 Thông tin đăng nhập ban đầu:</h3>
-          <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-            <tr>
-              <td style="padding: 6px 0; color: #64748b; width: 140px;">Tài khoản (Email):</td>
-              <td style="padding: 6px 0; font-weight: 700; color: #0f172a;">{escape(recipient)}</td>
-            </tr>
-            <tr>
-              <td style="padding: 6px 0; color: #64748b;">Mật khẩu tạm thời:</td>
-              <td style="padding: 6px 0;">
-                <span style="font-family: monospace; font-size: 16px; font-weight: 800; background: #e2e8f0; padding: 3px 8px; border-radius: 6px; color: #4f46e5;">{escape(temp_password)}</span>
-              </td>
-            </tr>
-          </table>
-        </div>
-
-        <p style="color: #b91c1c; font-size: 13px; font-weight: 500;">
-          ⚠️ <strong>Lưu ý quan trọng:</strong> Vì lý do an toàn bảo mật, vui lòng đăng nhập và đổi mật khẩu cá nhân mới ngay trong lần truy cập đầu tiên.
-        </p>
-
-        <div style="text-align: center; margin: 28px 0;">
-          <a href="{settings.frontend_url}/login" class="btn">Đăng Nhập Vào Hệ Thống →</a>
-        </div>
-        """
-        html = _get_base_html_template("Tài Khoản Được Khởi Tạo", f"Thông tin đăng nhập CapitalFlow của {full_name}", body)
-        return cls.send_email_sync(recipient, subject, html, "ACCOUNT_CREATED", db, user_id=user_id)
 
     @classmethod
     def send_temporary_password_email(cls, recipient: str, full_name: str, temp_password: str, db: Session | None = None, user_id: uuid.UUID | None = None) -> bool:
@@ -513,6 +565,18 @@ class EmailService:
 
 
     @classmethod
+    def send_support_reply(cls, recipient: str, full_name: str, title: str, message: str, reply: str) -> bool:
+        body = (
+            f"<p>Xin chào {escape(full_name)},</p>"
+            f"<p>CapitalFlow phản hồi yêu cầu <strong>{escape(title)}</strong> của bạn.</p>"
+            f'<div style="white-space:pre-wrap;overflow-wrap:anywhere">{escape(reply)}</div>'
+            '<hr style="border:0;border-top:1px solid #e2e8f0;margin:24px 0">'
+            f'<p><strong>Nội dung bạn đã gửi</strong></p><div style="white-space:pre-wrap;overflow-wrap:anywhere">{escape(message)}</div>'
+        )
+        html = _get_base_html_template("Phản hồi yêu cầu hỗ trợ", title, body)
+        return cls.send_email_sync(recipient, f"Phản hồi: {title} — CapitalFlow", html, "SUPPORT_REPLY")
+
+    @classmethod
     def send_account_banned_email(cls, recipient: str, full_name: str, reason: str, db: Session | None = None) -> bool:
         body = f"<p>Xin chào {escape(full_name)},</p><p>Tài khoản của bạn đã bị khóa.</p><p>Lý do: {escape(reason)}</p>"
         return cls.send_email_sync(recipient, "Thông báo khóa tài khoản", _get_base_html_template("Tài khoản bị khóa", "Thông báo bảo mật", body), "ACCOUNT_BANNED", db)
@@ -526,32 +590,3 @@ class EmailService:
     def send_role_updated_email(cls, recipient: str, full_name: str, role: str, db: Session | None = None) -> bool:
         body = f"<p>Xin chào {escape(full_name)},</p><p>Vai trò tài khoản đã được đổi thành: {escape(role)}.</p>"
         return cls.send_email_sync(recipient, "Thay đổi vai trò tài khoản", _get_base_html_template("Cập nhật vai trò", "Thông báo bảo mật", body), "ROLE_UPDATED", db)
-
-    @classmethod
-    def send_account_deleted_email(cls, recipient: str, full_name: str, mode: str, reason: str, db: Session | None = None) -> bool:
-        mode_label = "xóa vĩnh viễn" if mode.lower() == "hard" else "đóng và lưu trữ"
-        body = (
-            f"<p>Xin chào {escape(full_name)},</p>"
-            f"<p>Tài khoản CapitalFlow của bạn đã được {mode_label} theo quyết định của Quản trị viên.</p>"
-            f"<p>Lý do: {escape(reason)}</p>"
-            "<p>Nếu cần hỗ trợ, vui lòng liên hệ bộ phận quản trị hệ thống.</p>"
-        )
-        return cls.send_email_sync(
-            recipient,
-            "Thông báo đóng tài khoản CapitalFlow",
-            _get_base_html_template("Tài khoản đã được đóng", "Thông báo quản trị tài khoản", body),
-            "ACCOUNT_DELETED",
-            db,
-            redact_log_recipient=mode.lower() == "hard",
-        )
-
-    @classmethod
-    def send_account_restored_email(cls, recipient: str, full_name: str, db: Session | None = None) -> bool:
-        body = f"<p>Xin chào {escape(full_name)},</p><p>Tài khoản CapitalFlow của bạn đã được khôi phục. Vui lòng đăng nhập lại.</p>"
-        return cls.send_email_sync(
-            recipient,
-            "Tài khoản CapitalFlow đã được khôi phục",
-            _get_base_html_template("Tài khoản đã được khôi phục", "Thông báo quản trị tài khoản", body),
-            "ACCOUNT_RESTORED",
-            db,
-        )

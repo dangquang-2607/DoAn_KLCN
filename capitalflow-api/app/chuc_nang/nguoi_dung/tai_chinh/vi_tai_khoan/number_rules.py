@@ -3,7 +3,6 @@
 Deliberately supports a bounded set of common formats, not every custom account
 or alias offered by providers. UI reads these rules from /accounts/number-rules.
 """
-import re
 from typing import TypedDict
 
 
@@ -41,30 +40,5 @@ NUMBER_RULES: dict[str, NumberRule] = {
 }
 
 
-def validate_account_number(institution: str | None, number: str | None) -> str:
-    rule = NUMBER_RULES.get(institution or "")
-    if rule is None:
-        raise ValueError("Vui lòng chọn ngân hàng hoặc ví điện tử được hỗ trợ.")
-    if number is None or re.fullmatch(rule["pattern"], number) is None:
-        raise ValueError(rule["hint"])
-    return number
-
-
 def mask_account_number(number: str | None) -> str | None:
     return "*" * (len(number) - 3) + number[-3:] if number is not None else None
-
-
-def normalize_updated_number(account, values: dict) -> None:
-    """Resolve partial PATCH against persisted provider before masking.
-
-Preserve existing masked/legacy records when only unrelated fields change.
-Changing provider requires a full number validated for that provider.
-"""
-    kind = values.get("account_type", account.account_type)
-    if kind not in ("LINKED", "BANK", "E_WALLET"):
-        return
-    provider = values.get("institution_name", account.institution_name)
-    number = values.get("account_number_masked", account.account_number_masked)
-    if provider == account.institution_name and number == account.account_number_masked:
-        return
-    values["account_number_masked"] = mask_account_number(validate_account_number(provider, number))

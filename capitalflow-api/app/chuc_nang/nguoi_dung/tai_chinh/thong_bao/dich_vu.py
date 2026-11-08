@@ -7,6 +7,7 @@ from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from app.dung_chung.money import format_vnd
 
 from app.chuc_nang.nguoi_dung.tai_chinh.thong_bao.luu_tru.thong_bao import Notification
 
@@ -65,7 +66,7 @@ def maybe_emit_unusual_transaction(db: Session, transaction) -> None:
     emit_notification(
         db, user_id=transaction.user_id, kind="TRANSACTION", severity="WARNING",
         title="Khoản chi bất thường",
-        message=f"Khoản chi {amount} VND: {transaction.description or 'Giao dịch không có mô tả'}.",
+        message=f"Khoản chi {format_vnd(amount)}: {transaction.description or 'Giao dịch không có mô tả'}.",
         source_type="TRANSACTION", source_id=transaction.id,
         action_url=f"/transactions?account_id={transaction.account_id}" if transaction.account_id else "/transactions",
         metadata={"amount": str(amount), "rule": "large_or_3x_recent_average"},

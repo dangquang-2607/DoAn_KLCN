@@ -1,15 +1,8 @@
-/**
- * ============================================================================
- * TÊN FILE: Settings.jsx
- * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
- * MÀN HÌNH / PHÂN HỆ: Cài đặt & bảo mật
- * MỤC ĐÍCH CỤ THỂ:
- *   Ghép các cài đặt bảo mật và thông tin vận hành hiện có.
- * ============================================================================
- */
+import density from "../../dung-chung/CSS/operations.module.css";
 import { Link } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Mail, Globe2 } from "lucide-react";
-import SecuritySettings from "../../dung-chung/xac-thuc/SecuritySettings";
+import SecuritySettings from "./thanh-phan/SecuritySettings";
 import PageHead from "../../dung-chung/UI-chung/WorkspaceHead";
 
 function EmailSettingsLink() {
@@ -43,12 +36,13 @@ function DisplayPreferencesPanel() {
 }
 
 export default function Settings() {
+  const profile = useQueryClient().getQueryData(["admin-me"]);
   return (
-    <div className="adm-surface adm-live adm-rest adm-settings-demo">
+    <div className={`adm-surface adm-live adm-rest adm-settings ${density.page}`}>
       <PageHead eyebrow="QUẢN TRỊ" title="Cài đặt & bảo mật" description="Quản lý tài khoản quản trị và các thiết lập vận hành hiện có." />
       <SecuritySettings />
       <div className="adm-settings-utilities">
-        <EmailSettingsLink />
+        {!profile?.support_only && <EmailSettingsLink />}
         <DisplayPreferencesPanel />
       </div>
     </div>

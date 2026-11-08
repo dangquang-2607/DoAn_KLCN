@@ -11,7 +11,18 @@ from datetime import date, datetime
 from uuid import UUID
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator
+
+from app.dung_chung.text.unicode import validate_utf16_length
+
+
+def validate_invoice_text(value: str | None, info: ValidationInfo) -> str | None:
+    limits = {
+        "note": 1000, "merchant_name": 255, "merchant_address": 500,
+        "merchant_tax_code": 100, "invoice_number": 100, "invoice_symbol": 100,
+        "vat_rate": 50, "payment_method": 50,
+    }
+    return validate_utf16_length(value, limits[info.field_name], "Thông tin hóa đơn")
 
 
 class InvoiceItemOut(BaseModel):
@@ -50,10 +61,17 @@ class InvoiceItemEdit(BaseModel):
         value = value.strip()
         if not value:
             raise ValueError("Tên mặt hàng không được để trống")
-        return value
+        return validate_utf16_length(value, 500, "Tên mặt hàng")
+
+    @field_validator("sku", "unit")
+    @classmethod
+    def validate_item_text(cls, value: str | None, info: ValidationInfo) -> str | None:
+        limits = {"sku": 100, "unit": 50}
+        return validate_utf16_length(value, limits[info.field_name], "Thông tin mặt hàng")
 
 
 class InvoiceItemsUpdate(BaseModel):
+    expected_revision: int = Field(ge=1)
     items: list[InvoiceItemEdit] = Field(max_length=200)
 
 
@@ -129,18 +147,18 @@ class InvoiceListOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class InvoiceConfirm(BaseModel):
+class InvoiceConfirmFields(BaseModel):
     """
     Xác nhận hóa đơn và liên kết vào tài khoản/danh mục.
     Bổ sung các trường người dùng có thể đã chỉnh sửa trên form OCR
     để lưu lại đúng dữ liệu cuối cùng vào Invoice và tạo giao dịch chính xác.
     """
-    account_id: UUID
     expected_revision: int | None = Field(default=None, ge=1)
     accept_distinct: bool = False
     duplicate_review_token: str | None = Field(default=None, min_length=64, max_length=64)
     invoice_time: str | None = Field(default=None, pattern=r"^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$")
     category_id: UUID | None = None
+    auto_categorize: bool = True
     note: str | None = Field(default=None, max_length=1000)
     # Các trường chỉnh sửa tùy chọn (người dùng sửa trên form OCR)
     merchant_name: str | None = Field(default=None, max_length=255)
@@ -155,6 +173,15 @@ class InvoiceConfirm(BaseModel):
     tax_amount: Decimal | None = Field(default=None, ge=Decimal("0"), max_digits=19, decimal_places=2)
     total_amount: Decimal | None = Field(default=None, gt=Decimal("0"), max_digits=19, decimal_places=2)
     items: list[InvoiceItemEdit] | None = Field(default=None, max_length=200)
+
+    _validate_text = field_validator(
+        "note", "merchant_name", "merchant_address", "merchant_tax_code",
+        "invoice_number", "invoice_symbol", "vat_rate", "payment_method",
+    )(validate_invoice_text)
+
+
+class InvoiceConfirm(InvoiceConfirmFields):
+    account_id: UUID
 
 
 class InvoiceBatchDelete(BaseModel):
@@ -183,7 +210,11 @@ class InvoiceDuplicateCheck(BaseModel):
     invoice_symbol: str | None = Field(default=None, max_length=100)
     invoice_date: date | None = None
     invoice_time: str | None = Field(default=None, pattern=r"^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$")
-    total_amount: Decimal | None = Field(default=None, gt=0, max_digits=19, decimal_places=2)
+    total_amount: Decimal | None = Field(default=None, gt=Decimal("0"), max_digits=19, decimal_places=2)
+
+    _validate_text = field_validator(
+        "merchant_name", "merchant_address", "merchant_tax_code", "invoice_number", "invoice_symbol",
+    )(validate_invoice_text)
 
 
 class InvoiceResolution(BaseModel):

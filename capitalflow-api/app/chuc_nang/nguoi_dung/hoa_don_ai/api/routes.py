@@ -4,7 +4,7 @@ Tính năng:
   - Upload → kiểm tra tạm SHA/OCR/trùng → bản mới REVIEW_REQUIRED hoặc trả bản cũ.
   - Quét đơn lẻ / hàng loạt (tối đa 5/lần) với Rate Limiter 15/phút.
   - Phát hiện hóa đơn trùng lặp (Duplicate Detection).
-  - Xóa đơn lẻ & xóa hàng loạt (không giới hạn) — an toàn tuyệt đối với SQL Server FK.
+  - Xóa đơn lẻ hoặc hàng loạt tối đa 100 hóa đơn, giữ trong Thùng rác 30 ngày.
   - Xác nhận hóa đơn: lưu lại dữ liệu người dùng đã chỉnh sửa, tạo giao dịch chi tiêu đúng số tiền.
   - Phục vụ tệp xem trước an toàn (GET /invoices/{id}/file).
 """
@@ -44,19 +44,14 @@ from app.chuc_nang.nguoi_dung.hoa_don_ai.nghiep_vu.chuan_hoa_hoa_don import pars
 from app.chuc_nang.nguoi_dung.hoa_don_ai.nghiep_vu.vong_doi import lock_invoice, require_visible, check_revision, record_event, conflict
 from app.chuc_nang.nguoi_dung.hoa_don_ai.nghiep_vu.luy_dang import begin_operation, finish_operation
 from app.chuc_nang.nguoi_dung.dang_nhap.nghiep_vu.session_management import locked_user
-from app.chuc_nang.nguoi_dung.hoa_don_ai.nghiep_vu.phan_tich_du_lieu import parse_amount as _parse_amount
-from app.chuc_nang.nguoi_dung.hoa_don_ai.nghiep_vu.phan_tich_du_lieu import parse_date as _parse_date
-from app.chuc_nang.nguoi_dung.hoa_don_ai.ha_tang.invoice_xml import parse_invoice_xml
 
 from .telemetry import InvoiceMetricsRoute
 from ..nghiep_vu.deletion import trash_expired, trash_expires_at, purge_invoice
 
 router = APIRouter(prefix="/invoices", tags=["Invoices"], route_class=InvoiceMetricsRoute)
 
-ALLOWED_MIME = {"image/jpeg", "image/png", "image/webp", "application/pdf", "application/xml"}
-ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".webp", ".pdf", ".xml"}
-MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
-MAX_BATCH_OCR = 5  # Tối đa 5 hóa đơn / lần quét hàng loạt
+ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".webp"}
+MAX_FILE_SIZE = 2 * 1024 * 1024
 
 
 # ─── Upload và danh sách ──────────────────────────────────────────────────────
@@ -65,45 +60,38 @@ MAX_BATCH_OCR = 5  # Tối đa 5 hóa đơn / lần quét hàng loạt
     "",
     status_code=201,
     summary="Tải lên hóa đơn (Upload Invoice)",
-    description="Kiểm tra SHA-256, nhận diện và đối chiếu trước khi tạo hóa đơn. XML đọc trực tiếp; ảnh/PDF tự OCR. Bản mới ở trạng thái chờ kiểm tra.",
+    description="Nhận một ảnh JPG, JPEG, PNG hoặc WEBP tối đa 2 MB. Nhận diện và đối chiếu trước khi tạo hóa đơn chờ kiểm tra.",
 )
 def upload_invoice(
+    response: Response,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
     source: Annotated[Literal["UPLOAD", "CAMERA"], Form()] = "UPLOAD",
     upload_ticket: Annotated[str | None, Form(max_length=2000000)] = None,
     accept_distinct: Annotated[bool, Form()] = False,
-    response: Response = None,
 ):
     ext = Path(file.filename or "").suffix.lower()
     if ext not in ALLOWED_EXT:
-        raise HTTPException(status_code=400, detail=f"Định dạng không hỗ trợ: {ext}")
+        raise HTTPException(status_code=415, detail="Chỉ được tải ảnh JPG, JPEG, PNG hoặc WEBP.")
 
     contents = file.file.read(MAX_FILE_SIZE + 1)
     if len(contents) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=413, detail="File quá lớn (tối đa 10 MB)")
+        raise HTTPException(status_code=413, detail="Ảnh quá lớn. Tối đa 2 MB/ảnh.")
+    if not contents:
+        raise HTTPException(status_code=422, detail="Ảnh tải lên là tệp rỗng.")
 
     actual_mime = (
-        "application/pdf" if contents.startswith(b"%PDF-") else
         "image/png" if contents.startswith(b"\x89PNG\r\n\x1a\n") else
         "image/jpeg" if contents.startswith(b"\xff\xd8\xff") else
-        "image/webp" if contents[:4]==b"RIFF" and contents[8:12]==b"WEBP" else
-        "application/xml" if ext == ".xml" and contents.lstrip(b"\xef\xbb\xbf \t\r\n").startswith(b"<") else None
+        "image/webp" if contents[:4]==b"RIFF" and contents[8:12]==b"WEBP" else None
     )
-    expected = {".pdf":"application/pdf", ".png":"image/png", ".jpg":"image/jpeg", ".jpeg":"image/jpeg", ".webp":"image/webp", ".xml":"application/xml"}
+    expected = {".png":"image/png", ".jpg":"image/jpeg", ".jpeg":"image/jpeg", ".webp":"image/webp"}
     if actual_mime != expected[ext]:
         raise HTTPException(status_code=415, detail="Nội dung file không khớp định dạng")
-    xml_data = None
-    if actual_mime == "application/xml":
-        try:
-            xml_data = parse_invoice_xml(contents)
-        except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
     from app.chuc_nang.nguoi_dung.hoa_don_ai.nghiep_vu.tai_len import upload
-    result, created = upload(db, user, contents, file.filename, ext, actual_mime, source, xml_data, upload_ticket, accept_distinct)
-    if response is not None:
-        response.status_code = 201 if created else 200
+    result, created = upload(db, user, contents, file.filename, ext, actual_mime, source, None, upload_ticket, accept_distinct)
+    response.status_code = 201 if created else 200
     return result
 
 
@@ -125,7 +113,7 @@ def list_invoices(
         Invoice.deleted_at.is_not(None) if visibility in {"hidden", "trash"} else Invoice.deleted_at.is_(None))
     if status:
         q = q.where(Invoice.status == status.upper())
-    q = q.order_by(Invoice.created_at.desc())
+    q = q.order_by(Invoice.created_at.desc(), Invoice.id.desc())
 
     count_q = select(func.count()).select_from(q.subquery())
     total = db.scalar(count_q) or 0
@@ -140,7 +128,9 @@ def list_invoices(
         summary.duplicate_level = checks[item.id]["level"]
         summary.duplicate_candidate_count = checks[item.id]["candidate_count"]
         summary.duplicate_similarity_percent = checks[item.id]["similarity_percent"]
-        summary.duplicate_match_id = checks[item.id]["candidates"][0]["invoice_id"] if checks[item.id]["candidates"] else None
+        match_id = next((candidate["invoice_id"] for candidate in checks[item.id]["candidates"]
+                         if not candidate.get("purged")), None)
+        summary.duplicate_match_id = uuid.UUID(match_id) if match_id else None
         summaries.append(summary)
     return InvoicePage(items=summaries, total=total, page=page, page_size=page_size)
 
@@ -199,8 +189,9 @@ def get_invoice_file(
     if trash_expired(invoice):
         raise HTTPException(410, detail="Hóa đơn đã hết thời hạn lưu trong Thùng rác.")
 
-    file_path = Path(settings.upload_dir) / invoice.storage_key
-    if not file_path.exists():
+    root = Path(settings.upload_dir).resolve()
+    file_path = (root / invoice.storage_key).resolve()
+    if not file_path.is_relative_to(root) or not file_path.is_file():
         raise HTTPException(status_code=404, detail="Tệp vật lý không tồn tại trên máy chủ")
 
     return FileResponse(
@@ -249,6 +240,7 @@ def update_invoice_items(
 ):
     invoice = lock_invoice(db, user, invoice_id)
     require_visible(invoice)
+    check_revision(invoice, payload.expected_revision, required=True)
     if invoice.status in {"CONFIRMED", "PROCESSING"}:
         raise HTTPException(status_code=409, detail="Không thể sửa mặt hàng khi hóa đơn đang xử lý hoặc đã ghi sổ")
 
@@ -294,6 +286,8 @@ def _enqueue_ocr(db, invoice_id, user_id):
     if invoice.status == "PROCESSING":
         return {"id":str(invoice.id), "success":True, "queued":True}
     job=OcrJob(id=uuid.uuid4(),user_id=user_id,invoice_id=invoice.id,status="QUEUED",provider="google_gemini",model_name=settings.google_ai_model)
+    from app.chuc_nang.nguoi_dung.goi_dich_vu.han_muc import reserve_ai
+    reserve_ai(db, user_id, job.id)
     db.add(job);invoice.status="PROCESSING";invoice.revision += 1;db.flush()
     enqueue(db,"OCR",{"invoice_id":str(invoice.id),"user_id":str(user_id),"ocr_job_id":str(job.id),"invoice_revision":invoice.revision},"ocr:"+str(job.id))
     return {"id":str(invoice.id),"success":True,"queued":True,"job_id":str(job.id)}
@@ -324,8 +318,9 @@ def batch_ocr(request: Request, payload: InvoiceBatchOcr, db: Session=Depends(ge
 @router.post(
     "/{invoice_id}/confirm",
     status_code=201,
-    summary="Xác nhận hóa đơn (Confirm Invoice)",
-    description="Xác nhận hóa đơn, lưu lại dữ liệu đã chỉnh sửa và tự động tạo giao dịch EXPENSE vào Sổ cái.",
+    summary="Luồng xác nhận hóa đơn cũ đã ngừng hỗ trợ",
+    description="Dùng /bookkeeping/invoices/{id}/confirm để ghi sổ thu chi độc lập với số dư ví.",
+    deprecated=True,
 )
 def confirm_invoice(
     invoice_id: uuid.UUID,
@@ -333,10 +328,7 @@ def confirm_invoice(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if settings.independent_wallets_enabled:
-        raise HTTPException(409, "Luồng ghi sổ đã thay đổi. Dùng /bookkeeping/invoices/{id}/confirm, không chọn ví.")
-    from app.chuc_nang.nguoi_dung.hoa_don_ai.nghiep_vu.xac_nhan_hoa_don import confirm
-    return confirm(db, user, invoice_id, payload)
+    raise HTTPException(409, "Luồng ghi sổ đã thay đổi. Dùng /bookkeeping/invoices/{id}/confirm, không chọn ví.")
 
 
 @router.post("/{invoice_id}/duplicate-check")
@@ -424,7 +416,7 @@ def delete_invoice(
     "/batch-delete",
     status_code=200,
     summary="Xóa hàng loạt hóa đơn (Batch Delete Invoices)",
-    description="Xóa nhiều hóa đơn cùng lúc — không giới hạn số lượng, xóa an toàn tuyệt đối.",
+    description="Chuyển tối đa 100 hóa đơn vào Thùng rác, giữ tệp và khoản chi đã ghi sổ.",
 )
 def batch_delete_invoices(
     payload: InvoiceBatchDelete,

@@ -1,20 +1,6 @@
-/**
- * ============================================================================
- * TÊN FILE: TransactionFilters.tsx
- * MÀN HÌNH / PHÂN HỆ: Giao dịch
- * NHÓM VỆ TINH: thanh-phan (Chức năng con)
- * MỤC ĐÍCH CỤ THỂ:
- *   Cung cấp tìm kiếm, bộ lọc và xuất Excel cho sổ giao dịch.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   Props từ component cha, kiểu nghiệp vụ và các primitive UI liên quan.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Xuất TransactionFilters để route hoặc component khác sử dụng.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Validate tài khoản, tiền tệ và số tiền; mọi ghi/xóa phải làm mới các cache tài chính liên quan.
- * ============================================================================
- */
 "use client";
-import { Search, Download } from "lucide-react";
+import { Search, Download, RotateCcw } from "lucide-react";
+import styles from "../CSS/Transactions.module.css";
 import { Field } from "@/dung-chung/UI-chung/ui";
 import DateInput from "@/dung-chung/UI-chung/DateInput";
 import { type Account, type Category } from "@/dung-chung/nghiep-vu/finance";
@@ -31,6 +17,8 @@ interface TransactionFiltersProps {
   categories: Category[];
   onFilter: (key: string, value: string) => void;
   onSearch: (v: string) => void;
+  onReset: () => void;
+  resetKey: number;
 }
 
 // Chỉ xuất các giao dịch đã tick, không có phạm vi xuất ngầm theo trang/bộ lọc.
@@ -46,6 +34,8 @@ export default function TransactionFilters({
   categories,
   onFilter,
   onSearch,
+  onReset,
+  resetKey,
 }: TransactionFiltersProps) {
   return (
     <div className="cf-toolbar">
@@ -68,8 +58,8 @@ export default function TransactionFilters({
             onChange={(e) => onFilter("origin", e.target.value)}
           >
             <option value="">Tất cả nguồn</option>
-            <option value="WALLET">Thanh toán ví</option>
-            <option value="OCR">Hóa đơn AI (OCR)</option>
+            <option value="WALLET">Giao dịch ví</option>
+            <option value="OCR">Quét hóa đơn</option>
             <option value="MANUAL">Nhập thủ công</option>
           </select>
         </Field>
@@ -82,9 +72,7 @@ export default function TransactionFilters({
           >
             <option value="">Tất cả tài khoản</option>
             {accounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
+              <option key={a.id} value={a.id}> {a.name} </option>
             ))}
           </select>
         </Field>
@@ -96,19 +84,9 @@ export default function TransactionFilters({
           onChange={(e) => onFilter("category_id", e.target.value)}
         >
           <option value="">Tất cả danh mục</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}{!c.is_active ? " (đã ẩn)" : ""}
-            </option>
-          ))}
+          <option value="uncategorized">Không phân loại</option>
+          {categories.map((c) => ( <option key={c.id} value={c.id}> {c.name}{!c.is_active ? " (đã ẩn)" : ""} </option> ))}
         </select>
-      </Field>
-      <Field label="Từ ngày">
-        <DateInput value={filters.start_date} onChange={(value) => onFilter("start_date", value)} />
-      </Field>
-      <Field label="Đến ngày">
-        <DateInput value={filters.end_date} min={filters.start_date || undefined}
-          onChange={(value) => onFilter("end_date", value)} />
       </Field>
       <Field label="Tìm nhanh">
         <div style={{ position: "relative" }}>
@@ -119,6 +97,7 @@ export default function TransactionFilters({
           <input
             className="cf-input"
             style={{ paddingLeft: 32 }}
+            aria-label="Tìm nhanh"
             placeholder="Tìm mọi giao dịch"
             value={search}
             maxLength={100}
@@ -126,16 +105,36 @@ export default function TransactionFilters({
           />
         </div>
       </Field>
-      <button
-        className="cf-btn"
-        type="button"
-        disabled={exportDisabled || exporting}
-        title={selectedCount ? `Xuất ${selectedCount} giao dịch đã tick` : "Tick ít nhất một giao dịch để xuất Excel"}
-        onClick={onExport}
-      >
-        <Download size={14} />
-        {exporting ? "Đang xuất…" : "Xuất Excel"}
-      </button>
+      <Field label="Từ ngày">
+        <DateInput key={resetKey} value={filters.start_date} onChange={(value) => onFilter("start_date", value)} />
+      </Field>
+      <Field label="Đến ngày">
+        <DateInput key={resetKey} value={filters.end_date} min={filters.start_date || undefined}
+          onChange={(value) => onFilter("end_date", value)} />
+      </Field>
+      <div className={styles.filterActions}>
+        <button
+          className={`cf-btn ${styles.resetFilter}`}
+          type="button"
+          aria-label="Đặt lại bộ lọc"
+          title="Đặt lại bộ lọc"
+          // Giữ vị trí nút ổn định khi ô ngày đang nhập dở chuẩn bị báo lỗi lúc blur.
+          onPointerDown={(event) => event.preventDefault()}
+          onClick={(event) => { onReset(); event.currentTarget.focus(); }}
+        >
+          <RotateCcw size={16} aria-hidden="true" />
+        </button>
+        <button
+          className="cf-btn"
+          type="button"
+          disabled={exportDisabled || exporting}
+          title={selectedCount ? `Xuất ${selectedCount} giao dịch đã tick` : "Tick ít nhất một giao dịch để xuất Excel"}
+          onClick={onExport}
+        >
+          <Download size={14} />
+          {exporting ? "Đang xuất…" : "Xuất Excel"}
+        </button>
+      </div>
     </div>
   );
 }

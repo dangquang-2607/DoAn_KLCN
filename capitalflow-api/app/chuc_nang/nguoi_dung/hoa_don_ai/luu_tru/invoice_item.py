@@ -6,7 +6,7 @@ thêm line_no, unit, discount_amount, tax_amount, confidence, raw_text, updated_
 import uuid
 from decimal import Decimal
 from datetime import datetime
-from sqlalchemy import Unicode, String, Integer, Numeric, DateTime, ForeignKey, func, Uuid, Index
+from sqlalchemy import Unicode, Integer, Numeric, DateTime, ForeignKey, func, Uuid, Index
 from sqlalchemy.orm import Mapped, mapped_column
 from app.dung_chung.database.nen_tang import Base
 

@@ -31,7 +31,7 @@ def provision(db, user):
                 if 'UQ_demo_bank_number' not in str(exc.orig):
                     raise
         else:
-            raise HTTPException(503, 'Chưa cấp được tài khoản demo. Vui lòng thử lại.')
+            raise HTTPException(503, 'Chưa cấp được tài khoản ngân hàng. Vui lòng thử lại.')
     return banks
 
 
@@ -40,5 +40,5 @@ def owned_bank(db, user, payload):
         DemoBankBalance.provider == payload.provider, DemoBankBalance.account_number == payload.account_number))
     if bank is None:
         # Do not disclose whether an entered number belongs to another user.
-        raise HTTPException(422, 'Chỉ được liên kết tài khoản ngân hàng demo được cấp riêng cho bạn.')
+        raise HTTPException(422, 'Chỉ được liên kết tài khoản ngân hàng được cấp riêng cho bạn.')
     return bank

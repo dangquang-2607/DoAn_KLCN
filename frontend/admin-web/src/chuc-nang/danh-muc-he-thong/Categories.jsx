@@ -1,24 +1,10 @@
-/**
- * ============================================================================
- * TÊN FILE: Categories.jsx
- * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
- * MÀN HÌNH / PHÂN HỆ: Danh mục hệ thống
- * MỤC ĐÍCH CỤ THỂ:
- *   Điều phối truy vấn, bộ lọc và mutation tạo/sửa/bật-tắt/sắp xếp danh mục.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   React Query, admin API client và các component danh mục.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Xuất route Categories với thông báo thành công và lỗi nghiệp vụ.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Không có thao tác xóa; ngừng sử dụng được thực hiện bằng is_active.
- * ============================================================================
- */
+import density from "../../dung-chung/CSS/management.module.css";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Tags, Search, Pencil, PauseCircle, PlayCircle, ArrowDown, ArrowUp } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import CategoryList from "./thanh-phan/CategoryList";
 import CategoryModal from "./thanh-phan/CategoryModal";
-import { Alert, ErrorState, Loading } from "../../dung-chung/UI-chung/design";
+import { Alert, ErrorState, Loading } from "../../dung-chung/UI-chung/ui";
 import PageHead from "../../dung-chung/UI-chung/WorkspaceHead";
 import api from "../../dung-chung/connect-api/api";
 import Inspector from "../../dung-chung/UI-chung/Inspector";
@@ -27,19 +13,20 @@ import { errorMessage } from "../../dung-chung/tien-ich/format";
 
 function CategoryOrderControls({ name, index, total, busy, onMove }) {
   return (
-    <>
+    <div role="group" aria-label={`Sắp xếp ${name}`}>
       <button className="cf-icon-btn" disabled={busy || index === 0} onClick={() => onMove(-1)} aria-label={`Đưa ${name} lên`}>
         <ArrowUp size={16} />
       </button>
       <button className="cf-icon-btn" disabled={busy || index === total - 1} onClick={() => onMove(1)} aria-label={`Đưa ${name} xuống`}>
         <ArrowDown size={16} />
       </button>
-    </>
+    </div>
   );
 }
 
 export default function Categories() {
   const cache = useQueryClient();
+  const pending = useRef(false);
   const [type, setType] = useState("EXPENSE");
   const [selectedId, setSelectedId] = useState(undefined);
   const [status, setStatus] = useState("ALL");
@@ -79,6 +66,7 @@ export default function Categories() {
   const position = allForType.findIndex((item) => item.id === selectedCategory?.id);
 
   const openCreate = () => {
+    if (pending.current) return;
     setEditing(null);
     setName("");
     setIcon("package");
@@ -90,6 +78,7 @@ export default function Categories() {
   };
 
   const openEdit = (category) => {
+    if (pending.current) return;
     setEditing(category);
     setName(category.name);
     setIcon(category.icon || "package");
@@ -102,6 +91,9 @@ export default function Categories() {
 
   const save = async (event) => {
     event.preventDefault();
+    if (pending.current) return;
+    if (!name.trim()) { setError("Nhập tên danh mục, không chỉ gồm khoảng trắng."); return; }
+    pending.current = true;
     setBusy(true);
     setError("");
     const payload = {
@@ -121,11 +113,14 @@ export default function Categories() {
     } catch (caught) {
       setError(errorMessage(caught));
     } finally {
+      pending.current = false;
       setBusy(false);
     }
   };
 
   const toggle = async (category) => {
+    if (pending.current) return;
+    pending.current = true;
     setBusy(true);
     setError("");
     try {
@@ -135,31 +130,36 @@ export default function Categories() {
     } catch (caught) {
       setError(errorMessage(caught));
     } finally {
+      pending.current = false;
       setBusy(false);
     }
   };
 
   const move = async (category, delta) => {
+    if (pending.current) return;
     const index = allForType.findIndex((item) => item.id === category.id);
     const target = index + delta;
     if (index < 0 || target < 0 || target >= allForType.length) return;
+    pending.current = true;
     const next = [...allForType];
     [next[index], next[target]] = [next[target], next[index]];
     setBusy(true);
     setError("");
     try {
       await api.put("/admin/categories/reorder", { type, ordered_ids: next.map((item) => item.id) });
+      setSelectedId(category.id);
       await cache.invalidateQueries({ queryKey: ["admin-categories"] });
       setNotice("Đã cập nhật thứ tự danh mục.");
     } catch (caught) {
       setError(errorMessage(caught));
     } finally {
+      pending.current = false;
       setBusy(false);
     }
   };
 
   return (
-    <div className="adm-surface adm-live adm-rest adm-categories-demo">
+    <div className={`adm-surface adm-live adm-rest adm-categories ${density.page}`}>
       <PageHead
         eyebrow="DANH MỤC DÙNG CHUNG"
         title="Danh mục hệ thống"
@@ -180,6 +180,7 @@ export default function Categories() {
               <button
                 type="button"
                 key={value}
+                disabled={busy}
                 className={type === value ? "is-active" : ""}
                 aria-pressed={type === value}
                 onClick={() => {
@@ -192,7 +193,7 @@ export default function Categories() {
               </button>
             ))}
           </div>
-          <button type="button" className="adm-rest-dark-button" onClick={openCreate}>
+          <button type="button" className="adm-rest-dark-button" disabled={busy} onClick={openCreate}>
             <Plus size={16} />
             Thêm danh mục
           </button>
@@ -334,7 +335,7 @@ export default function Categories() {
           onKeywordsChange={setKeywords}
           onActiveChange={setIsActive}
           onDismissError={() => setError("")}
-          onClose={() => setShow(false)}
+          onClose={() => { if (!pending.current) setShow(false); }}
           onSubmit={save}
         />
       )}

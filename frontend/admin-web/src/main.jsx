@@ -1,21 +1,13 @@
-/**
- * ============================================================================
- * TÊN FILE: main.jsx
- * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
- * MÀN HÌNH / PHÂN HỆ: Khởi tạo ứng dụng
- * MỤC ĐÍCH CỤ THỂ:
- *   Gắn React vào DOM, cấu hình React Query và nạp CSS giao diện toàn cục.
- * ============================================================================
- */
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
-// Nạp style hệ thống: base reset -> swiss tokens/shell -> workspace UI
-import './dung-chung/styles/index.css'
-import './dung-chung/styles/swiss.css'
-import './dung-chung/styles/workspace.css'
-import App from './App.jsx'
+// Preserve the cascade: foundation -> UI -> application shell -> admin workspace.
+import './dung-chung/CSS/base.css'
+import './dung-chung/CSS/ui.css'
+import './dung-chung/CSS/shell.css'
+import './dung-chung/CSS/workspace.css'
+import App from './ung-dung/App.jsx'
 
 const queryClient = new QueryClient({
   defaultOptions: {

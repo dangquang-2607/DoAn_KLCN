@@ -1,23 +1,6 @@
-/**
- * ============================================================================
- * TÊN FILE: Inspector.jsx
- * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
- * MÀN HÌNH / PHÂN HỆ: Thành phần giao diện dùng chung (UI Primitives)
- * NHÓM VỆ TINH: dung-chung (Khung thanh tra chi tiết)
- * MỤC ĐÍCH CỤ THỂ:
- *   Khung ngăn kéo trượt (Slide-over drawer) chuẩn hóa để hiển thị thông tin
- *   chi tiết của bản ghi được chọn mà không cần chuyển trang.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   Props title, eyebrow, onClose, children, footer.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Default export Inspector component.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Khóa cuộn trang nền (scroll lock) khi ngăn kéo đang mở để tập trung tương tác.
- * ============================================================================
- */
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
-import { Empty } from "./design";
+import { Empty } from "./ui";
 
 /**
  * Khung ngăn kéo trượt hiển thị chi tiết bản ghi thanh tra.

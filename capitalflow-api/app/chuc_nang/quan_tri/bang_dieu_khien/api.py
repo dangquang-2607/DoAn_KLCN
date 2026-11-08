@@ -27,16 +27,15 @@ def admin_overview(
     today = local_today()
     # Mỗi bảng chỉ tổng hợp một lượt, thay vì chín truy vấn đếm riêng.
     user_counts = db.execute(select(
-        func.sum(case((User.is_deleted == False, 1), else_=0)),
-        func.sum(case(((User.is_deleted == False) & (User.is_active == True), 1), else_=0)),
-        func.sum(case(((User.is_deleted == False) & (User.is_active == False), 1), else_=0)),
-        func.sum(case((User.is_deleted == True, 1), else_=0)),
+        func.count(User.id),
+        func.sum(case((User.is_active == True, 1), else_=0)),
+        func.sum(case((User.is_active == False, 1), else_=0)),
     )).one()
-    total_users, active_users, banned_users, deleted_users = (int(value or 0) for value in user_counts)
+    total_users, active_users, banned_users = (int(value or 0) for value in user_counts)
 
     invoice_counts = db.execute(select(
         func.count(Invoice.id), func.sum(case((Invoice.status == "CONFIRMED", 1), else_=0)),
-    )).one()
+    ).where(Invoice.deleted_at.is_(None))).one()
     total_invoices, completed_invoices = (int(value or 0) for value in invoice_counts)
     ocr_rate = (
         round((completed_invoices / total_invoices) * 100, 1)
@@ -57,7 +56,6 @@ def admin_overview(
             "total": total_users,
             "active": active_users,
             "banned": banned_users,
-            "deleted": deleted_users,
         },
         "invoices": {
             "total": total_invoices,

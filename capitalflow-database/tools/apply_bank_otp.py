@@ -3,14 +3,11 @@
 No real email is sent. OTP probes and rehearsal DDL are rolled back.
 """
 import argparse
-import asyncio
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 from pathlib import Path, PureWindowsPath
 import sys
-from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -18,14 +15,12 @@ sys.path.insert(0, str(ROOT / "capitalflow-api"))
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import create_engine, inspect, select, text
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 from app.dung_chung.config import settings
 import app.dung_chung.database.dang_ky_mo_hinh  # Register ORM relationships.
 from app.chuc_nang.nguoi_dung.dang_nhap.luu_tru.dat_lai_mat_khau import PasswordResetOTP
-from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan import api
-from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan.schemas import SendOtpRequest
 
 PREVIOUS = "cfdb_invoice_dedup"
 TARGET = "cfdb_bank_otp"
@@ -93,18 +88,14 @@ def probe(conn):
             if user_id is None:
                 raise RuntimeError("No existing user available for the rolled-back OTP probe.")
             email = f"schema-check-{uuid4().hex}@example.invalid"
-            user = SimpleNamespace(id=user_id, email=email)
-            mail = AsyncMock()
-            with patch.object(api, "send_otp_email", mail):
-                response = asyncio.run(api.send_otp(
-                    SendOtpRequest(institution_name="MOMO", account_number="0900000000"),
-                    db=db, user=user,
-                ))
-            assert response["expires_in_seconds"] == 300
-            mail.assert_awaited_once()
-            record = db.scalar(select(PasswordResetOTP).where(PasswordResetOTP.email == email))
+            # Validate this migration's schema without depending on retired HTTP routes.
+            record = PasswordResetOTP(user_id=user_id, email=email, purpose="LINK_BANK",
+                                      otp_code="unused-probe",
+                                      expires_at=datetime.now(timezone.utc) + timedelta(minutes=5))
+            db.add(record)
+            db.flush()
+            db.refresh(record)
             assert record.purpose == "LINK_BANK" and record.created_at is not None
-            assert record.otp_code == mail.await_args.kwargs["otp_code"]
             reset = PasswordResetOTP(email=email, otp_code="unused-probe",
                                      expires_at=datetime.now(timezone.utc) + timedelta(minutes=1))
             db.add(reset)

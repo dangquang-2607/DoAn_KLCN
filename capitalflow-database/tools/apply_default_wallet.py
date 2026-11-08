@@ -21,7 +21,7 @@ def upgrade(conn):
     command.upgrade(config(conn), 'cfdb_default_wallet')
     assert snapshot(conn, columns) == before, 'Existing data changed'
     assert conn.execute(text(select_old + ' WHERE is_default = 0 ORDER BY id')).all() == wallets
-    assert conn.scalar(text('SELECT COUNT(*) FROM wallets WHERE is_default=1')) == conn.scalar(text('SELECT COUNT(*) FROM users WHERE is_deleted=0'))
+    assert conn.scalar(text('SELECT COUNT(*) FROM wallets WHERE is_default=1')) == conn.scalar(text('SELECT COUNT(*) FROM users'))
     assert conn.scalar(text('SELECT COUNT(*) FROM wallets WHERE is_default=1 AND (balance<>0 OR is_active<>1)')) == 0
     command.check(config(conn))
 

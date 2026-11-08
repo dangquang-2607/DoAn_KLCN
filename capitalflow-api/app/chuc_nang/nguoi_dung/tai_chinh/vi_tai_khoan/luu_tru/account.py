@@ -13,6 +13,7 @@ from datetime import datetime, date
 from sqlalchemy import Unicode, String, Boolean, Numeric, DateTime, Date, Text, ForeignKey, func, Uuid, Index
 from sqlalchemy.orm import Mapped, mapped_column
 from app.dung_chung.database.nen_tang import Base
+from app.dung_chung.money import format_vnd
 
 class AccountType(str, enum.Enum):
     BASIC = "BASIC"
@@ -80,11 +81,6 @@ class Account(Base):
         return json.loads(self.bank_state or "{}").get("sync_error")
 
     @property
-    def bank_status(self):
-        from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan.legacy_bank_sync.bank import view, read_state
-        return view(read_state(self)).get("stage", "NOT_CONNECTED")
-
-    @property
     def bank_last_sync(self):
         import json
         return json.loads(self.bank_state or "{}").get("last_sync")
@@ -110,12 +106,12 @@ def account_notifications(session, flush_context, instances):
             if "balance" in state and Decimal(state["balance"]) != Decimal(current):
                 emit_notification(session, user_id=account.user_id, kind="ACCOUNT",
                                   title="Biến động số dư",
-                                  message=f"Số dư {account.name}: {state['balance']} → {current} VND",
+                                  message=f"Số dư {account.name}: {format_vnd(state['balance'])} → {format_vnd(current)}",
                                   source_type="ACCOUNT", source_id=account.id, action_url="/accounts")
             if account.account_type == AccountType.SAVINGS and Decimal(target) > 0 and Decimal(current) >= Decimal(target) and state.get("achieved_target") != target:
                 emit_notification(session, user_id=account.user_id, kind="SAVINGS",
                                   title="Đạt mục tiêu tiết kiệm",
-                                  message=f"{account.name} đã đạt mục tiêu {target} VND",
+                                  message=f"{account.name} đã đạt mục tiêu {format_vnd(target)}",
                                   source_type="ACCOUNT", source_id=account.id, action_url="/accounts")
                 state["achieved_target"] = target
         state.pop("messages", None)

@@ -1,12 +1,3 @@
-/**
- * ============================================================================
- * TÊN FILE: CategoryIcon.jsx
- * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
- * MÀN HÌNH / PHÂN HỆ: Thiết kế dùng chung
- * MỤC ĐÍCH CỤ THỂ:
- *   Cung cấp icon, màu và bộ chọn nhận diện danh mục.
- * ============================================================================
- */
 import { createElement } from "react";
 import {
   Baby, Banknote, BookOpen, Briefcase, Bus, Camera, Car, Coffee,

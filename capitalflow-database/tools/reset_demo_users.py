@@ -45,7 +45,7 @@ def plan(conn, metadata):
     assert len(keeper) == 1
     keeper = keeper[0]
     assert normalized(keeper['id']) == EXPECTED_KEEP_ID
-    assert keeper['role'] == 'ADMIN' and keeper['is_active'] and not keeper['is_deleted']
+    assert keeper['role'] == 'ADMIN' and keeper['is_active']
     assert keeper['phone_number'] is None, 'Keeper already has a phone; inspect instead of changing it'
     removed_users = [r for r in rows['users'] if r != keeper]
     removed_ids = {normalized(r['id']) for r in removed_users}
@@ -65,8 +65,6 @@ def plan(conn, metadata):
             else:
                 remove = any(normalized(row.get(col)) in removed_ids
                              for col in ('user_id', 'owner_user_id'))
-            if name == 'user_deletion_requests':
-                remove = normalized(row['target_user_id']) != EXPECTED_KEEP_ID
             if name in {'email_logs', 'password_reset_otps'}:
                 recipient = row.get('recipient', row.get('email', '')).lower()
                 remove |= recipient != KEEP
@@ -125,7 +123,6 @@ def plan(conn, metadata):
     assert upload_root == (ROOT / 'capitalflow-api' / 'uploads').resolve()
     retained_keys = {r['storage_key'] for r in expected['invoices'] if r['storage_key']}
     keys = {rows['invoices'][i]['storage_key'] for i in doomed['invoices']}
-    keys |= {rows['user_deletion_files'][i]['storage_key'] for i in doomed['user_deletion_files']}
     files = set()
     for key in keys - retained_keys - {None, ''}:
         path = (upload_root / key).resolve()

@@ -8,7 +8,7 @@ Ràng buộc: không lưu OTP dạng có thể sử dụng lại ngoài thời h
 
 import uuid
 from datetime import datetime
-from sqlalchemy import DateTime, Integer, String, Boolean, ForeignKey, Uuid, func
+from sqlalchemy import DateTime, Index, Integer, String, Boolean, ForeignKey, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 from app.dung_chung.database.nen_tang import Base
 
@@ -31,3 +31,5 @@ class PasswordResetOTP(Base):
     is_used: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     failed_attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.sysutcdatetime(), nullable=False)
+
+    __table_args__ = (Index("IX_reset_otp_account_time", "user_id", "purpose", "created_at"),)

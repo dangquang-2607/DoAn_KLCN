@@ -1,27 +1,13 @@
-/**
- * ============================================================================
- * TÊN FILE: SecuritySettings.tsx
- * MÀN HÌNH / PHÂN HỆ: Cài đặt & bảo mật
- * NHÓM VỆ TINH: thanh-phan (Chức năng con)
- * MỤC ĐÍCH CỤ THỂ:
- *   Hiển thị hồ sơ và xử lý đổi mật khẩu tài khoản.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   Props từ component cha, kiểu nghiệp vụ và các primitive UI liên quan.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Xuất SecuritySettings để route hoặc component khác sử dụng.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Không ghi log mật khẩu/token; khóa thao tác khi đang gửi và xử lý phiên hết hạn nhất quán.
- * ============================================================================
- */
 "use client";
 /** Form thông tin tài khoản và đổi mật khẩu, dùng cả cho lần đăng nhập đầu. */
 import { useState, type ReactNode } from "react";
 import { KeyRound, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import api from "@/dung-chung/connect-api/api";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import api, { clearSession } from "@/dung-chung/connect-api/api";
 import { errorMessage } from "@/dung-chung/tien-ich/finance";
 import { type Profile } from "@/dung-chung/nghiep-vu/finance";
+import { newPasswordError } from "./passwordPolicy";
 import {
   Panel,
   Field,
@@ -38,6 +24,7 @@ export default function SecuritySettings({
   sessions?: ReactNode;
 }) {
   const router = useRouter();
+  const cache = useQueryClient();
   const [current, setCurrent] = useState(""),
     [password, setPassword] = useState(""),
     [confirm, setConfirm] = useState(""),
@@ -51,8 +38,17 @@ export default function SecuritySettings({
   // Kiểm tra mật khẩu xác nhận, gọi đúng endpoint và hủy token cũ sau khi đổi thành công.
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (busy) return;
     setError("");
     setSuccess("");
+    if (!firstTime && !current) {
+      setError("Vui lòng nhập mật khẩu hiện tại.");
+      return;
+    }
+    if (newPasswordError(password)) {
+      setError(newPasswordError(password));
+      return;
+    }
     if (password !== confirm) {
       setError("Mật khẩu xác nhận chưa khớp.");
       return;
@@ -67,9 +63,9 @@ export default function SecuritySettings({
       setCurrent("");
       setPassword("");
       setConfirm("");
-      for (const key of Object.keys(sessionStorage)) { if (key.startsWith("cf-pending-invoice:") || key.startsWith("cf-pending-money:")) sessionStorage.removeItem(key); }
-      sessionStorage.removeItem("user_access_token");
-      sessionStorage.removeItem("user_refresh_token");
+      clearSession();
+      await cache.cancelQueries();
+      cache.clear();
       router.replace("/login");
     } catch (err) {
       setError(errorMessage(err));
@@ -95,11 +91,12 @@ export default function SecuritySettings({
         action={!firstTime && <KeyRound size={21} aria-hidden="true" />}
       >
         <form
+          noValidate
           onSubmit={submit}
           className="cf-panel-body cf-form"
           style={firstTime ? { maxWidth: 540 } : undefined}
         >
-          {error && <Alert onDismiss={() => setError("")}>{error}</Alert>}
+          {error && <Alert persistent onDismiss={() => setError("")}>{error}</Alert>}
           {success && <Alert kind="success" onDismiss={() => setSuccess("")}>{success}</Alert>}
           {!firstTime && <div className="cf-security-warning"><ShieldCheck size={17} aria-hidden="true" /><span>Sau khi đổi mật khẩu thành công, bạn cần đăng nhập lại.</span></div>}
           {!firstTime && (

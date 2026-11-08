@@ -10,10 +10,13 @@ from fastapi import APIRouter, FastAPI
 
 from app.khoi_dong.trang_thai import router as health_router
 from app.chuc_nang.quan_tri.routes import router as admin_router
+from app.chuc_nang.quan_tri.ho_tro.api import public_router as support_router
+from app.chuc_nang.quan_tri.ho_tro.yeu_cau import user_router as support_requests_router
 from app.chuc_nang.nguoi_dung.dang_nhap.routes import router as auth_router
 from app.chuc_nang.nguoi_dung.danh_muc.routes import router as category_router
 from app.chuc_nang.nguoi_dung.hoa_don_ai.routes import router as invoice_router
 from app.chuc_nang.nguoi_dung.tai_chinh.routes import router as finance_router
+from app.chuc_nang.nguoi_dung.goi_dich_vu.api import router as billing_router
 
 
 def register_routers(app: FastAPI) -> None:
@@ -25,5 +28,8 @@ def register_routers(app: FastAPI) -> None:
     v1.include_router(category_router)
     v1.include_router(invoice_router)
     v1.include_router(admin_router)
+    v1.include_router(support_router)
+    v1.include_router(support_requests_router)
+    v1.include_router(billing_router)
     app.include_router(v1)
     app.include_router(health_router)

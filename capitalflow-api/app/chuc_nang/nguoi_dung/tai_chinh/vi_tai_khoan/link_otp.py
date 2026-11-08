@@ -1,7 +1,7 @@
 """Email challenge bound to user, provider fixture and optional existing wallet."""
 import hashlib
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -26,7 +26,7 @@ def consume_otp(db, user, challenge_id, code, demo_id, account_id=None):
         PasswordResetOTP.email == user.email,
         PasswordResetOTP.purpose == purpose_for(demo_id, account_id),
     ).with_hint(PasswordResetOTP, "WITH (UPDLOCK, ROWLOCK)", dialect_name="mssql"))
-    if not record or record.is_used or record.expires_at <= datetime.utcnow() or record.failed_attempts >= 5:
+    if not record or record.is_used or record.expires_at <= datetime.now(timezone.utc).replace(tzinfo=None) or record.failed_attempts >= 5:
         raise HTTPException(400, "Mã OTP không hợp lệ, đã dùng hoặc hết hạn. Vui lòng gửi lại mã.")
     if not code or not secrets.compare_digest(record.otp_code, code_hash(record.id, code)):
         record.failed_attempts += 1

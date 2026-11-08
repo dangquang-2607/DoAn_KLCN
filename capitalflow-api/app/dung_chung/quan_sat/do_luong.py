@@ -111,18 +111,6 @@ class RuntimeTelemetry:
                 with self._lock:
                     self._event_loop_lag.observe(lag_ms)
 
-    def reset(self) -> None:
-        with self._lock:
-            self._pool_wait = Histogram()
-            self._query = Histogram()
-            self._request = Histogram()
-            self._event_loop_lag = Histogram()
-            self._query_operations.clear()
-            self._request_routes.clear()
-            self._query_errors = 0
-            self._request_errors = 0
-        self._process.cpu_percent(interval=None)
-
     def snapshot(self) -> dict[str, Any]:
         with self._lock:
             metrics = {

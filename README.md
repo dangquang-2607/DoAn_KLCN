@@ -7,11 +7,12 @@ Microsoft SQL Server; OCR chạy qua Gemini trong hàng đợi nền.
 Xem [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) để tra cứu toàn bộ file
 first-party và mục đích của từng file.
 
-Database chính trên máy phát triển là `personal_finance`. Bộ kiểm thử tự động,
-công cụ đánh giá riêng và môi trường QA/demo cũ đã được dọn ngày 19/10/2026.
-Chủ dự án tự khởi chạy API/worker/frontend và kiểm tra luồng trên giao diện.
-Không tự tạo thêm file test, dữ liệu giả, báo cáo nghiệm thu hoặc database QA
-khi chưa được chủ dự án yêu cầu. Hướng dẫn chạy các thành phần nằm bên dưới.
+Database chính trên máy phát triển là `personal_finance`. Các bộ kiểm tra hiện
+có nằm trong `capitalflow-api/tools/` và `tools/` của từng frontend. Một số công
+cụ backend có thể tạo database QA hoặc dữ liệu thử; cần đọc phạm vi và điều kiện
+của từng công cụ trước khi chạy. Không tự tạo thêm file test, dữ liệu giả, báo cáo
+nghiệm thu hoặc database QA khi chưa được chủ dự án yêu cầu.
+Chủ dự án tự khởi chạy API/worker/frontend; hướng dẫn nằm bên dưới.
 
 Hai giao diện được tổ chức theo sidebar trong `src/chuc-nang/`, còn phần dùng
 chung nằm tại `src/dung-chung/`. Xem [hướng dẫn frontend](frontend/README.md)
@@ -24,7 +25,7 @@ chung nằm tại `src/dung-chung/`. Xem [hướng dẫn frontend](frontend/READ
 | API | `http://localhost:8000` | REST API, `/docs`, `/health`, `/ready` |
 | User Web | `http://localhost:3010` | Tài khoản, giao dịch, ngân sách và OCR |
 | Admin Web | `http://localhost:5173` | Người dùng, danh mục, audit và vận hành |
-| Worker | Không mở HTTP | Email, OCR và purge người dùng |
+| Worker | Không mở HTTP | Email, OCR, ngân sách, đối soát billing và dọn hóa đơn hết hạn |
 
 ## Yêu cầu
 
@@ -45,9 +46,10 @@ pip install -r ..\capitalflow-database\requirements.txt
 Copy-Item .env.example .env
 ```
 
-Dependency Alembic được khai báo trong `capitalflow-database/requirements.txt`,
-không nằm trong dependency production của FastAPI. Image API/worker vì vậy chỉ
-chứa thư viện runtime và không mang công cụ thay đổi schema.
+Migration thuộc project `capitalflow-database` và phải được chạy riêng. Hiện
+`capitalflow-api/requirements.txt` vẫn chứa Alembic, nên image API/worker còn cài
+thư viện này dù Dockerfile chỉ sao chép mã `app/`. Việc tách dependency runtime,
+migration và dev là một thay đổi riêng; không tự chạy migration khi khởi động.
 
 Thay mọi placeholder trong `.env`. `DATABASE_URL` production phải dùng ODBC 18,
 `Encrypt=yes` và `TrustServerCertificate=no`. Không commit `.env`, khóa Fernet,
@@ -101,8 +103,9 @@ npm ci
 npm run dev
 ```
 
-Worker là tiến trình bắt buộc cho email, OCR và hard-delete. Nếu worker dừng,
-API vẫn phục vụ các nghiệp vụ đồng bộ nhưng job sẽ giữ trạng thái chờ.
+Worker xử lý EMAIL, OCR, BUDGET, BILLING và dọn hóa đơn đã xóa hết thời hạn giữ.
+Nếu worker dừng, API vẫn phục vụ các nghiệp vụ đồng bộ nhưng job sẽ giữ trạng
+thái chờ. Worker hiện không có luồng purge tài khoản người dùng.
 
 ## Docker
 
@@ -135,17 +138,19 @@ cd capitalflow-api
 .\.venv\Scripts\python.exe -m compileall -q app scripts
 
 cd ..\frontend\user-web
+npm test
+npm run lint
 npm run typecheck
 npm run build
 
 cd ..\admin-web
+npm test
 npm run lint
 npm run build
 ```
 
-Sau khi build backend image, smoke-test production artifact:
-
-```powershell
-cd capitalflow-api
-.\.venv\Scripts\python.exe -m scripts.verify_docker
-```
+Công cụ kiểm tra image nằm tại
+`capitalflow-api/scripts/deployment/verify_docker.py`. Script tạo container cô
+lập, kiểm tra dependency/worker/HTTP contract và dọn container của chính nó.
+Các assertion contract trong script còn có đường dẫn API cũ; cần cập nhật và
+kiểm chứng theo phiên bản triển khai trước khi dùng làm cổng phát hành.

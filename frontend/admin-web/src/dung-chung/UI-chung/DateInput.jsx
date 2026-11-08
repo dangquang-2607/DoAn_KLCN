@@ -1,15 +1,6 @@
-/**
- * ============================================================================
- * TÊN FILE: DateInput.jsx
- * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
- * MỤC ĐÍCH CỤ THỂ:
- *   Ô nhập ngày luôn hiển thị định dạng dd/mm/yyyy trên toàn hệ thống.
- *   Tự động chèn dấu /, tích hợp mở lịch chọn ngày, trả về YYYY-MM-DD cho API.
- * ============================================================================
- */
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { CalendarDays } from "lucide-react";
-import { formatDateForDisplay, formatDateForTyping, parseDateForApi } from "../tien-ich/format";
+import { dateInputError, formatDateForDisplay, formatDateForTyping, parseDateForApi } from "../tien-ich/format";
 
 function caretAfterDigits(value, count) {
   if (!count) return 0;
@@ -39,6 +30,8 @@ export default function DateInput({
   const lastEmitted = useRef(null);
   const pendingCaret = useRef(null);
   const [blurred, setBlurred] = useState(false);
+  const [rejected, setRejected] = useState("");
+  const errorId = useId();
 
   useLayoutEffect(() => {
     if (pendingCaret.current !== null) {
@@ -53,18 +46,19 @@ export default function DateInput({
       return;
     }
     pendingCaret.current = null;
+    setRejected("");
     setDisplay(formatDateForDisplay(value));
   }, [value]);
 
   const isoDate = parseDateForApi(display);
-  const invalid = display && !isoDate
+  const invalid = rejected || (display && !isoDate
     ? "Nhập ngày hợp lệ theo định dạng dd/mm/yyyy."
     : isoDate && min && isoDate < min
     ? `Ngày phải từ ${formatDateForDisplay(min)} trở đi.`
     : isoDate && max && isoDate > max
     ? `Ngày phải trước hoặc bằng ${formatDateForDisplay(max)}.`
-    : "";
-  const showInvalid = Boolean(invalid && (blurred || display.length === 10));
+    : "");
+  const showInvalid = Boolean(invalid && (rejected || blurred || display.length === 10));
 
   useEffect(() => {
     textRef.current?.setCustomValidity(invalid || "");
@@ -75,13 +69,37 @@ export default function DateInput({
     onChange(next);
   };
 
+  const updateDisplay = (raw, caret) => {
+    if (disabled || readOnly) return;
+    const next = formatDateForTyping(raw);
+    const error = dateInputError(next);
+    if (error) {
+      setRejected(error);
+      // A rejected edit must not replace the last accepted date or API value.
+      if (textRef.current) {
+        textRef.current.value = display;
+        textRef.current.setSelectionRange(Math.min(caret, display.length), Math.min(caret, display.length));
+      }
+      return;
+    }
+    const digitCount = raw.slice(0, caret).replace(/\D/g, "").length;
+    pendingCaret.current = caretAfterDigits(next, digitCount);
+    setRejected("");
+    setBlurred(false);
+    setDisplay(next);
+    const parsed = parseDateForApi(next);
+    const accepted = parsed && (!min || parsed >= min) && (!max || parsed <= max) ? parsed : "";
+    if (accepted && accepted !== value) emit(accepted);
+    else if (!accepted && value) emit("");
+  };
+
   return (
     <div className={`cf-date-input ${className || ""}`}>
       <input
         ref={textRef}
         id={id}
         aria-label={ariaLabel}
-        aria-describedby={describedBy}
+        aria-describedby={[describedBy, showInvalid ? errorId : null].filter(Boolean).join(" ") || undefined}
         aria-invalid={showInvalid}
         data-invalid={showInvalid ? "true" : undefined}
         className="cf-input cf-date-input-field"
@@ -94,11 +112,11 @@ export default function DateInput({
         readOnly={readOnly}
         disabled={disabled}
         value={display}
-        onBlur={() => setBlurred(true)}
+        onBlur={() => { setBlurred(true); setRejected(""); }}
         onKeyDown={(event) => {
           if (
             event.key.length === 1 &&
-            !/\d/.test(event.key) &&
+            !/[\d/]/.test(event.key) &&
             !event.ctrlKey &&
             !event.metaKey &&
             !event.altKey
@@ -108,20 +126,15 @@ export default function DateInput({
         }}
         onChange={(event) => {
           const raw = event.target.value;
-          const next = formatDateForTyping(raw);
-          const digitCount = raw
-            .slice(0, event.target.selectionStart ?? raw.length)
-            .replace(/\D/g, "").length;
-          pendingCaret.current = caretAfterDigits(next, digitCount);
-          setBlurred(false);
-          setDisplay(next);
-          const parsed = parseDateForApi(next);
-          const accepted =
-            parsed && (!min || parsed >= min) && (!max || parsed <= max)
-              ? parsed
-              : "";
-          if (accepted && accepted !== value) emit(accepted);
-          else if (!accepted && value) emit("");
+          updateDisplay(raw, event.target.selectionStart ?? raw.length);
+        }}
+        onPaste={(event) => {
+          event.preventDefault();
+          const input = event.currentTarget;
+          const start = input.selectionStart ?? 0;
+          const end = input.selectionEnd ?? display.length;
+          const pasted = event.clipboardData.getData("text");
+          updateDisplay(display.slice(0, start) + pasted + display.slice(end), start + pasted.length);
         }}
       />
       <button
@@ -144,12 +157,10 @@ export default function DateInput({
         disabled={disabled || readOnly}
         value={isoDate || ""}
         onChange={(event) => {
-          pendingCaret.current = null;
-          setDisplay(formatDateForDisplay(event.target.value));
-          setBlurred(false);
-          emit(event.target.value);
+          if (event.target.validity.valid) updateDisplay(event.target.value, event.target.value.length);
         }}
       />
+      {showInvalid && <span id={errorId} className="cf-date-input-error" role="alert">{invalid}</span>}
     </div>
   );
 }

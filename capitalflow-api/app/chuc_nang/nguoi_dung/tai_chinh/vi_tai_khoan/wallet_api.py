@@ -1,5 +1,6 @@
 """Simulated stored-value wallets, separate from bookkeeping and legacy accounts."""
 import secrets
+import math
 import re
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -9,15 +10,17 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 from app.dung_chung.http.phu_thuoc import get_db, get_current_user
-from app.dung_chung.text.unicode import normalize_unicode_text
+from app.dung_chung.text.unicode import normalize_unicode_text, validate_utf16_length
+from app.dung_chung.money import format_vnd
 from app.chuc_nang.nguoi_dung.dang_nhap.luu_tru.nguoi_dung import User
 from app.chuc_nang.nguoi_dung.dang_nhap.luu_tru.dat_lai_mat_khau import PasswordResetOTP
 from app.chuc_nang.nguoi_dung.dang_nhap.nghiep_vu.session_management import locked_user
 from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.luy_dang import idempotent_money
 from app.chuc_nang.nguoi_dung.tai_chinh.thong_bao.dich_vu import emit_notification
 from .luu_tru.wallet import Wallet, DemoBankBalance, UserBankLink, WalletEntry
-from .user_banks import DEMO_FUNDING_BALANCES, provision, owned_bank
-from .number_rules import NUMBER_RULES, mask_account_number
+from .bill_qr import BillQRInput, parse_bill_qr
+from .user_banks import provision, owned_bank
+from .number_rules import NUMBER_RULES
 from .link_otp import purpose_for, code_hash, consume_otp
 from app.dung_chung.gui_mail import send_otp_email
 from app.dung_chung.http.gioi_han_tan_suat import limiter
@@ -26,6 +29,7 @@ from .wallet_codes import insert_wallet
 
 router = APIRouter(prefix='/wallets', tags=['Independent wallets'])
 MAX_MONEY = Decimal('99999999999999999.99')
+BANK_OTP_RESEND_SECONDS = 120
 
 
 def now():
@@ -42,7 +46,7 @@ class WalletName(StrictBody):
         value = normalize_unicode_text(value, strip=True)
         if not value:
             raise ValueError('Tên ví không được rỗng')
-        return value
+        return validate_utf16_length(value, 150, 'Tên ví')
 
 class BankRequest(StrictBody):
     provider: str
@@ -55,7 +59,7 @@ class BankRequest(StrictBody):
             raise ValueError('Số tài khoản phải là chuỗi chữ số, giữ nguyên số 0 ở đầu.')
         value = re.sub(r'[\s\u200b-\u200d\ufeff]', '', normalize_unicode_text(value))
         if re.fullmatch(r'[0-9]{6,20}', value) is None:
-            raise ValueError('Số tài khoản chỉ được gồm 6–20 chữ số. Hãy dùng số tài khoản mẫu của ngân hàng đã chọn.')
+            raise ValueError('Số tài khoản chỉ được gồm 6–20 chữ số. Hãy dùng số tài khoản được cấp của ngân hàng đã chọn.')
         return value
 
 class BankConfirm(BankRequest):
@@ -64,28 +68,25 @@ class BankConfirm(BankRequest):
 
 class BankMoney(StrictBody):
     link_id: uuid.UUID
-    amount: Decimal = Field(gt=0, max_digits=19, decimal_places=2)
+    amount: Decimal = Field(gt=Decimal('0'), max_digits=19, decimal_places=2)
 
 class Transfer(StrictBody):
     to_wallet_id: uuid.UUID
-    amount: Decimal = Field(gt=0, max_digits=19, decimal_places=2)
+    amount: Decimal = Field(gt=Decimal('0'), max_digits=19, decimal_places=2)
+    note: str = Field(default='', max_length=200)
+
+    @field_validator('note')
+    @classmethod
+    def clean_note(cls, value):
+        value = normalize_unicode_text(value, strip=True)
+        return validate_utf16_length(value, 200, 'Nội dung chuyển tiền')
 
 class RecipientLookup(StrictBody):
     recipient: str = Field(min_length=1, max_length=512)
 
-class BillPayment(StrictBody):
-    merchant_name: str = Field(min_length=1,max_length=150)
-    bill_reference: str = Field(min_length=1,max_length=100)
-    amount: Decimal = Field(gt=0,max_digits=19,decimal_places=2)
+class BillPayment(BillQRInput):
     category_id: uuid.UUID | None = None
     bookkeeping_id: uuid.UUID | None = None
-    note: str | None = Field(default=None,max_length=1000)
-    @field_validator('merchant_name','bill_reference')
-    @classmethod
-    def clean(cls,value):
-        value=' '.join(normalize_unicode_text(value,strip=True).split())
-        if not value: raise ValueError('Thông tin hóa đơn không được rỗng')
-        return value
 
 def owned(db, user, wallet_id):
     wallet = db.scalar(select(Wallet).where(Wallet.id == wallet_id, Wallet.user_id == user.id,
@@ -134,6 +135,9 @@ def list_wallets(include_closed: bool = False, db: Session = Depends(get_db), us
 @router.post('', status_code=201)
 @idempotent_money
 def create_wallet(payload: WalletName, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    from app.chuc_nang.nguoi_dung.goi_dich_vu.han_muc import require_capacity
+    ensure_default_wallet(db, user)
+    require_capacity(db, user.id, "wallets")
     wallet = insert_wallet(db, user_id=user.id, name=payload.name, balance=Decimal(0))
     return wallet_out(wallet, user)
 
@@ -154,28 +158,46 @@ def archive(wallet_id: uuid.UUID, db: Session = Depends(get_db), user: User = De
     wallet.is_active = False
     return {'success': True}
 
+@router.get('/history')
+def all_history(wallet_id: uuid.UUID | None = None, page: int = Query(1, ge=1),
+                page_size: int = Query(20, ge=1, le=100),
+                db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return _wallet_history(db, user, wallet_id, page, page_size)
+
+
 @router.get('/{wallet_id}/history')
 def history(wallet_id: uuid.UUID, page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100),
             db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return _wallet_history(db, user, wallet_id, page, page_size)
+
+
+def _wallet_history(db, user, wallet_id, page, page_size):
     # Archived wallets keep their immutable history accessible by owner.
-    if not db.scalar(select(Wallet.id).where(Wallet.id == wallet_id, Wallet.user_id == user.id)):
+    if wallet_id is not None and not db.scalar(select(Wallet.id).where(Wallet.id == wallet_id, Wallet.user_id == user.id)):
         raise HTTPException(404, 'Không tìm thấy ví')
-    query = select(WalletEntry).where(WalletEntry.wallet_id == wallet_id)
+    conditions = [Wallet.user_id == user.id]
+    if wallet_id is not None:
+        conditions.append(WalletEntry.wallet_id == wallet_id)
+    query = select(WalletEntry).join(Wallet, Wallet.id == WalletEntry.wallet_id).where(*conditions)
     total = db.scalar(select(func.count()).select_from(query.subquery()))
     from ..giao_dich.luu_tru.giao_dich import Transaction
     from app.chuc_nang.nguoi_dung.danh_muc.luu_tru.danh_muc import Category
-    entries = db.execute(select(WalletEntry,Transaction,Category.name).outerjoin(Transaction,Transaction.wallet_entry_id==WalletEntry.id)
+    entries = db.execute(select(WalletEntry,Transaction,Category.name,Wallet.name,Wallet.is_active)
+        .join(Wallet,Wallet.id==WalletEntry.wallet_id)
+        .outerjoin(Transaction,(Transaction.wallet_entry_id==WalletEntry.id) & (Transaction.user_id==user.id))
         .outerjoin(Category,Category.id==Transaction.category_id)
-        .where(WalletEntry.wallet_id==wallet_id).order_by(WalletEntry.created_at.desc(),WalletEntry.id.desc())
+        .where(*conditions).order_by(WalletEntry.created_at.desc(),WalletEntry.id.desc())
         .offset((page-1)*page_size).limit(page_size))
     return {'total': total, 'page': page, 'page_size': page_size, 'items': [
         {'id': str(e.id), 'operation_id': str(e.operation_id), 'kind': e.kind, 'amount': str(e.amount),
+         'wallet_id': str(e.wallet_id), 'wallet_name': wallet_name, 'wallet_is_active': wallet_is_active,
          'balance_after': str(e.balance_after), 'created_at': e.created_at.isoformat(),
-         'merchant_name':e.merchant_name,'bill_reference':e.bill_reference,
+         'merchant_name':e.merchant_name,'bill_reference':e.bill_reference,'note':e.note,
          'bookkeeping_id':str(t.id) if t else None,'recorded_amount':str(abs(t.amount)) if t else None,
          'include_in_reports':t.include_in_reports if t else None,
          'category_id':str(t.category_id) if t and t.category_id else None,'category_name':category_name,
-         'counterparty_wallet_id': str(e.counterparty_wallet_id) if e.counterparty_wallet_id else None} for e,t,category_name in entries]}
+         'counterparty_wallet_id': str(e.counterparty_wallet_id) if e.counterparty_wallet_id else None}
+        for e,t,category_name,wallet_name,wallet_is_active in entries]}
 
 @router.get('/banks')
 def links( db: Session = Depends(get_db), user: User = Depends(get_current_user)):
@@ -185,14 +207,27 @@ def links( db: Session = Depends(get_db), user: User = Depends(get_current_user)
             for link, bank in db.execute(select(UserBankLink, DemoBankBalance).join(DemoBankBalance).where(
                 UserBankLink.user_id == user.id, DemoBankBalance.user_id == user.id))]
 
+def available_bank_link(db, user, bank):
+    # The caller holds the user lock so concurrent link requests cannot pass together.
+    link = db.scalar(select(UserBankLink).where(
+        UserBankLink.user_id == user.id, UserBankLink.bank_id == bank.id))
+    if link is not None and link.is_active and link.expires_at > now():
+        raise HTTPException(409, 'Tài khoản ngân hàng này đã được liên kết và có thể dùng cho tất cả ví của bạn.')
+    return link
+
+
 @router.post('/banks/send-otp')
 async def send_otp( payload: BankRequest, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     locked_user(db, user.id, user.token_version)
     demo = owned_bank(db, user, payload)
+    available_bank_link(db, user, demo)
     latest = db.scalar(select(PasswordResetOTP).where(PasswordResetOTP.user_id == user.id,
         PasswordResetOTP.purpose.like('LINK_BANK:%')).order_by(PasswordResetOTP.created_at.desc()))
-    if latest and latest.created_at > now() - timedelta(seconds=30):
-        raise HTTPException(429, 'Vui lòng chờ 30 giây trước khi gửi lại OTP')
+    if latest:
+        remaining = math.ceil((latest.created_at + timedelta(seconds=BANK_OTP_RESEND_SECONDS) - now()).total_seconds())
+        if remaining > 0:
+            raise HTTPException(429, f'Vui lòng chờ {remaining} giây trước khi gửi lại OTP',
+                                headers={'Retry-After': str(remaining)})
     purpose = purpose_for('user-bank:' + str(demo.id), None)
     for old in db.scalars(select(PasswordResetOTP).where(PasswordResetOTP.user_id == user.id,
             PasswordResetOTP.purpose == purpose, PasswordResetOTP.is_used == False)):
@@ -202,18 +237,19 @@ async def send_otp( payload: BankRequest, db: Session = Depends(get_db), user: U
         otp_code=code_hash(challenge, code), expires_at=now()+timedelta(minutes=5), is_used=False)
     db.add(otp); db.commit()
     try:
-        await send_otp_email(to_email=user.email, otp_code=code, purpose_label='liên kết ngân hàng dùng chung cho các ví mô phỏng')
+        await send_otp_email(to_email=user.email, otp_code=code, purpose_label='liên kết tài khoản ngân hàng')
     except Exception:
         otp.is_used = True; db.commit()
         raise HTTPException(503, 'Không gửi được OTP. Vui lòng thử lại') from None
-    return {'otp_request_id': str(challenge), 'expires_in_seconds': 300}
+    return {'otp_request_id': str(challenge), 'expires_in_seconds': 300,
+            'resend_after_seconds': BANK_OTP_RESEND_SECONDS}
 
 @router.post('/banks')
 @idempotent_money
 def link_bank( payload: BankConfirm, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     bank = owned_bank(db, user, payload)
+    link = available_bank_link(db, user, bank)
     consume_otp(db, user, payload.otp_request_id, payload.otp, 'user-bank:' + str(bank.id))
-    link = db.scalar(select(UserBankLink).where(UserBankLink.user_id == user.id, UserBankLink.bank_id == bank.id))
     if link is None:
         link = UserBankLink(user_id=user.id, bank_id=bank.id)
         db.add(link)
@@ -236,15 +272,20 @@ def wallet_links(wallet_id: uuid.UUID, db: Session = Depends(get_db), user: User
     return links(db=db, user=user)
 
 
-def entry(db, wallet, operation_id, kind, amount, bank_id=None, other=None):
+def entry(db, wallet, operation_id, kind, amount, bank_id=None, other=None, note=None):
     if not 0 <= wallet.balance + amount <= MAX_MONEY:
         raise HTTPException(409, 'Số dư ví không đủ hoặc vượt giới hạn')
     wallet.balance += amount
     row = WalletEntry(operation_id=operation_id, wallet_id=wallet.id, bank_id=bank_id,
-        counterparty_wallet_id=other, kind=kind, amount=amount, balance_after=wallet.balance)
+        counterparty_wallet_id=other, kind=kind, amount=amount, balance_after=wallet.balance, note=note)
     db.add(row)
+    if kind != 'PAYMENT':
+        # Payment records are created after merchant/reference are available in pay_bill.
+        from ..giao_dich.wallet_records import record_wallet_entry
+        db.flush()
+        record_wallet_entry(db, row, wallet)
     emit_notification(db, user_id=wallet.user_id, kind='ACCOUNT', title='Biến động số dư ví',
-        message=f'{wallet.name}: {amount:+,.0f} VND. Số dư: {wallet.balance:,.0f} VND.',
+        message=f'{wallet.name}: {format_vnd(amount, signed=True)}. Số dư: {format_vnd(wallet.balance)}.',
         source_type='WALLET', source_id=wallet.id, action_url='/accounts')
     return row
 
@@ -256,49 +297,57 @@ def pay_bill(wallet_id: uuid.UUID, payload: BillPayment, db: Session = Depends(g
     from ..giao_dich.so_cai import _verify_category_ownership
     from ..ngan_sach.ky_han import today_vn
     from app.dung_chung.tac_vu_nen.hang_doi import enqueue
+    bill = parse_bill_qr(payload.qr_payload)
     wallet=owned(db,user,wallet_id)
     previous=db.scalar(select(WalletEntry.id).join(Wallet,Wallet.id==WalletEntry.wallet_id).where(
         Wallet.user_id==user.id,WalletEntry.kind=='PAYMENT',
-        WalletEntry.merchant_name==payload.merchant_name,WalletEntry.bill_reference==payload.bill_reference))
+        WalletEntry.merchant_name==bill.merchant_name,WalletEntry.bill_reference==bill.bill_reference))
     if previous:
-        raise HTTPException(409,'Mã hóa đơn này đã được thanh toán cho nhà cung cấp. Hãy xem lịch sử ví.')
-    record=None
+        raise HTTPException(409,'Mã hóa đơn này đã được thanh toán cho nhà cung cấp. Hãy xem Lịch sử giao dịch.')
+    record: Transaction | None = None
     if payload.bookkeeping_id:
         record=db.scalar(select(Transaction).where(Transaction.id==payload.bookkeeping_id,Transaction.user_id==user.id)
             .with_hint(Transaction,'WITH (UPDLOCK, ROWLOCK)',dialect_name='mssql'))
         if record is None: raise HTTPException(404,'Không tìm thấy khoản ghi sổ')
-        if record.wallet_entry_id or record.kind!='NORMAL' or record.type!='EXPENSE' or abs(record.amount)>payload.amount:
+        if record.wallet_entry_id or record.kind!='NORMAL' or record.type!='EXPENSE':
             raise HTTPException(409,'Khoản ghi sổ không phù hợp hoặc đã liên kết thanh toán')
+        if abs(record.amount) != bill.amount:
+            raise HTTPException(409,'Số tiền khoản ghi sổ phải khớp số tiền thanh toán hóa đơn')
         if record.invoice_id:
             from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.invoice import Invoice
             invoice=db.scalar(select(Invoice).where(Invoice.id==record.invoice_id,Invoice.user_id==user.id))
-            if invoice is None or invoice.deleted_at or invoice.total_amount!=payload.amount or invoice.currency!='VND':
+            if invoice is None or invoice.deleted_at or invoice.total_amount!=bill.amount or invoice.currency!='VND':
                 raise HTTPException(409,'Hóa đơn đã ghi sổ phải còn hiển thị và khớp số tiền VND cần thanh toán')
-        # Preserve the spending decision and personal amount of the selected record.
+        # Keep the selected record and its reporting preferences after matching the full payment.
     elif payload.category_id:
         _verify_category_ownership(db,payload.category_id,user.id,'EXPENSE')
     operation=uuid.uuid4()
-    evidence=entry(db,wallet,operation,'PAYMENT',-payload.amount)
-    evidence.merchant_name=payload.merchant_name
-    evidence.bill_reference=payload.bill_reference
+    evidence=entry(db,wallet,operation,'PAYMENT',-bill.amount)
+    evidence.merchant_name=bill.merchant_name
+    evidence.bill_reference=bill.bill_reference
+    sender_name = normalize_unicode_text(user.full_name or 'Người dùng CapitalFlow', strip=True)
+    sender_name = sender_name.encode('utf-16-le')[:376].decode('utf-16-le', errors='ignore')
+    evidence.note = bill.note or f'{sender_name} chuyển tiền'
     db.flush()
-    if record:
+    if record is not None:
         record.wallet_entry_id=evidence.id; record.source=TransactionSource.WALLET
+        record.note=evidence.note
     else:
         from app.chuc_nang.nguoi_dung.danh_muc.phan_loai import suggest_category
         category=payload.category_id; metadata={}
         if not category:
-            suggestion=suggest_category(db,user.id,'EXPENSE',description=payload.merchant_name,note=payload.note)
+            suggestion=suggest_category(db,user.id,'EXPENSE',description=f'{bill.merchant_name} · {bill.bill_reference}',note=bill.note)
             if suggestion.auto_apply:
                 category=suggestion.category_id
                 metadata={'category_source':suggestion.source,'category_confidence':suggestion.confidence,'category_was_auto':True}
-        record=create_record(db,user.id,source=TransactionSource.WALLET,amount=payload.amount,type='EXPENSE',
-            transaction_date=today_vn(),description=f'{payload.merchant_name} · {payload.bill_reference}'[:255],
-            note=payload.note,category_id=category,wallet_entry_id=evidence.id,include_in_reports=True,**metadata)
+        record=create_record(db,user.id,source=TransactionSource.WALLET,amount=bill.amount,type='EXPENSE',
+            transaction_date=today_vn(),description=f'{bill.merchant_name} · {bill.bill_reference}'[:255],
+            note=evidence.note,category_id=category,wallet_entry_id=evidence.id,include_in_reports=True,**metadata)
     db.flush()
     enqueue(db,'BUDGET',{'user_id':str(user.id),'transaction_id':str(record.id)},'budget-check:payment:'+str(evidence.id))
     return {'operation_id':str(operation),'entry_id':str(evidence.id),'bookkeeping_id':str(record.id),
-        'status':'SUCCEEDED','demo':True,'paid_amount':str(payload.amount),'balance':str(wallet.balance)}
+        'status':'SUCCEEDED','demo':True,'paid_amount':str(bill.amount),'balance':str(wallet.balance),
+        'paid_at': evidence.created_at.replace(tzinfo=timezone.utc).isoformat()}
 
 @router.post('/{wallet_id}/{action}')
 @idempotent_money
@@ -334,11 +383,13 @@ def transfer(wallet_id: uuid.UUID, payload: Transfer, db: Session = Depends(get_
     if wallet_id not in wallets or wallets[wallet_id].user_id != user.id:
         raise HTTPException(404, 'Không tìm thấy ví gửi')
     target = wallets.get(payload.to_wallet_id)
-    if target is None or not db.scalar(select(User.id).where(User.id == target.user_id, User.is_active == True, User.is_deleted == False)):
+    if target is None or not db.scalar(select(User.id).where(User.id == target.user_id, User.is_active == True)):
         raise HTTPException(404, 'Ví nhận không khả dụng')
     op = uuid.uuid4()
-    entry(db, wallets[wallet_id], op, 'TRANSFER_OUT', -payload.amount, other=payload.to_wallet_id)
-    entry(db, wallets[payload.to_wallet_id], op, 'TRANSFER_IN', payload.amount, other=wallet_id)
+    sender_name = (user.full_name or 'Người dùng CapitalFlow').strip().encode('utf-16-le')[:376].decode('utf-16-le', errors='ignore')
+    note = payload.note or f'{sender_name} chuyển tiền'
+    entry(db, wallets[wallet_id], op, 'TRANSFER_OUT', -payload.amount, other=payload.to_wallet_id, note=note)
+    entry(db, wallets[payload.to_wallet_id], op, 'TRANSFER_IN', payload.amount, other=wallet_id, note=note)
     return {'operation_id': str(op), 'balance': str(wallets[wallet_id].balance)}
 
 @router.get('/recipients/{wallet_id}')

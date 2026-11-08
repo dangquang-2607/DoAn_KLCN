@@ -34,12 +34,12 @@ Nếu không đọc được trường nào, hãy để chuỗi rỗng "" hoặc
   "ten_nguoi_ban": "tên công ty / cửa hàng người bán",
   "dia_chi_nguoi_ban": "địa chỉ người bán",
   "ten_nguoi_mua": "tên người mua hoặc công ty người mua",
-  "doanh_so_chua_thue": "số tiền chưa có thuế (chỉ chữ số, VD: 1500000)",
+  "doanh_so_chua_thue": "số tiền chưa có thuế (giữ nguyên phần thập phân, VD: 1500000)",
   "thue_suat_gtgt": "thuế suất % (VD: 8 hoặc 10)",
-  "tien_thue_gtgt": "tiền thuế GTGT (chỉ chữ số, VD: 120000)",
-  "tong_thanh_toan": "tổng tiền thanh toán (chỉ chữ số, VD: 1620000)",
+  "tien_thue_gtgt": "tiền thuế GTGT (giữ nguyên phần thập phân, VD: 120000)",
+  "tong_thanh_toan": "tổng tiền thanh toán (giữ nguyên phần thập phân, VD: 1620000)",
   "hinh_thuc_thanh_toan": "tiền mặt / chuyển khoản / thẻ",
-  "tien_te": "VND",
+  "tien_te": "Mã tiền tệ thực tế trên hóa đơn (VND, USD, EUR...); không xác định được thì null",
   "do_tin_cay": 0.95,
   "items": [
     {
@@ -47,11 +47,11 @@ Nếu không đọc được trường nào, hãy để chuỗi rỗng "" hoặc
       "ten_hang": "tên hàng hóa / dịch vụ",
       "ma_hang": "mã hàng hóa (nếu có)",
       "don_vi": "đơn vị tính (cái, hộp, ram, kg, lít...)",
-      "so_luong": "số lượng (chỉ chữ số)",
-      "don_gia": "đơn giá (chỉ chữ số)",
-      "giam_gia": "số tiền giảm giá (chỉ chữ số hoặc null)",
-      "thue": "tiền thuế dòng này (chỉ chữ số hoặc null)",
-      "thanh_tien": "thành tiền (chỉ chữ số)",
+      "so_luong": "số lượng (giữ nguyên phần thập phân)",
+      "don_gia": "đơn giá (giữ nguyên phần thập phân)",
+      "giam_gia": "số tiền giảm giá (giữ nguyên phần thập phân hoặc null)",
+      "thue": "tiền thuế dòng này (giữ nguyên phần thập phân hoặc null)",
+      "thanh_tien": "thành tiền (giữ nguyên phần thập phân)",
       "do_tin_cay": 0.95,
       "raw_text": "văn bản gốc của dòng này"
     }
@@ -59,7 +59,8 @@ Nếu không đọc được trường nào, hãy để chuỗi rỗng "" hoặc
 }
 
 Lưu ý quan trọng:
-- Tất cả các trường tiền tệ PHẢI là số thuần túy (không dấu chấm, không dấu phẩy ngăn cách nghìn, không kèm chữ đ hoặc VNĐ).
+- Đọc đúng đơn vị tiền tệ từ chứng từ; không mặc định VND, không tự quy đổi số tiền.
+- Các số tiền không có dấu phân cách hàng nghìn, không kèm ký hiệu tiền tệ. Giữ nguyên phần thập phân bằng dấu chấm, ví dụ "1234.56"; không làm tròn hay bỏ phần lẻ. Với số nguyên, không thêm phần .000.
 - Số lượng phải giữ đúng phần thập phân và dùng dấu chấm, ví dụ 0.215 kg phải trả về "0.215", tuyệt đối không trả thành 215.
 - Tách riêng tên hàng và đơn vị tính; không bỏ mất đơn vị in trong ngoặc cạnh tên hàng.
 - Nếu không có bảng chi tiết từng món hàng, trả về items là mảng rỗng [].
@@ -147,7 +148,7 @@ async def run_gemini_ocr(file_bytes: bytes, mime_type: str) -> dict:
         raise ValueError("GOOGLE_AI_API_KEY chưa được cấu hình trong file .env")
 
     primary_model = settings.google_ai_model or "gemini-2.0-flash"
-    fallback_models = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
+    fallback_models = ["gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite"]
 
     try:
         return await _call_gemini_model(primary_model, file_bytes, mime_type)

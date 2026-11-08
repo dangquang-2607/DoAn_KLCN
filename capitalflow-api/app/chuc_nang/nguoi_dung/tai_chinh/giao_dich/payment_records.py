@@ -2,7 +2,7 @@
 from datetime import date
 from decimal import Decimal
 from fastapi import HTTPException
-from sqlalchemy import select, cast, Date
+from sqlalchemy import select
 from .luu_tru.giao_dich import Transaction
 from ..vi_tai_khoan.luu_tru.wallet import Wallet, WalletEntry
 
@@ -15,8 +15,10 @@ def payment_records(db, user_id, amount=None, paid_on: date | None=None):
     if paid_on is not None:
         # Entry timestamps are UTC, while bookkeeping dates use Vietnam time.
         from datetime import datetime, time, timedelta
-        start=datetime.combine(paid_on,time.min)-timedelta(hours=7)
-        query=query.where(WalletEntry.created_at>=start,WalletEntry.created_at<start+timedelta(days=1))
+        midnight=datetime.combine(paid_on,time.min)
+        start=midnight-timedelta(hours=7) if paid_on>date.min else datetime.min
+        end=midnight+timedelta(hours=17)
+        query=query.where(WalletEntry.created_at>=start,WalletEntry.created_at<end)
     rows=db.execute(query.order_by(WalletEntry.created_at.desc(),WalletEntry.id).limit(100)).all()
     return [{'wallet_entry_id':str(e.id),'transaction_id':str(t.id),'wallet_id':str(e.wallet_id),
         'merchant_name':e.merchant_name,'bill_reference':e.bill_reference,'paid_amount':str(-e.amount),

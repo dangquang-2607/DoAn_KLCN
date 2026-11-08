@@ -17,7 +17,6 @@ API_ROOT = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
-    independent_wallets_enabled: bool = False
     app_name: str = "CapitalFlow API"
     app_env: str = "development"
     debug: bool = True
@@ -31,8 +30,12 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
 
-    frontend_url: str = "http://localhost:3010"
-    admin_url: str = "http://localhost:5173"
+    frontend_url: str = "https://app.capitalflow.online"
+    admin_url: str = "https://admin.capitalflow.online"
+
+    payos_client_id: str = ""
+    payos_api_key: str = ""
+    payos_checksum_key: str = ""
 
     google_ai_api_key: str = ""
     google_ai_model: str = "gemini-3.5-flash-lite"

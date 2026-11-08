@@ -1,28 +1,19 @@
 import type { NextConfig } from "next";
-import { networkInterfaces } from "node:os";
-
-// Cho phép tải tài nguyên dev khi mở ứng dụng bằng IP của máy trong mạng LAN.
-const localDevHosts = Object.values(networkInterfaces())
-  .flatMap((addresses) => addresses ?? [])
-  .filter((address) => address.family === "IPv4" && !address.internal)
-  .map((address) => address.address);
 
 const apiProxyTarget = (
-  process.env.API_PROXY_TARGET || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+  process.env.API_PROXY_TARGET || "http://127.0.0.1:8000"
 ).replace(/\/+$/, "").replace(/\/api(?:\/v1)?$/, "");
 
 const nextConfig: NextConfig = {
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   output: 'standalone',
+  devIndicators: false,
   // Upload now includes bounded OCR (90s) before an invoice is created.
   experimental: {
     proxyTimeout: 120_000,
     optimizePackageImports: ["lucide-react", "recharts"],
   },
-  allowedDevOrigins: [
-  ...localDevHosts,
-  "capitalflow.online",
-  "*.capitalflow.online",
-],
+  allowedDevOrigins: ["app.capitalflow.online"],
   async headers() {
     // Dev chunks reuse their URLs as source changes; a CDN must not retain them.
     return process.env.NODE_ENV === "development" ? [{
@@ -35,10 +26,8 @@ const nextConfig: NextConfig = {
     }] : [];
   },
   async rewrites() {
-    // Trình duyệt điện thoại gọi cùng cổng frontend; Next.js kết nối backend trên máy chủ.
-    return process.env.NODE_ENV === "development"
-      ? [{ source: "/api/v1/:path*", destination: `${apiProxyTarget}/api/v1/:path*` }]
-      : [];
+    // Both dev and production serve the API through the portal's own domain.
+    return [{ source: "/api/v1/:path*", destination: `${apiProxyTarget}/api/v1/:path*` }];
   },
   async redirects() {
     return [

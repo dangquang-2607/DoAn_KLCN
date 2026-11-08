@@ -1,19 +1,3 @@
-/**
- * ============================================================================
- * TÊN FILE: error.tsx
- * MÀN HÌNH / PHÂN HỆ: Xử lý lỗi toàn cục (Global Error Boundary)
- * NHÓM VỆ TINH: app (Next.js Error Handler)
- * MỤC ĐÍCH CỤ THỂ:
- *   Bắt và hiển thị giao diện thông báo lỗi thân thiện khi xảy ra lỗi runtime ngoài ý muốn
- *   ở cấp độ client, ngăn chặn ứng dụng bị crash trắng màn hình.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   Props error (chứa chi tiết lỗi và mã digest) và hàm reset() để thử tải lại.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Component GlobalError hiển thị hộp thoại cảnh báo và nút thao tác khôi phục.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Không để lộ stack trace nhạy cảm ra giao diện người dùng; bảo vệ dữ liệu tài chính.
- * ============================================================================
- */
 'use client';
 
 import { useEffect } from 'react';

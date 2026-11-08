@@ -1,36 +1,19 @@
-/**
- * ============================================================================
- * TÊN FILE: page.tsx
- * MÀN HÌNH / PHÂN HỆ: User Web
- * NHÓM VỆ TINH: page.tsx (Điều phối)
- * MỤC ĐÍCH CỤ THỂ:
- *   Điều phối dữ liệu, trạng thái và hành vi của màn hình tương ứng.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   TanStack Query, API client, state React và các component vệ tinh của phân hệ.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Xuất page để route hoặc component khác sử dụng.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Không tự thay đổi dữ liệu tài chính; giữ hành vi runtime và khả năng truy cập hiện có.
- * ============================================================================
- */
 "use client";
 
 /**
- * Trang điều phối dashboard: tải ba nguồn dữ liệu và ghép các widget tổng quan.
+ * Trang điều phối dashboard: tải các nguồn dữ liệu và ghép các widget tổng quan.
  * Component con chỉ trình bày; query key và hành vi làm mới được giữ tập trung tại đây.
  */
 import { useQuery } from "@tanstack/react-query";
 import { ErrorState, Loading, PageHead } from "@/dung-chung/UI-chung/ui";
 import api from "@/dung-chung/connect-api/api";
-import { localDate } from "@/dung-chung/tien-ich/finance";
 import { type Account, type Budget } from "@/dung-chung/nghiep-vu/finance";
-import { shiftReportDay } from "@/dung-chung/nghiep-vu/report-period";
-import AccountsWidget from "./thanh-phan/AccountsWidget";
 import BudgetsWidget from "./thanh-phan/BudgetsWidget";
 import OverviewStats, { type OverviewData } from "./thanh-phan/OverviewStats";
-import OverviewCharts from "./thanh-phan/OverviewCharts";
+import SpendingReports from "./thanh-phan/SpendingReports";
+import { useVietnamDay } from "./useVietnamDay";
+import type { MonthlyTrend } from "./monthlyTrend";
 import QuickActions from "./thanh-phan/QuickActions";
-import RecentTransactions from "./thanh-phan/RecentTransactions";
 import styles from "./CSS/overview.module.css";
 
 export default function Overview() {
@@ -40,52 +23,78 @@ export default function Overview() {
   });
   const accountsQuery = useQuery<Account[]>({
     queryKey: ["wallets"],
-    queryFn: async () => ((await api.get<Account[]>("/wallets")).data).map(w => ({ ...w, account_type: "WALLET" })),
+    queryFn: async () =>
+      (await api.get<Account[]>("/wallets")).data.map((w) => ({
+        ...w,
+        account_type: "WALLET",
+      })),
   });
   const budgetsQuery = useQuery<Budget[]>({
     queryKey: ["budgets"],
     queryFn: async () => (await api.get("/budgets")).data,
     refetchInterval: 60_000,
   });
-  const today = localDate();
-  const trendQuery = useQuery({
-    queryKey: ["overview-trend", today],
-    queryFn: async () => (await api.get("/analytics", { params: { start_date: shiftReportDay(today, -29), end_date: today } })).data,
+  const today = useVietnamDay();
+  const monthlyQuery = useQuery({
+    queryKey: ["analytics", "monthly-trend", today],
+    enabled: Boolean(today),
+    refetchInterval: 60_000,
+    queryFn: async ({ signal }) => (await api.get<MonthlyTrend>("/analytics/monthly-trend", { signal })).data,
   });
-
-  // Làm mới đồng thời các nguồn dữ liệu cấu thành dashboard để tránh số liệu lệch nhau.
-  const refresh = () => {
-    dashboardQuery.refetch();
-    accountsQuery.refetch();
-    budgetsQuery.refetch();
-    trendQuery.refetch();
-  };
+  const sources = [
+    { label: "Giao dịch gần đây", query: dashboardQuery },
+    { label: "Số dư ví", query: accountsQuery },
+    { label: "Ngân sách", query: budgetsQuery },
+    { label: "Báo cáo tháng", query: monthlyQuery },
+  ];
+  const isRefreshing = sources.some(({ query }) => query.isFetching);
+  const reportState = monthlyQuery.isPending ? <Loading /> : monthlyQuery.isError ? <ErrorState retry={() => monthlyQuery.refetch()} /> : undefined;
 
   return (
     <div className={styles.canvas}>
-      <PageHead eyebrow="KHÔNG GIAN CÁ NHÂN" title="Tiền của bạn, rõ ràng hơn" description="Một cái nhìn nhanh về số dư, nhịp thu chi và điều cần chú ý hôm nay." actions={<QuickActions refreshing={dashboardQuery.isFetching} onRefresh={refresh} />} />
+      <PageHead
+        eyebrow="KHÔNG GIAN CÁ NHÂN"
+        title="Tiền của bạn, rõ ràng hơn"
+        description="Số dư ví hiện tại, thu chi trong tháng và ngân sách của bạn."
+        actions={<QuickActions />}
+      />
       {dashboardQuery.isPending ? (
         <Loading />
       ) : dashboardQuery.isError ? (
         <ErrorState retry={() => dashboardQuery.refetch()} />
       ) : (
         dashboardQuery.data && (
-          <>
-            {accountsQuery.data?.some(a => !a.exclude_from_total && a.balance_available === false) &&
-              <p role="status">Tổng tài sản chưa đầy đủ: có ví liên kết chưa lấy được số dư.</p>}
-            {accountsQuery.data?.some(a => a.balance_available !== false && a.bank_sync_error) &&
-              <p role="status">Một số ví đang hiển thị số dư tại lần đồng bộ thành công gần nhất.</p>}
-            <OverviewStats data={dashboardQuery.data} />
-            <OverviewCharts trendQuery={trendQuery} accountsQuery={accountsQuery} />
-            <div className={styles.overviewLower}>
-              <RecentTransactions transactions={dashboardQuery.data.recent_transactions} />
-              <AccountsWidget query={accountsQuery} />
-              <BudgetsWidget query={budgetsQuery} />
-            </div>
-            <p className={styles.overviewFootnote}>
-              Cập nhật lúc {new Date(dashboardQuery.dataUpdatedAt).toLocaleTimeString("vi-VN")}. Số dư ví tách biệt với sổ thu chi. Nạp, rút và chuyển tiền không tính vào thu nhập/chi tiêu.
-            </p>
-          </>
+          <div className={styles.content}>
+            <OverviewStats data={dashboardQuery.data} report={monthlyQuery.data} reportState={reportState} accountsQuery={accountsQuery} />
+            <SpendingReports data={monthlyQuery.data} state={reportState} transactions={dashboardQuery.data.recent_transactions} />
+            <BudgetsWidget query={budgetsQuery} />
+            <section className={styles.dataUpdates} aria-label="Tình trạng cập nhật dữ liệu">
+              <div>
+                <p>Lần tải thành công gần nhất của từng nguồn dữ liệu</p>
+                <ul>
+                  {sources.map(({ label, query }) => (
+                    <li key={label}>
+                      <span>{label}: </span>
+                      {query.dataUpdatedAt > 0 ? (
+                        <time dateTime={new Date(query.dataUpdatedAt).toISOString()}>
+                          {new Date(query.dataUpdatedAt).toLocaleString("vi-VN")}
+                        </time>
+                      ) : "Chưa tải được"}
+                      {query.isError ? " · Cập nhật thất bại" : query.isFetching ? " · Đang cập nhật…" : ""}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <button
+                type="button"
+                className="cf-btn"
+                disabled={isRefreshing}
+                onClick={() => { void Promise.all(sources.map(({ query }) => query.refetch())); }}
+              >
+                {isRefreshing ? "Đang cập nhật…" : "Làm mới dữ liệu"}
+              </button>
+            </section>
+          </div>
         )
       )}
     </div>

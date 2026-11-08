@@ -1,30 +1,15 @@
-/**
- * ============================================================================
- * TÊN FILE: NotificationCenter.tsx
- * MÀN HÌNH / PHÂN HỆ: Trung tâm Thông báo hệ thống
- * NHÓM VỆ TINH: dung-chung (Thành phần thông báo)
- * MỤC ĐÍCH CỤ THỂ:
- *   Hiển thị menu chuông thông báo, tải dữ liệu thông báo phân trang vô hạn (Infinite Scroll),
- *   đếm số lượng chưa đọc, đánh dấu đã đọc hoặc xóa thông báo riêng lẻ.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   userId, React Query useInfiniteQuery, API client, notificationText helper.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Default export NotificationCenter component.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Cập nhật lạc quan (optimistic update) khi đánh dấu đọc để mang lại trải nghiệm mượt mà.
- * ============================================================================
- */
 /** Trung tâm thông báo chung: tải phân trang và xác nhận riêng từng mục. */
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { Bell } from "lucide-react";
+import { useRouter } from "next/navigation";
 import api from "@/dung-chung/connect-api/api";
 import { errorMessage } from "@/dung-chung/tien-ich/finance";
 import { notificationText } from "@/dung-chung/thong-bao/notificationText";
 import { type Notification, type NotificationPage } from "@/dung-chung/nghiep-vu/finance";
-import styles from "./NotificationCenter.module.css";
+import styles from "./CSS/NotificationCenter.module.css";
 
 const PAGE_SIZE = 30;
 
@@ -32,6 +17,7 @@ const PAGE_SIZE = 30;
  * Trung tâm quản lý và hiển thị thông báo thời gian thực của người dùng.
  */
 export default function NotificationCenter({ userId }: { userId: string }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
   const [readingId, setReadingId] = useState<string | null>(null);
@@ -83,8 +69,20 @@ export default function NotificationCenter({ userId }: { userId: string }) {
     };
   }, []);
 
-  const markRead = async (notice: Notification) => {
-    if (notice.read_at || readingId === notice.id) return;
+  const openDestination = (notice: Notification) => {
+    const destination = notice.action_url;
+    // Only navigate to application paths, never externally supplied origins.
+    if (!destination || !destination.startsWith("/") || /^\/[\\/]|[\u0000-\u0020\\]/.test(destination)) return;
+    setOpen(false);
+    router.push(destination);
+  };
+
+  const openNotice = async (notice: Notification) => {
+    if (readingId === notice.id) return;
+    if (notice.read_at) {
+      openDestination(notice);
+      return;
+    }
     setError("");
     setReadingId(notice.id);
     try {
@@ -97,6 +95,7 @@ export default function NotificationCenter({ userId }: { userId: string }) {
           items: page.items.map((item) => item.id === notice.id ? updated : item),
         })),
       }));
+      openDestination(updated);
     } catch (caught) {
       setError(errorMessage(caught));
     } finally {
@@ -125,10 +124,10 @@ export default function NotificationCenter({ userId }: { userId: string }) {
                   {notices.map((notice) => <button type="button" key={notice.id} data-notification-item
                     disabled={readingId === notice.id}
                     className={`${styles.item} ${notice.read_at ? styles.read : styles.unread}`}
-                    onClick={() => void markRead(notice)}>
+                    onClick={() => void openNotice(notice)}>
                     <span className={styles.dot} aria-hidden="true" />
                     <span className={styles.body}>
-                      <span className={styles.title}>{notice.title}</span>
+                      <span className={styles.title}>{notificationText(notice.title)}</span>
                       <span className={styles.message}>{notificationText(notice.message)}</span>
                       <span className={styles.meta}><time dateTime={notice.created_at}>{new Date(`${notice.created_at}Z`).toLocaleString("en-GB", {
                         dateStyle: "short", timeStyle: "short", timeZone: "Asia/Ho_Chi_Minh",

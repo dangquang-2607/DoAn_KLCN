@@ -1,19 +1,3 @@
-/**
- * ============================================================================
- * TÊN FILE: notificationText.ts
- * MÀN HÌNH / PHÂN HỆ: Trung tâm Thông báo hệ thống
- * NHÓM VỆ TINH: dung-chung (Tiện ích định dạng thông điệp)
- * MỤC ĐÍCH CỤ THỂ:
- *   Định dạng lại các con số thô trong chuỗi nội dung thông báo thành dạng tiền tệ VND
- *   chuẩn hóa (ví dụ: '500000 VND' -> '500.000 ₫') để người dùng dễ đọc.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   Hàm money từ finance utility.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Hàm notificationText.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Sử dụng regex an toàn; không làm thay đổi các giá trị văn bản phi tiền tệ.
- * ============================================================================
- */
 import { money } from "../tien-ich/finance";
 
 /**
@@ -24,7 +8,11 @@ import { money } from "../tien-ich/finance";
  * @returns Nội dung đã được định dạng đẹp mắt.
  */
 export function notificationText(text: string, currency = "VND") {
-  return text
-    .replace(/(-?\d+(?:\.\d+)?)\s*VND/g, (_, amount: string) => money(amount, currency))
-    .replace(/(-?\d+(?:\.\d+)?)(?=\s*→)/g, (amount) => money(amount, currency));
+  // Compatibility with stored messages from older APIs. New APIs return ₫ text.
+  // Capture the entire US-grouped token, not just the final group of zeroes.
+  const number = String.raw`[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?`;
+  const legacy = new RegExp(String.raw`(?<![\w.,+\-])(${number})(?:\s*(→|/)\s*(${number}))?\s*VND\b`, "g");
+  const format = (raw: string) => `${raw.startsWith("+") ? "+" : ""}${money(raw.replaceAll(",", ""), currency)}`;
+  return text.replace(/(?<![\d.,])(\d+)\.(\d{1,2})%/g, "$1,$2%").replace(legacy, (_, first: string, separator: string, second?: string) =>
+    second ? `${format(first)} ${separator} ${format(second)}` : format(first));
 }

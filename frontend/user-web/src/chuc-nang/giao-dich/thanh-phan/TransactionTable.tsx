@@ -1,25 +1,11 @@
-/**
- * ============================================================================
- * TÊN FILE: TransactionTable.tsx
- * MÀN HÌNH / PHÂN HỆ: Giao dịch
- * NHÓM VỆ TINH: thanh-phan (Chức năng con)
- * MỤC ĐÍCH CỤ THỂ:
- *   Hiển thị bảng giao dịch, trạng thái dữ liệu và phân trang.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   Props từ component cha, kiểu nghiệp vụ và các primitive UI liên quan.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Xuất TransactionTable để route hoặc component khác sử dụng.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Validate tài khoản, tiền tệ và số tiền; mọi ghi/xóa phải làm mới các cache tài chính liên quan.
- * ============================================================================
- */
 "use client";
-import { LockKeyhole, Pencil, Trash2 } from "lucide-react";
+import { LockKeyhole, Eye, EyeOff, Trash2 } from "lucide-react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { CategoryIcon } from "@/dung-chung/UI-chung/CategoryIcon";
 import { Loading, ErrorState, Empty, Pagination } from "@/dung-chung/UI-chung/ui";
-import { money, dateLabel } from "@/dung-chung/tien-ich/finance";
+import { money, dateLabel, transactionListDescription } from "@/dung-chung/tien-ich/finance";
 import { type Account, type Category, type Transaction } from "@/dung-chung/nghiep-vu/finance";
+import styles from "../CSS/Transactions.module.css";
 
 interface TransactionTableProps {
   independent?: boolean;
@@ -89,17 +75,18 @@ export default function TransactionTable({
                 const cat = getCategory(t.category_id);
                 const acc = getAccount(t.account_id);
                 const locked = t.source === "SYSTEM" || (t.kind != null && t.kind !== "NORMAL");
+                const description = transactionListDescription(t);
                 return (
                   <tr key={t.id}>
                     <td style={{ paddingRight: 0 }}><input type="checkbox" aria-label={`Chọn giao dịch ${t.description || t.id}`} disabled={selectionDisabled} checked={selectedIds.has(t.id)} onChange={(event) => onSelectOne(t.id, event.target.checked)} /></td>
                     <td className="cf-muted">{dateLabel(t.transaction_date)}</td>
-                    <td>
-                      <strong>{t.description || "Giao dịch"}</strong>
+                    <td className={styles.description}>
+                      <strong title={description !== t.description ? t.description : undefined}>{description || "Giao dịch"}</strong>
                       <div className="cf-sub">
-                        {t.wallet_entry_id ? "Thanh toán ví" : t.bank_reference
+                        {t.wallet_entry_id ? "Giao dịch ví" : t.bank_reference
                           ? "Đồng bộ ngân hàng"
                           : t.source === "OCR"
-                          ? "Từ hóa đơn"
+                          ? "Quét hóa đơn"
                           : t.kind === "TRANSFER"
                           ? "Chuyển nội bộ"
                           : t.kind === "ADJUSTMENT"
@@ -110,38 +97,40 @@ export default function TransactionTable({
                       </div>
                     </td>
                     <td>
+                      {t.include_in_reports === false ? (
+                        <span className="cf-badge" style={{ display: "inline-flex", alignItems: "center", gap: 7, color: "var(--cf-muted)" }}>
+                          <EyeOff size={16} aria-hidden="true" />
+                          Ẩn khỏi báo cáo
+                        </span>
+                      ) : (
                       <span className="cf-row" style={{ gap: 8, flexWrap: "nowrap" }}>
                         {cat && <CategoryIcon icon={cat.icon} color={cat.color} size={28} />}
                         <span className="cf-badge">{cat?.name || "Chưa phân loại"}</span>
                         {t.category_was_auto && (
-                          <span
-                            className="cf-badge info"
-                            title={`Độ tin cậy ${Math.round(Number(t.category_confidence || 0) * 100)}%`}
-                          >
-                            Tự động
-                          </span>
+                          <span className="cf-badge info" title={`Độ tin cậy ${Math.round(Number(t.category_confidence || 0) * 100)}%`} > Tự động </span>
                         )}
                       </span>
+                      )}
                     </td>
                     {!independent && <td>{acc?.name || "Tài khoản đã ngừng sử dụng"}</td>}
                     <td style={{ fontVariantNumeric: "tabular-nums" }} className={`right cf-number ${Number(t.amount) > 0 ? "cf-success" : ""}`}>
                       {Number(t.amount) > 0 ? "+" : ""}
                       {money(t.amount, acc?.currency || "VND")}
-                      {independent && <div className="cf-sub">{t.include_in_reports === false ? "Không tính vào thu chi" : "Đang tính vào thu chi"}</div>}
+
                     </td>
                     <td>
                       <div className="cf-transaction-actions">
                         {locked ? <button type="button" className="cf-icon-btn" disabled title="Giao dịch hệ thống không thể sửa trực tiếp" aria-label="Không thể sửa giao dịch hệ thống"><LockKeyhole size={16} /></button> : (
                           <button
                             className="cf-icon-btn"
-                            aria-label={t.bank_reference ? "Sửa danh mục và ghi chú giao dịch ngân hàng" : "Sửa giao dịch"}
+                            aria-label={`Xem chi tiết giao dịch ${t.description || t.id}`}
                             title={t.bank_reference ? "Chỉ sửa danh mục và ghi chú" : undefined}
                             onClick={() => onEdit(t)}
                           >
-                            <Pencil size={15} />
+                            <Eye size={15} />
                           </button>
                         )}
-                        <button className="cf-icon-btn" disabled={!!t.wallet_entry_id || getAccount(t.account_id)?.bank_read_only} aria-label={`Xóa giao dịch ${t.description || t.id}`} title={t.wallet_entry_id ? "Giữ lịch sử thanh toán; có thể tắt Tính vào chi tiêu trong phần sửa" : getAccount(t.account_id)?.bank_read_only ? "Lịch sử ngân hàng được cập nhật qua đồng bộ" : t.kind === "TRANSFER" ? "Xóa cả hai vế chuyển tiền" : t.bank_reference ? "Gỡ khỏi sổ theo dõi, giữ số dư ngân hàng" : "Xóa giao dịch"} onClick={() => onDelete(t)}><Trash2 size={15} /></button>
+                        <button className="cf-icon-btn" disabled={!!t.wallet_entry_id || getAccount(t.account_id)?.bank_read_only} aria-label={`Xóa giao dịch ${t.description || t.id}`} title={t.wallet_entry_id ? "Giữ lịch sử thanh toán; dùng công tắc Tính vào thu chi để loại khỏi báo cáo" : getAccount(t.account_id)?.bank_read_only ? "Lịch sử ngân hàng được cập nhật qua đồng bộ" : t.kind === "TRANSFER" ? "Xóa cả hai vế chuyển tiền" : t.bank_reference ? "Gỡ khỏi sổ theo dõi, giữ số dư ngân hàng" : "Xóa giao dịch"} onClick={() => onDelete(t)}><Trash2 size={15} /></button>
                       </div>
                     </td>
                   </tr>

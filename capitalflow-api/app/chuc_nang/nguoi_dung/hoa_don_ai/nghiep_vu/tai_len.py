@@ -2,7 +2,7 @@
 import hashlib
 import uuid
 from types import SimpleNamespace
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from sqlalchemy import case, select
 from sqlalchemy.exc import DBAPIError
@@ -10,11 +10,13 @@ from fastapi import HTTPException
 from app.dung_chung.config import settings
 from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.invoice import Invoice
 from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.invoice_item import InvoiceItem
+from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.tac_vu_ocr import OcrJob
 from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.luu_tru.giao_dich import Transaction
 from .chuan_hoa_hoa_don import refresh_identity
 from .luy_dang import begin_operation, finish_operation
 from .vong_doi import record_event
-from .kiem_tra_tai_len import prepare, require_comparable_history, require_review
+from .kiem_tra_tai_len import prepare, require_review
+from app.dung_chung.text.unicode import truncate_utf16
 from .phat_hien_trung_lap import inspect_duplicates
 
 
@@ -45,7 +47,8 @@ def upload(db, user, contents, filename, ext, mime, source, xml_data, upload_tic
                     _remove_uncommitted_file(state)
                 raise
         if phase == 0:
-            prepared = prepare(user, contents, mime, hashlib.sha256(contents).hexdigest(), source, xml_data, upload_ticket)
+            prepared = prepare(db, user, contents, mime, hashlib.sha256(contents).hexdigest(), source, xml_data, upload_ticket)
+    raise HTTPException(503, detail={"code": "INVOICE_RETRY_REQUIRED", "message": "Hãy thử tải lại với cùng khóa yêu cầu."})
 
 
 def _remove_uncommitted_file(state):
@@ -57,6 +60,8 @@ def _remove_uncommitted_file(state):
 def _upload(db, user, contents, filename, ext, mime, source, prepared, state, accept_distinct):
     file_hash = hashlib.sha256(contents).hexdigest()
     pending, replay = begin_operation(db, user, "invoice-upload", {"hash": file_hash, "source": source})
+    from .posting_evidence import reject_archived_file
+    reject_archived_file(db, user.id, file_hash)
     invoice = None
     if replay:
         invoice = db.scalar(select(Invoice).where(Invoice.id == uuid.UUID(replay["id"]), Invoice.user_id == user.id))
@@ -70,7 +75,6 @@ def _upload(db, user, contents, filename, ext, mime, source, prepared, state, ac
     match_kind = replay.get('match_kind', 'SHA256') if replay else "SHA256" if invoice is not None else None
     items = []
     if invoice is None:
-        require_comparable_history(db, user.id)
         if prepared is None:
             return None
         preview, items, payload = prepared
@@ -78,6 +82,11 @@ def _upload(db, user, contents, filename, ext, mime, source, prepared, state, ac
         check = inspect_duplicates(db, user.id, preview)
         match = next((c for c in check['candidates'] if c['level'] == 'EXACT' or c['similarity_percent'] > 80), None)
         if match:
+            if match.get('purged'):
+                raise HTTPException(409, detail={'code': 'INVOICE_ALREADY_POSTED_PURGED',
+                    'message': 'Hóa đơn khớp với khoản chi đã ghi sổ. Chứng từ gốc đã xóa vĩnh viễn; hãy kiểm tra khoản chi cũ.',
+                    'transaction_id': match['transaction_id'], 'matched_invoice_id': match['invoice_id'],
+                    'duplicate_check': check})
             invoice = db.scalar(select(Invoice).where(Invoice.id == uuid.UUID(match['invoice_id']), Invoice.user_id == user.id))
             match_kind = "DATA"
         else:
@@ -85,7 +94,7 @@ def _upload(db, user, contents, filename, ext, mime, source, prepared, state, ac
     created = invoice is None
     if created:
         invoice = prepared[0]
-        invoice.created_at = datetime.utcnow()
+        invoice.created_at = datetime.now(timezone.utc).replace(tzinfo=None)
         db.add(invoice)
         refresh_identity(invoice)
     transaction_id = None if created else db.scalar(select(Transaction.id).where(
@@ -101,12 +110,17 @@ def _upload(db, user, contents, filename, ext, mime, source, prepared, state, ac
         state["path"] = upload_path
         upload_path.write_bytes(contents)
         invoice.storage_key = stored_name
-        invoice.original_filename = Path(filename or stored_name).name[:255]
+        original_name = Path(filename or stored_name)
+        invoice.original_filename = truncate_utf16(original_name.stem, 255 - len(original_name.suffix)) + original_name.suffix
         invoice.mime_type = mime
         invoice.file_size_bytes = len(contents)
         # Keep the file if the outcome of commit is unknown; remove it only
         # after rollback is known to have undone the reference.
     db.flush()
+    if prepared and prepared[2].get("ocr_job_id"):
+        job = db.get(OcrJob, uuid.UUID(prepared[2]["ocr_job_id"]))
+        if job and job.user_id == user.id:
+            job.invoice_id = invoice.id
     if created:
         db.add_all([InvoiceItem(invoice_id=invoice.id, line_no=i, **item)
                     for i, item in enumerate(items, 1)])

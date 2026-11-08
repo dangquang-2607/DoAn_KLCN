@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.chuc_nang.nguoi_dung.dang_nhap.luu_tru.nguoi_dung import User
 from app.chuc_nang.nguoi_dung.danh_muc.luu_tru.danh_muc import Category
 from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.luu_tru.giao_dich import Transaction
+from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan.luu_tru.wallet import WalletEntry
 from app.dung_chung.http.phu_thuoc import get_db, require_admin
 
 router = APIRouter()
@@ -66,7 +67,14 @@ def system_analytics(
     previous_count = db.scalar(select(func.count(Transaction.id)).where(date_scope(previous_start, previous_end))) or 0
     comparable_count = db.scalar(select(func.count(Transaction.id)).where(date_scope(start, comparison_end))) or 0
 
-    normal = Transaction.kind == "NORMAL"
+    # Wallet reporting records deliberately keep kind=NORMAL. Classify their
+    # operational purpose from the immutable entry, not include_in_reports
+    # (a personal reporting preference). PAYMENT remains an expense.
+    wallet_movement = func.coalesce(WalletEntry.kind, "").in_(
+        ("TOPUP", "WITHDRAW", "TRANSFER_IN", "TRANSFER_OUT")
+    )
+    other = (Transaction.kind != "NORMAL") | wallet_movement
+    normal = ~other
     income = normal & (Transaction.type == "INCOME")
     expense = normal & (Transaction.type == "EXPENSE")
     totals = db.execute(select(
@@ -74,8 +82,9 @@ def system_analytics(
         func.count(func.distinct(Transaction.user_id)),
         func.sum(case((income, 1), else_=0)),
         func.sum(case((expense, 1), else_=0)),
-        func.sum(case((Transaction.kind != "NORMAL", 1), else_=0)),
-    ).where(date_scope(start, end))).one()
+        func.sum(case((other, 1), else_=0)),
+    ).select_from(Transaction).outerjoin(WalletEntry, Transaction.wallet_entry_id == WalletEntry.id)
+      .where(date_scope(start, end))).one()
     total, users, income_count, expense_count, other_count = (int(v or 0) for v in totals)
 
     # Query grouped daily counts once; bucket in Python to stay portable across
@@ -99,14 +108,16 @@ def system_analytics(
                      .order_by(func.count(Transaction.id).desc(), Category.name).limit(5)).all()
     # Retain the legacy fields for existing clients; new UI uses scoped metrics.
     month_start = today.replace(day=1)
+    month_end = min(shift_period(month_start, "month", 1), today + timedelta(days=1))
     legacy = db.execute(select(
         func.count(Transaction.id),
-        func.sum(case((Transaction.type == "INCOME", 1), else_=0)),
-        func.sum(case((Transaction.type == "EXPENSE", 1), else_=0)),
-        func.sum(case((date_scope(month_start, shift_period(month_start, "month", 1)), 1), else_=0)),
-        func.count(func.distinct(case((date_scope(month_start, shift_period(month_start, "month", 1)), Transaction.user_id)))),
-    )).one()
-    all_total, all_income, all_expense, monthly, monthly_users = (int(v or 0) for v in legacy)
+        func.sum(case((income, 1), else_=0)),
+        func.sum(case((expense, 1), else_=0)),
+        func.sum(case((other, 1), else_=0)),
+        func.sum(case((date_scope(month_start, month_end), 1), else_=0)),
+        func.count(func.distinct(case((date_scope(month_start, month_end), Transaction.user_id)))),
+    ).select_from(Transaction).outerjoin(WalletEntry, Transaction.wallet_entry_id == WalletEntry.id)).one()
+    all_total, all_income, all_expense, all_other, monthly, monthly_users = (int(v or 0) for v in legacy)
     return {
         "period": {"unit": unit, "start": start.isoformat(), "end": (end - timedelta(days=1)).isoformat(),
                    "calendar_end": (full_end - timedelta(days=1)).isoformat(), "partial": partial,
@@ -119,7 +130,7 @@ def system_analytics(
                        "previous_start": previous_start.isoformat(), "previous_end": (previous_end - timedelta(days=1)).isoformat()},
         "trend": trend,
         "transactions": {"total_all_time": all_total, "this_month": monthly,
-                         "income_count": all_income, "expense_count": all_expense},
+                         "income_count": all_income, "expense_count": all_expense, "other_count": all_other},
         "active_users_this_month": monthly_users,
         "top_categories": [{"name": name or "Không phân loại", "transaction_count": count} for name, count in top],
         "generated_at": datetime.now(timezone.utc).isoformat(),

@@ -2,7 +2,7 @@
 API quản lý danh mục hệ thống dùng chung.
 GET/POST/PATCH/PUT /admin/categories*
 """
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.dung_chung.http.phu_thuoc import get_db, require_admin
 from app.chuc_nang.nguoi_dung.tai_chinh.ngan_sach.luu_tru.ngan_sach import Budget
-from app.chuc_nang.nguoi_dung.danh_muc.luu_tru.danh_muc import Category
+from app.chuc_nang.nguoi_dung.danh_muc.luu_tru.danh_muc import Category, CategoryType
 from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.invoice import Invoice
 from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.luu_tru.giao_dich import Transaction
 from app.chuc_nang.nguoi_dung.dang_nhap.luu_tru.nguoi_dung import User
@@ -50,7 +50,7 @@ def _commit_category(db: Session) -> None:
 
 @router.get("/categories", response_model=list[CategoryOut])
 def list_system_categories(
-    category_type: str | None = None,
+    category_type: CategoryType | None = None,
     include_inactive: bool = True,
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
@@ -76,10 +76,15 @@ def create_system_category(
                 Category.owner_user_id.is_(None), Category.type == payload.type
             )
         )
-        values["sort_order"] = int(current_max or 0) + 10
-    category = Category(owner_user_id=None, **values)
+        values["sort_order"] = (current_max or 0) + 10
+        if values["sort_order"] > 2147483647:
+            raise HTTPException(422, "Thứ tự danh mục vượt giới hạn lưu trữ; cần sắp xếp lại danh mục")
+    # Assign the target before auditing; ORM column defaults run only on flush.
+    # Category and audit still commit together through _commit_category.
+    category = Category(id=uuid4(), owner_user_id=None, **values)
     db.add(category)
-    _write_audit(db, admin.id, "CATEGORY_CREATE", "category", str(category.id))
+    _write_audit(db, admin.id, "CATEGORY_CREATE", "category", str(category.id),
+                 after={"name": category.name, "type": category.type, "is_active": category.is_active, "sort_order": category.sort_order})
     _commit_category(db)
     db.refresh(category)
     return category
@@ -103,9 +108,11 @@ def update_system_category(
                     status_code=409,
                     detail="Không thể đổi loại danh mục hệ thống đã được sử dụng",
                 )
+    previous = {key: getattr(category, key) for key in values}
     for key, value in values.items():
         setattr(category, key, value)
-    _write_audit(db, admin.id, "CATEGORY_UPDATE", "category", str(category.id))
+    _write_audit(db, admin.id, "CATEGORY_UPDATE", "category", str(category.id),
+                 before=previous, after={key: getattr(category, key) for key in values})
     _commit_category(db)
     db.refresh(category)
     return category
@@ -130,7 +137,10 @@ def reorder_system_categories(
             detail="Danh sách sắp xếp phải chứa đầy đủ danh mục của loại đã chọn",
         )
     for index, category_id in enumerate(payload.ordered_ids, start=1):
+        previous_order = by_id[category_id].sort_order
         by_id[category_id].sort_order = index * 10
-    _write_audit(db, admin.id, "CATEGORY_REORDER", "category")
+        if previous_order != index * 10:
+            _write_audit(db, admin.id, "CATEGORY_REORDER", "category", str(category_id),
+                         before={"sort_order": previous_order}, after={"sort_order": index * 10})
     db.commit()
     return [by_id[category_id] for category_id in payload.ordered_ids]

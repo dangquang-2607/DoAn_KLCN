@@ -1,28 +1,14 @@
-/**
- * ============================================================================
- * TÊN FILE: Toast.tsx
- * MÀN HÌNH / PHÂN HỆ: Thông báo nổi (Toast Notification)
- * NHÓM VỆ TINH: dung-chung (Thành phần thông báo)
- * MỤC ĐÍCH CỤ THỂ:
- *   Hiển thị thông báo nổi nhanh gọn góc màn hình (Thành công, Lỗi, Thông tin)
- *   với cơ chế tự động biến mất sau khoảng thời gian chỉ định (mặc định 4000ms).
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   React Portal (tạo container #toast-portal nếu chưa có), Biểu tượng Lucide.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Default export Toast component và interface ToastProps.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Hỗ trợ đóng thông báo thủ công bằng phím Escape hoặc nút đóng có aria-label.
- * ============================================================================
- */
 "use client";
 
 import { useEffect, useState, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Check, AlertTriangle, Info, X } from "lucide-react";
 
-export interface ToastProps {
+interface ToastProps {
   children: ReactNode;
   kind?: "success" | "error" | "info";
+  title?: string;
+  className?: string;
   duration?: number;
   onDismiss?: () => void;
 }
@@ -33,6 +19,8 @@ export interface ToastProps {
 export default function Toast({
   children,
   kind = "info",
+  title,
+  className = "",
   duration = 5000,
   onDismiss,
 }: ToastProps) {
@@ -65,7 +53,7 @@ export default function Toast({
 
   return createPortal(
     <article
-      className={`cf-toast cf-toast-${kind}${leaving ? " cf-toast-leaving" : ""}`}
+      className={`cf-toast cf-toast-${kind}${leaving ? " cf-toast-leaving" : ""} ${className}`}
       onAnimationEnd={(event) => {
         if (event.target === event.currentTarget && leaving) {
           setHidden(true);
@@ -78,7 +66,7 @@ export default function Toast({
       </span>
       <div className="cf-toast-content" role={kind === "error" ? "alert" : "status"} aria-atomic="true">
         <strong>
-          {kind === "success" ? "Thành công" : kind === "error" ? "Cần kiểm tra" : "Thông tin"}
+          {title || (kind === "success" ? "Thành công" : kind === "error" ? "Cần kiểm tra" : "Thông tin")}
         </strong>
         <div>{children}</div>
       </div>

@@ -7,21 +7,28 @@
     "lint": "eslint .",
     "build": "next build",
     "start": "next start --port 3010",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node tools/verify-user-web.mjs && node tools/verify-structure.mjs && node tools/verify-tailwind.mjs",
+    "test:http": "node tools/verify-user-web-http.mjs"
   },
   "dependencies": {
+    "@noble/hashes": "2.0.1",
     "@tanstack/react-query": "^5.102.2",
     "axios": "^1.20.0",
     "exceljs": "4.4.0",
     "framer-motion": "^13.1.1",
+    "jsqr": "1.4.0",
     "lucide-react": "^1.33.0",
     "next": "16.3.8",
+    "pdfjs-dist": "6.4.299",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "recharts": "^3.10.1"
   },
   "overrides": {
-    "exceljs": { "uuid": "11.1.1" }
+    "exceljs": {
+      "uuid": "11.1.1"
+    }
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

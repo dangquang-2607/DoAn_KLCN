@@ -1,34 +1,19 @@
-/**
- * ============================================================================
- * TÊN FILE: AmountInput.tsx
- * MÀN HÌNH / PHÂN HỆ: Quản lý Ví & Tài khoản
- * NHÓM VỆ TINH: thanh-phan (Thành phần nhập liệu chuyên dụng)
- * MỤC ĐÍCH CỤ THỂ:
- *   Ô nhập liệu số tiền thông minh: tự động định dạng phân tách hàng nghìn (100.000đ),
- *   cung cấp các chip chọn nhanh số tiền phổ biến, hỗ trợ nút xóa và kiểm tra số dư tối đa.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   amount, onAmountChange callback, maxBalance, nhãn label và cờ vô hiệu hóa disabled.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Default export AmountInput component và mảng hằng số DEFAULT_AMOUNT_CHIPS.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Chỉ cho phép nhập ký tự số; ngăn chặn nhập giá trị âm hoặc vượt quá số dư khả dụng.
- * ============================================================================
- */
 "use client";
 
-import { useRef, type ChangeEvent } from "react";
+import MoneyInput from "@/dung-chung/UI-chung/MoneyInput";
+import { useRef } from "react";
 import { X, AlertCircle } from "lucide-react";
 import { money } from "@/dung-chung/tien-ich/finance";
-import styles from "./TopupWithdrawModal.module.css";
+import styles from "../CSS/TopupWithdrawModal.module.css";
 
-export const DEFAULT_AMOUNT_CHIPS = [
+const DEFAULT_AMOUNT_CHIPS = [
   { label: "50.000đ", value: "50000" },
   { label: "100.000đ", value: "100000" },
   { label: "200.000đ", value: "200000" },
   { label: "500.000đ", value: "500000" },
 ];
 
-export interface AmountInputProps {
+interface AmountInputProps {
   label?: string;
   ariaLabel?: string;
   amount: string;
@@ -40,13 +25,6 @@ export interface AmountInputProps {
   required?: boolean;
   errorText?: string;
   placeholder?: string;
-}
-
-export function formatDisplayAmount(val: string): string {
-  if (!val) return "";
-  const cleanNum = val.replace(/\D/g, "");
-  if (!cleanNum) return "";
-  return new Intl.NumberFormat("vi-VN").format(Number(cleanNum));
 }
 
 /**
@@ -67,11 +45,6 @@ export default function AmountInput({
 }: AmountInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/\D/g, "");
-    onAmountChange(raw);
-  };
-
   const enteredNum = Number(amount || 0);
   const isInsufficient = maxBalance !== undefined && enteredNum > maxBalance;
 
@@ -89,14 +62,14 @@ export default function AmountInput({
       )}
 
       <div className={styles.amountInputWrapper}>
-        <input
+        <MoneyInput bare fractionDigits={0}
           ref={inputRef}
           className={styles.amountInput}
           aria-label={ariaLabel}
           inputMode="numeric"
           placeholder={placeholder}
-          value={formatDisplayAmount(amount)}
-          onChange={handleInputChange}
+          value={amount}
+          onValueChange={onAmountChange}
           disabled={disabled}
           required={required}
         />
@@ -106,10 +79,7 @@ export default function AmountInput({
             type="button"
             className={styles.clearAmountBtn}
             aria-label="Xóa số tiền"
-            onClick={() => {
-              onAmountChange("");
-              inputRef.current?.focus();
-            }}
+            onClick={() => { onAmountChange(""); inputRef.current?.focus(); }}
           >
             <X size={14} />
           </button>
@@ -132,9 +102,7 @@ export default function AmountInput({
               <button
                 type="button"
                 key={chip.value}
-                className={`${styles.chip} ${
-                  isChipActive ? styles.chipActive : ""
-                }`}
+                className={`${styles.chip} ${ isChipActive ? styles.chipActive : "" }`}
                 onClick={() => onAmountChange(chip.value)}
               >
                 {chip.label}
@@ -149,9 +117,7 @@ export default function AmountInput({
                   ? styles.chipActive
                   : ""
               }`}
-              onClick={() => onAmountChange(String(Math.floor(maxBalance)))}
-            >
-              Tất cả số dư
+              onClick={() => onAmountChange(String(Math.floor(maxBalance)))} > Tất cả số dư
             </button>
           )}
         </div>

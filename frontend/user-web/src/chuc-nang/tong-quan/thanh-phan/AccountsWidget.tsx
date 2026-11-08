@@ -1,37 +1,20 @@
-/**
- * ============================================================================
- * TÊN FILE: AccountsWidget.tsx
- * MÀN HÌNH / PHÂN HỆ: Tổng quan tài chính
- * NHÓM VỆ TINH: thanh-phan (Chức năng con)
- * MỤC ĐÍCH CỤ THỂ:
- *   Tóm tắt danh sách ví và số dư trên dashboard.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   Props từ component cha, kiểu nghiệp vụ và các primitive UI liên quan.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Xuất AccountsWidget để route hoặc component khác sử dụng.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Không tự thay đổi dữ liệu tài chính; giữ hành vi runtime và khả năng truy cập hiện có.
- * ============================================================================
- */
-/** Widget tóm tắt tối đa bốn tài khoản và giữ nguyên trạng thái query/retry. */
-import Link from "next/link";
+/** Tổng quan chỉ hiển thị số lượng; danh sách chi tiết nằm ở tab Ví cá nhân. */
+import CardAction from "./CardAction";
 import type { UseQueryResult } from "@tanstack/react-query";
-import { Banknote, Landmark, Wallet } from "lucide-react";
-import { ErrorState, Loading } from "@/dung-chung/UI-chung/ui";
-import { money } from "@/dung-chung/tien-ich/finance";
 import { type Account } from "@/dung-chung/nghiep-vu/finance";
 import styles from "../CSS/overview.module.css";
 
 export default function AccountsWidget({ query }: { query: UseQueryResult<Account[]> }) {
+  const wallets = (query.data ?? []).filter((wallet) => wallet.is_active && !wallet.exclude_from_total);
   return (
-    <section className={`${styles.panel} ${styles.overviewCard} ${styles.walletPanel}`}>
-      <header className={styles.overviewCardHead}><div><span className={styles.overline}>NGUỒN TIỀN</span><h2>{process.env.NEXT_PUBLIC_INDEPENDENT_WALLETS === "true" ? "Ví của bạn" : "Ví & tài khoản"}</h2><p>Số dư ở từng nơi</p></div><Link href="/accounts">Xem tất cả →</Link></header>
-      {query.isPending ? <Loading /> : query.isError ? <ErrorState retry={() => query.refetch()} /> : !query.data?.length ? (
-        <div className={styles.overviewEmpty}>Chưa có ví nào. <Link href="/accounts">Thêm ví để bắt đầu →</Link></div>
-      ) : <div className={styles.walletList}>{query.data.slice(0, 4).map((account) => {
-        const Icon = account.account_type === "CASH" ? Banknote : ["LINKED", "BANK"].includes(account.account_type) ? Landmark : Wallet;
-        return <div className={styles.walletRow} key={account.id}><span className={styles.walletIcon} aria-hidden="true"><Icon size={18} /></span><div className={styles.walletCopy}><strong>{account.name}</strong><small>{["LINKED", "BANK", "E_WALLET"].includes(account.account_type) && account.institution_name ? account.institution_name : account.currency}</small><b>{account.balance_available === false ? "Chưa có dữ liệu số dư" : money(account.balance, account.currency)}</b>{account.bank_last_sync && <small>Cập nhật thành công lần cuối: {new Date(account.bank_last_sync + "Z").toLocaleString("vi-VN")}</small>}{account.bank_sync_error && <small role="status">{account.bank_sync_error}</small>}</div></div>;
-      })}</div>}
-    </section>
+    <div className={styles.balanceDetails}>
+      {query.isPending ? <p role="status">Đang tải các ví…</p> : query.isError ? (
+        <div role="status">
+          <p>Chưa tải được thông tin ví.</p>
+          <button type="button" className="cf-btn" disabled={query.isFetching} onClick={() => { void query.refetch(); }}>Thử lại</button>
+        </div>
+      ) : <p>{wallets.length.toLocaleString("vi-VN")} ví đang hoạt động</p>}
+      <CardAction href="/accounts">Quản lý ví</CardAction>
+    </div>
   );
 }

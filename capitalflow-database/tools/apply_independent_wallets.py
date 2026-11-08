@@ -65,7 +65,7 @@ def backup(url, label='independent_wallets'):
         with engine.connect() as conn:
             directory=conn.scalar(text("SELECT CAST(SERVERPROPERTY('InstanceDefaultBackupPath') AS nvarchar(4000))"))
         if not directory: raise RuntimeError('Backup path unavailable')
-        if label not in {'independent_wallets','wallet_spending','user_phone','user_banks','email_only','default_wallet','wallet_short_code'}: raise ValueError('Unknown backup label')
+        if label not in {'independent_wallets','wallet_spending','user_phone','user_banks','email_only','default_wallet','wallet_short_code','support_requests','premium_billing','premium_checkout'}: raise ValueError('Unknown backup label')
         name=f'CapitalFlow_pre_{label}_{datetime.now(timezone.utc):%Y%m%d_%H%M%S}_{uuid4().hex[:8]}.bak'
         destination=str(PureWindowsPath(directory)/name)
         raw=engine.raw_connection()

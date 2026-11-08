@@ -1,51 +1,128 @@
 /**
- * ============================================================================
- * TÊN FILE: api.ts
- * MÀN HÌNH / PHÂN HỆ: Hạ tầng và tiện ích cốt lõi
- * NHÓM VỆ TINH: dung-chung (Dịch vụ và tiện ích cốt lõi)
- * MỤC ĐÍCH CỤ THỂ:
- *   Cấu hình Axios, access token, refresh token và xử lý phiên hết hạn.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   Axios, biến môi trường NEXT_PUBLIC_API_URL và Web Storage.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Xuất Axios client đã cấu hình để các phân hệ gọi backend.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Không ghi log mật khẩu/token; khóa thao tác khi đang gửi và xử lý phiên hết hạn nhất quán.
- * ============================================================================
- */
-/**
  * HTTP client duy nhất của user-web.
  * File này gắn access token, phối hợp refresh token một lần khi hết hạn và
  * phát sự kiện đăng xuất khi phiên không thể khôi phục.
  */
 import axios from "axios";
+import { newRequestId, sha256Hex } from "@/dung-chung/tien-ich/browserCrypto";
 
-// Trong dev, dùng proxy cùng origin để localhost luôn được phân giải ở máy chạy Next.js.
-const BASE_URL = (process.env.NODE_ENV === "development" ? "" : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"))
-  .replace(/\/+$/, "")
-  .replace(/\/api(?:\/v1)?$/, "");
+
+// Each login/logout invalidates requests and refresh work from the previous session.
+let sessionEpoch = 0;
+declare module "axios" {
+  interface AxiosRequestConfig { _sessionEpoch?: number; _moneyOwner?: string; }
+}
+let refreshTask: { epoch: number; promise: Promise<string> } | null = null;
+
+export function clearSession(clearRemembered = true, keepPending = false) {
+  sessionEpoch += 1;
+  refreshTask = null;
+  if (!keepPending) {
+    for (const key of Object.keys(sessionStorage)) {
+      if (key.startsWith("cf-pending-invoice:") || key.startsWith("cf-pending-money:")) sessionStorage.removeItem(key);
+    }
+  }
+  for (const key of ["user_access_token", "user_refresh_token", "user", "user_remember"]) {
+    sessionStorage.removeItem(key);
+    if (clearRemembered) localStorage.removeItem(key);
+  }
+}
+
+export function saveSession(access: string, refresh: string, remember: boolean) {
+  clearSession(true, true);
+  sessionStorage.setItem("user_access_token", access);
+  sessionStorage.setItem("user_refresh_token", refresh);
+  if (remember) {
+    sessionStorage.setItem("user_remember", "1");
+    localStorage.setItem("user_access_token", access);
+    localStorage.setItem("user_refresh_token", refresh);
+    localStorage.setItem("user_remember", "1");
+  }
+}
+
+// Only restore an explicitly remembered session. Server validation still happens
+// on every request; expired access tokens are renewed through the normal flow.
+export function restoreSession() {
+  if (typeof window === "undefined") return false;
+  if (sessionStorage.getItem("user_access_token")) return true;
+  const access = localStorage.getItem("user_access_token"), refresh = localStorage.getItem("user_refresh_token");
+  if (!access || !refresh) return false;
+  sessionStorage.setItem("user_access_token", access);
+  sessionStorage.setItem("user_refresh_token", refresh);
+  sessionStorage.setItem("user_remember", "1");
+  return true;
+}
+
+// Used only for scoping local keys. The API verifies the signature and access rights.
+function tokenIdentity(token: string | null): { sub: string; sid?: string } | null {
+  const parts = token?.split(".");
+  if (parts?.length !== 3 || !parts.every(part => /^[A-Za-z0-9_-]+$/.test(part))) return null;
+  try {
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+    if (typeof payload?.sub !== "string" ||
+        !/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(payload.sub)) return null;
+    if (payload.sid !== undefined && (typeof payload.sid !== "string" || !payload.sid.trim())) return null;
+    return { sub: payload.sub, sid: payload.sid };
+  } catch {
+    return null;
+  }
+}
+
+export function sessionOwner(): string {
+  if (typeof window !== "undefined") {
+    const identity = tokenIdentity(sessionStorage.getItem("user_access_token"));
+    if (identity) return identity.sub;
+    const refresh = sessionStorage.getItem("user_refresh_token");
+    // A retry after signing back in as the same user must keep any unresolved key.
+    clearSession(refresh === localStorage.getItem("user_refresh_token"), true);
+    window.location.replace("/login?reason=invalid-session");
+  }
+  throw new Error("Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.");
+}
+
+export function syncRememberedSession() {
+  if (sessionStorage.getItem("user_remember") !== "1") return true;
+  const access = localStorage.getItem("user_access_token"), refresh = localStorage.getItem("user_refresh_token");
+  const currentToken = sessionStorage.getItem("user_access_token");
+  const current = tokenIdentity(currentToken), saved = tokenIdentity(access);
+  if (!access || !refresh || !current || !saved || current.sub !== saved.sub ||
+      (access !== currentToken && (!current.sid || current.sid !== saved.sid))) {
+    clearSession(false); return false;
+  }
+  sessionStorage.setItem("user_access_token", access);
+  sessionStorage.setItem("user_refresh_token", refresh);
+  return true;
+}
+
+function sessionChanged() {
+  return new axios.CanceledError("Phiên đăng nhập đã thay đổi.");
+}
 
 const api = axios.create({
-  baseURL: `${BASE_URL}/api/v1`,
+  baseURL: "/api/v1",
 });
 
 // Gắn khóa idempotency ổn định cho thao tác tiền để retry mạng không tạo bản ghi trùng.
 api.interceptors.request.use(async (config) => {
+  restoreSession();
+  if (config._sessionEpoch !== undefined && config._sessionEpoch !== sessionEpoch) throw sessionChanged();
+  config._sessionEpoch = sessionEpoch;
   if (typeof window !== "undefined") {
     const method = (config.method || "get").toLowerCase();
-    if (["post", "patch", "delete"].includes(method) && /^\/(accounts|transactions|wallets|bookkeeping)(\/|$)/.test(config.url || "") && !config.headers["Idempotency-Key"]) {
-      const owner = () => {
-        const token = sessionStorage.getItem("user_access_token");
-        if (!token) throw new Error("Phiên đăng nhập đã thay đổi. Vui lòng đăng nhập lại.");
-        return String(JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).sub);
-      };
-      const user = owner();
+    if (config._moneyOwner || (["post", "patch", "delete"].includes(method) &&
+        /^\/(accounts|transactions|wallets|bookkeeping)(\/|$)/.test(config.url || ""))) {
+      const user = sessionOwner();
+      if (config._moneyOwner !== undefined && config._moneyOwner !== user) throw sessionChanged();
+      config._moneyOwner = user;
+    }
+    if (config._moneyOwner && !config.headers["Idempotency-Key"]) {
+      const user = config._moneyOwner;
       const signature = JSON.stringify([method, config.url, config.data]);
-      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(signature));
-      if (owner() !== user) throw new Error("Phiên đăng nhập đã thay đổi.");
-      const storageKey = "cf-pending-money:" + user + ":" + Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("");
+      const digest = await sha256Hex(signature);
+      if (config._sessionEpoch !== sessionEpoch || sessionOwner() !== user) throw sessionChanged();
+      const storageKey = "cf-pending-money:" + user + ":" + digest;
       let key = sessionStorage.getItem(storageKey);
-      if (!key) { key = crypto.randomUUID(); sessionStorage.setItem(storageKey, key); }
+      if (!key) { key = newRequestId(); sessionStorage.setItem(storageKey, key); }
       config.headers["Idempotency-Key"] = key;
     }
     // Chỉ gắn Authorization khi request chưa chủ động truyền header này.
@@ -59,15 +136,10 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-let isRefreshing = false;
-let refreshQueue: Array<{
-  resolve: (token: string) => void;
-  reject: (err: unknown) => void;
-}> = [];
-
-// Xóa khóa idempotency sau phản hồi thành công và khôi phục phiên tập trung khi gặp 401.
+// Refresh promises are shared only by requests from the same session.
 api.interceptors.response.use(
   (res) => {
+    if (res.config._sessionEpoch !== undefined && res.config._sessionEpoch !== sessionEpoch) throw sessionChanged();
     if (typeof window !== "undefined" && res.config.headers["Idempotency-Key"]) {
       for (let i = sessionStorage.length - 1; i >= 0; i--) {
         const key = sessionStorage.key(i);
@@ -78,87 +150,61 @@ api.interceptors.response.use(
   },
   async (err) => {
     const originalReq = err.config;
-
-    // Không redirect/refresh nếu lỗi 401 xuất phát từ request đăng nhập/đăng ký
-    const isAuthEndpoint =
-      originalReq?.url?.includes("/auth/login") ||
-      originalReq?.url?.includes("/auth/register") ||
-      originalReq?.url?.includes("/auth/refresh");
-
-    if (
-      typeof window !== "undefined" &&
-      err.response?.status === 401 &&
-      !isAuthEndpoint &&
-      originalReq &&
-      !originalReq._retry
-    ) {
-      const refreshToken = sessionStorage.getItem("user_refresh_token");
-
-      if (!refreshToken) {
-        _doLogout();
-        return Promise.reject(err);
-      }
-
-      originalReq._retry = true;
-      // Các request 401 đồng thời chờ chung một lần refresh thay vì xoay token nhiều lần.
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          refreshQueue.push({ resolve, reject });
-        }).then((token) => {
-          originalReq.headers.Authorization = `Bearer ${token}`;
-          return api(originalReq);
-        });
-      }
-
-      isRefreshing = true;
-
-      try {
-        const { data } = await axios.post(`${BASE_URL}/api/v1/auth/refresh`, {
-          refresh_token: refreshToken,
-        }, { timeout: 15000 });
-
-        const newToken = data.access_token;
-        sessionStorage.setItem("user_access_token", newToken);
-        if (data.refresh_token)
-          sessionStorage.setItem("user_refresh_token", data.refresh_token);
-
-        refreshQueue.forEach(({ resolve }) => resolve(newToken));
-        refreshQueue = [];
-
-        originalReq.headers.Authorization = `Bearer ${newToken}`;
-        return api(originalReq);
-      } catch (refreshError) {
-        // Lỗi mạng/5xx không chứng minh phiên hết hạn. Giữ token để người dùng
-        // thử lại; vẫn từ chối request hiện tại, không bỏ qua xác thực.
-        refreshQueue.forEach(({ reject }) => reject(refreshError));
-        refreshQueue = [];
-        const status = axios.isAxiosError(refreshError) ? refreshError.response?.status : undefined;
-        if (status === 401 || status === 403) _doLogout();
-        return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
-      }
+    if (originalReq?._sessionEpoch !== undefined && originalReq._sessionEpoch !== sessionEpoch) throw sessionChanged();
+    const isAuthEndpoint = /\/auth\/(login|register|refresh|logout)(?:$|[/?])/.test(originalReq?.url || "");
+    if (typeof window === "undefined" || err.response?.status !== 401 || isAuthEndpoint || !originalReq || originalReq._retry) throw err;
+    const epoch = sessionEpoch;
+    const refreshToken = sessionStorage.getItem("user_refresh_token");
+    if (!refreshToken) { _doLogout(); throw err; }
+    originalReq._retry = true;
+    if (!refreshTask || refreshTask.epoch !== epoch) {
+      const promise = (async () => {
+        try {
+          const rotate = async () => {
+            if (epoch !== sessionEpoch) throw sessionChanged();
+            const remembered = sessionStorage.getItem("user_remember") === "1";
+            const saved = localStorage.getItem("user_refresh_token");
+            if (remembered && saved && saved !== refreshToken) {
+              if (!syncRememberedSession()) throw sessionChanged();
+              return sessionStorage.getItem("user_access_token")!;
+            }
+            const { data } = await axios.post("/api/v1/auth/refresh", { refresh_token: refreshToken }, { timeout: 15000 });
+            if (epoch !== sessionEpoch || sessionStorage.getItem("user_refresh_token") !== refreshToken) {
+              if (data.refresh_token) void axios.post("/api/v1/auth/logout", { refresh_token: data.refresh_token }).catch(() => {});
+              throw sessionChanged();
+            }
+            sessionStorage.setItem("user_access_token", data.access_token);
+            if (data.refresh_token) sessionStorage.setItem("user_refresh_token", data.refresh_token);
+            if (remembered) {
+              localStorage.setItem("user_access_token", data.access_token);
+              if (data.refresh_token) localStorage.setItem("user_refresh_token", data.refresh_token);
+            }
+            return data.access_token as string;
+          };
+          return navigator.locks ? await navigator.locks.request("cf-user-refresh", rotate) : await rotate();
+        } catch (error) {
+          const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+          if (epoch === sessionEpoch && sessionStorage.getItem("user_refresh_token") === refreshToken && (status === 401 || status === 403)) _doLogout();
+          throw error;
+        } finally {
+          if (refreshTask?.epoch === epoch) refreshTask = null;
+        }
+      })();
+      refreshTask = { epoch, promise };
     }
-    return Promise.reject(err);
+    const token = await refreshTask.promise;
+    if (epoch !== sessionEpoch) throw sessionChanged();
+    originalReq.headers.Authorization = `Bearer ${token}`;
+    return api(originalReq);
   },
 );
 
 function _doLogout() {
-  // Thu hồi refresh token theo khả năng tốt nhất rồi luôn xóa thông tin phiên tại trình duyệt.
-  if (typeof window !== "undefined") {
-    const refreshToken = sessionStorage.getItem("user_refresh_token");
-    if (refreshToken) {
-      axios
-        .post(`${BASE_URL}/api/v1/auth/logout`, { refresh_token: refreshToken })
-        .catch(() => {});
-    }
-    for (const key of Object.keys(sessionStorage)) { if (key.startsWith("cf-pending-invoice:") || key.startsWith("cf-pending-money:")) sessionStorage.removeItem(key); }
-      sessionStorage.removeItem("user_access_token");
-    sessionStorage.removeItem("user_refresh_token");
-    // Module Axios dùng chung chạy ngoài React nên không có router instance để điều hướng.
-    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-    window.location.href = "/login";
-  }
+  const refreshToken = sessionStorage.getItem("user_refresh_token");
+  clearSession(true, true);
+  if (refreshToken) void axios.post("/api/v1/auth/logout", { refresh_token: refreshToken }).catch(() => {});
+  // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+  window.location.href = "/login";
 }
 
 export default api;

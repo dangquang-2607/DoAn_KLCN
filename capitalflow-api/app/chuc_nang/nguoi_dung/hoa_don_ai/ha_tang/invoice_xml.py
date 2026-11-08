@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
+import re
 from xml.etree import ElementTree as ET
 
 
@@ -24,10 +25,14 @@ def _text_by_names(root: ET.Element, *names: str) -> str | None:
 def _amount(value: str | None) -> Decimal | None:
     if not value:
         return None
+    # XML decimal values do not use thousands separators. Reject ambiguous
+    # values instead of silently deleting punctuation and changing the amount.
+    if not re.fullmatch(r"-?\d+(?:\.\d+)?", value.strip()):
+        raise ValueError("Số tiền hoặc số lượng trong XML không đúng định dạng thập phân")
     try:
-        return Decimal(value.strip().replace(" ", "").replace(",", ""))
-    except InvalidOperation:
-        return None
+        return Decimal(value.strip())
+    except InvalidOperation as exc:
+        raise ValueError("Giá trị số trong XML không hợp lệ") from exc
 
 
 def _date(value: str | None):
@@ -53,8 +58,10 @@ def parse_invoice_xml(contents: bytes) -> dict:
         raise ValueError("Tệp XML có cấu trúc quá lớn")
 
     item_nodes = [node for node in root.iter() if _local(node.tag) in {"hhdvu", "item", "lineitem"}]
+    if len(item_nodes) > 200:
+        raise ValueError("Hóa đơn XML có quá 200 dòng mặt hàng")
     items = []
-    for node in item_nodes[:200]:
+    for node in item_nodes:
         name = _text_by_names(node, "THHDVu", "TenHHDV", "ItemName", "Description")
         if not name:
             continue
@@ -69,10 +76,12 @@ def parse_invoice_xml(contents: bytes) -> dict:
             "line_total": _amount(_text_by_names(node, "ThTien", "Amount", "LineTotal")),
         })
 
+    seller = next((node for node in root.iter() if _local(node.tag) == "nban"), root)
     return {
-        "merchant_name": _text_by_names(root, "Ten", "TenNBan", "SellerName"),
-        "merchant_address": _text_by_names(root, "DChi", "DChiNBan", "SellerAddress"),
-        "merchant_tax_code": _text_by_names(root, "MST", "MSTNBan", "SellerTaxCode"),
+        "currency": _text_by_names(root, "DVTTe", "CurrencyCode", "DocumentCurrencyCode", "Currency"),
+        "merchant_name": _text_by_names(seller, "Ten", "TenNBan", "SellerName"),
+        "merchant_address": _text_by_names(seller, "DChi", "DChiNBan", "SellerAddress"),
+        "merchant_tax_code": _text_by_names(seller, "MST", "MSTNBan", "SellerTaxCode"),
         "invoice_number": _text_by_names(root, "SHDon", "InvoiceNumber"),
         "invoice_symbol": _text_by_names(root, "KHHDon", "KHMSHDon", "InvoiceSymbol"),
         "invoice_date": _date(_text_by_names(root, "NLap", "InvoiceDate")),

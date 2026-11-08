@@ -1,21 +1,5 @@
-/**
- * ============================================================================
- * TÊN FILE: DashboardStats.jsx
- * DỰ ÁN: CapitalFlow — Cổng Quản Trị Hệ Thống (admin-web)
- * MÀN HÌNH / PHÂN HỆ: Bảng điều khiển quản trị (Dashboard)
- * MỤC ĐÍCH CỤ THỂ:
- *   Hiển thị các khối thẻ chỉ số nhanh (KPI): trạng thái tài khoản người dùng,
- *   số lượng giao dịch trong tháng, hàng đợi hóa đơn chờ OCR và hóa đơn lỗi.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   Props data (thống kê hệ thống) và monitor (thống kê giám sát OCR).
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Default export DashboardStats component.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Hiển thị dữ liệu tổng hợp thời gian thực; xử lý an toàn khi giá trị null/undefined.
- * ============================================================================
- */
 import { ArrowUpRight, CircleAlert, FileScan, UsersRound } from "lucide-react";
-import { number } from "../../../dung-chung/tien-ich/adminPresentation";
+import { number } from "../../../dung-chung/tien-ich/format";
 
 /**
  * Component thẻ chỉ số KPI tổng quan trạng thái vận hành hệ thống.

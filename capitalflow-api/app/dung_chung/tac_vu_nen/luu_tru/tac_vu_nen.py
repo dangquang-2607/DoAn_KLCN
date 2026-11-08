@@ -24,8 +24,7 @@ class BackgroundJob(Base):
     lease_until: Mapped[datetime | None] = mapped_column(DateTime)
     lease_token: Mapped[uuid.UUID | None] = mapped_column(Uuid)
     error_code: Mapped[str | None] = mapped_column(String(100))
-    # Lưu owner ở dạng phi chuẩn hóa để hủy job khi xóa tài khoản trong thời gian hữu hạn,
-    # đồng thời tránh phải giải mã toàn bộ payload đang nằm trong hàng đợi.
+    # Tra cứu tác vụ theo chủ sở hữu mà không phải giải mã toàn bộ hàng đợi.
     owner_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.sysutcdatetime())
     __table_args__ = (

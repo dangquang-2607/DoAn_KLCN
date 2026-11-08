@@ -1,25 +1,9 @@
-/**
- * ============================================================================
- * TÊN FILE: DateInput.tsx
- * MÀN HÌNH / PHÂN HỆ: Thành phần nhập liệu Ngày tháng
- * NHÓM VỆ TINH: dung-chung (Thành phần giao diện dùng chung)
- * MỤC ĐÍCH CỤ THỂ:
- *   Ô nhập liệu ngày thông minh: nhận chữ số, tự động chèn dấu '/' theo dạng DD/MM/YYYY,
- *   tự động điều chỉnh con trỏ chuột và chuyển đổi sang ISO YYYY-MM-DD cho backend.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   value (chuỗi ISO), onChange callback, min, max, label và các thuộc tính input tiêu chuẩn.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Default export DateInput component.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Chỉ phát sinh onChange khi chuỗi ngày nhập vào hoàn chỉnh và hợp lệ.
- * ============================================================================
- */
 "use client";
 
 /** Chỉ nhận chữ số, tự chèn dấu /; API vẫn dùng YYYY-MM-DD. */
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { CalendarDays } from "lucide-react";
-import { formatDateForDisplay, formatDateForTyping, parseDateForApi } from "@/dung-chung/tien-ich/finance";
+import { dateInputError, formatDateForDisplay, formatDateForTyping, parseDateForApi } from "@/dung-chung/tien-ich/finance";
 
 function caretAfterDigits(value: string, count: number) {
   if (!count) return 0;
@@ -53,6 +37,8 @@ export default function DateInput({ value, onChange, id, required, readOnly, dis
   const lastEmitted = useRef<string | null>(null);
   const pendingCaret = useRef<number | null>(null);
   const [blurred, setBlurred] = useState(false);
+  const [rejected, setRejected] = useState("");
+  const errorId = useId();
 
   useLayoutEffect(() => {
     if (pendingCaret.current !== null) {
@@ -67,47 +53,74 @@ export default function DateInput({ value, onChange, id, required, readOnly, dis
       return;
     }
     pendingCaret.current = null;
+    setRejected("");
     setDisplay(formatDateForDisplay(value));
   }, [value]);
 
   const isoDate = parseDateForApi(display);
-  const invalid = display && !isoDate ? "Nhập ngày hợp lệ theo định dạng dd/mm/yyyy."
+  const invalid = rejected || (display && !isoDate ? "Nhập ngày hợp lệ theo định dạng dd/mm/yyyy."
     : isoDate && min && isoDate < min ? `Ngày phải từ ${formatDateForDisplay(min)} trở đi.`
-      : isoDate && max && isoDate > max ? `Ngày phải trước hoặc bằng ${formatDateForDisplay(max)}.` : "";
-  const showInvalid = Boolean(invalid && (blurred || display.length === 10));
+      : isoDate && max && isoDate > max ? `Ngày phải trước hoặc bằng ${formatDateForDisplay(max)}.` : "");
+  const showInvalid = Boolean(invalid && (rejected || blurred || display.length === 10));
 
   useEffect(() => {
     textRef.current?.setCustomValidity(invalid || "");
-  }, [invalid]);
+  // Pasting updates the controlled value without a native input event, so it
+  // must also clear a form's previous localized "required" validation error.
+  }, [invalid, display]);
 
   const emit = (next: string) => {
     lastEmitted.current = next;
     onChange(next);
   };
 
+  const updateDisplay = (raw: string, caret: number) => {
+    if (disabled || readOnly) return;
+    const next = formatDateForTyping(raw);
+    const error = dateInputError(next);
+    if (error) {
+      setRejected(error);
+      // A rejected edit must not replace the last accepted date or API value.
+      if (textRef.current) {
+        textRef.current.value = display;
+        textRef.current.setSelectionRange(Math.min(caret, display.length), Math.min(caret, display.length));
+      }
+      return;
+    }
+    const digitCount = raw.slice(0, caret).replace(/\D/g, "").length;
+    pendingCaret.current = caretAfterDigits(next, digitCount);
+    setRejected("");
+    setBlurred(false);
+    setDisplay(next);
+    const parsed = parseDateForApi(next);
+    const accepted = parsed && (!min || parsed >= min) && (!max || parsed <= max) ? parsed : "";
+    if (accepted && accepted !== value) emit(accepted);
+    else if (!accepted && value) emit("");
+  };
+
   return <div className="cf-date-input">
-    <input ref={textRef} id={id} aria-describedby={describedBy} aria-invalid={showInvalid}
+    <input ref={textRef} id={id} aria-describedby={[describedBy, showInvalid ? errorId : null].filter(Boolean).join(" ") || undefined} aria-invalid={showInvalid}
       data-invalid={showInvalid ? "true" : undefined}
       className="cf-input cf-date-input-field" type="text" inputMode="numeric" placeholder="dd/mm/yyyy"
       title={invalid || "Nhập ngày/tháng/năm, ví dụ 29/08/2027"} maxLength={10}
       required={required} readOnly={readOnly} disabled={disabled} value={display}
       onBlur={() => setBlurred(true)}
       onKeyDown={(event) => {
-        if (event.key.length === 1 && !/\d/.test(event.key) && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        if (event.key.length === 1 && !/[\d/]/.test(event.key) && !event.ctrlKey && !event.metaKey && !event.altKey) {
           event.preventDefault();
         }
       }}
       onChange={(event) => {
         const raw = event.target.value;
-        const next = formatDateForTyping(raw);
-        const digitCount = raw.slice(0, event.target.selectionStart ?? raw.length).replace(/\D/g, "").length;
-        pendingCaret.current = caretAfterDigits(next, digitCount);
-        setBlurred(false);
-        setDisplay(next);
-        const parsed = parseDateForApi(next);
-        const accepted = parsed && (!min || parsed >= min) && (!max || parsed <= max) ? parsed : "";
-        if (accepted && accepted !== value) emit(accepted);
-        else if (!accepted && value) emit("");
+        updateDisplay(raw, event.target.selectionStart ?? raw.length);
+      }}
+      onPaste={(event) => {
+        event.preventDefault();
+        const input = event.currentTarget;
+        const start = input.selectionStart ?? 0;
+        const end = input.selectionEnd ?? display.length;
+        const pasted = event.clipboardData.getData("text");
+        updateDisplay(display.slice(0, start) + pasted + display.slice(end), start + pasted.length);
       }} />
     <button type="button" className="cf-date-input-calendar" aria-label="Chọn ngày từ lịch"
       disabled={disabled || readOnly} onClick={() => pickerRef.current?.showPicker?.()}>
@@ -116,10 +129,8 @@ export default function DateInput({ value, onChange, id, required, readOnly, dis
     <input ref={pickerRef} className="cf-date-input-native-picker" type="date" tabIndex={-1}
       aria-hidden="true" min={min} max={max} disabled={disabled || readOnly}
       value={isoDate || ""} onChange={(event) => {
-        pendingCaret.current = null;
-        setDisplay(formatDateForDisplay(event.target.value));
-        setBlurred(false);
-        emit(event.target.value);
+        if (event.target.validity.valid) updateDisplay(event.target.value, event.target.value.length);
       }} />
+    {showInvalid && <span id={errorId} className="cf-date-input-error" role="alert">{invalid}</span>}
   </div>;
 }

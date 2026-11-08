@@ -1,26 +1,66 @@
 /* Trình nhập, danh sách và xem trước hóa đơn. */
 
 .cf-item-editor-wrap {
-  border: 1px solid var(--cf-line);
-  border-radius: 12px;
+  container-type: inline-size;
+  max-height: 440px;
+  overflow: auto;
+  border: 1px solid #e1e7ef;
+  border-radius: 6px;
+  background: #fff;
 }
 .cf-item-editor {
-  min-width: 850px;
+  min-width: 700px;
+  table-layout: fixed;
 }
+.cf-item-col-name { width: 26%; }
+.cf-item-col-unit { width: 8%; }
+.cf-item-col-quantity { width: 13%; }
+.cf-item-col-price { width: 23%; }
+.cf-item-col-total { width: 24%; }
+.cf-item-col-actions { width: 6%; }
+.cf-item-editor.is-readonly { min-width: 520px; }
+.cf-item-editor.is-readonly .cf-item-col-name { width: 32%; }
+.cf-item-editor.is-readonly .cf-item-col-unit { width: 10%; }
+.cf-item-editor.is-readonly .cf-item-col-quantity { width: 8%; }
+.cf-item-editor.is-readonly .cf-item-col-price,
+.cf-item-editor.is-readonly .cf-item-col-total { width: 25%; }
 .cf-item-editor .cf-item-name-cell {
-  min-width: 280px;
+  min-width: 0;
   white-space: normal;
+  overflow-wrap: anywhere;
 }
 .cf-item-editor .cf-input.cf-item-input {
-  min-height: 36px;
-  padding: 7px 9px;
-  font-size: 13px;
+  height: var(--cf-control-height);
+  min-height: var(--cf-control-height);
+  padding: var(--cf-control-padding-y) 8px;
+  font-size: var(--cf-control-font-size);
+  border: 1px solid #dce3ed;
+  border-radius: 6px;
+  background: #fff;
+  font-variant-numeric: tabular-nums;
 }
-.cf-item-editor .cf-item-unit { width: 88px; }
-.cf-item-editor .cf-item-number { width: 92px; }
-.cf-item-editor .cf-item-money { width: 128px; text-align: right; }
+.cf-item-editor .cf-input.cf-item-input:focus { border-color: #5373e8; box-shadow: 0 0 0 3px #2454e610; outline: none; }
+.cf-item-editor .cf-item-unit, .cf-item-editor .cf-item-number { width: 100%; min-width: 0; }
+.cf-item-editor .cf-item-number { text-align: center; appearance: textfield; -moz-appearance: textfield; }
+.cf-item-editor .cf-item-number::-webkit-inner-spin-button,
+.cf-item-editor .cf-item-number::-webkit-outer-spin-button { appearance: none; margin: 0; }
+.cf-item-editor .cf-input.cf-item-money { width: 100%; min-width: 0; padding-right: 2.5rem; text-align: right; }
+.cf-item-editor .cf-item-total-cell .cf-input { font-weight: 650; color: #2344a0; background: #f4f7ff; border-color: #dce4fb; }
+.cf-item-editor .cf-item-actions-cell .cf-icon-btn { width: 30px; height: 30px; color: #8a94a6; }
+.cf-item-editor .cf-item-actions-cell .cf-icon-btn:hover { color: #d64545; background: #fff1f1; }
+.cf-item-editor .cf-item-actions-cell svg { width: 16px; height: 16px; }
 .cf-item-editor th, .cf-item-editor td {
-  padding: 10px 8px;
+  padding: 8px 6px;
+}
+.cf-item-editor th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f7f9fc;
+  color: #6b778c;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 .cf-ocr-grid {
   display: grid;
@@ -55,7 +95,7 @@
   padding: 14px 16px;
   background: var(--cf-surface, #ffffff);
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: 6px;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -96,32 +136,17 @@
   border-top: 1px dashed #cbd5e1;
 }
 
-.cf-total-input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.cf-total-input-wrapper .cf-total-input {
-  padding-right: 64px;
-  font-size: 19px !important;
-  font-weight: 700 !important;
-  color: #0f172a !important;
-  letter-spacing: -0.01em;
-  border-color: #cbd5e1;
-}
-
 /* Amount Input Box (Matching Image 3) */
 .cf-amount-input-box {
   display: flex;
   align-items: center;
   width: 100%;
-  height: 42px;
-  min-height: 42px;
+  height: var(--cf-control-height);
+  min-height: var(--cf-control-height);
   padding: 0 12px;
   background: #ffffff;
   border: 1px solid #d8dfe9;
-  border-radius: 8px;
+  border-radius: 6px;
   box-sizing: border-box;
   transition: border-color 160ms, box-shadow 160ms;
 }
@@ -131,8 +156,7 @@
   box-shadow: 0 0 0 3px #2454e612;
 }
 
-fieldset:disabled .cf-amount-input-box,
-.cf-amount-input-box.is-disabled {
+fieldset:disabled .cf-amount-input-box {
   background: #f8fafc;
   border-color: #e2e8f0;
   cursor: default;
@@ -216,7 +240,6 @@ fieldset:disabled .cf-amount-currency-suffix {
 
 .cf-invoice-submit-btn {
   margin-top: 4px;
-  padding: 11px 18px;
   font-weight: 600;
   justify-content: center;
   box-shadow: 0 2px 8px -2px rgba(36, 84, 230, 0.4);
@@ -235,7 +258,7 @@ fieldset:disabled .cf-amount-currency-suffix {
   padding: 12px 16px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 6px;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
 }
 
@@ -245,7 +268,7 @@ fieldset:disabled .cf-amount-currency-suffix {
   justify-content: center;
   width: 34px;
   height: 34px;
-  border-radius: 8px;
+  border-radius: 6px;
   background: #eef2f6;
   color: #475569;
   flex-shrink: 0;
@@ -278,7 +301,7 @@ fieldset:disabled .cf-amount-currency-suffix {
   color: #1e293b !important;
   font-weight: 600;
   padding: 7px 14px;
-  border-radius: 8px;
+  border-radius: 6px;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   transition: all 140ms ease;
 }
@@ -304,12 +327,20 @@ fieldset:disabled .cf-amount-currency-suffix {
   }
 }
 
-/* Checkbox chọn tất cả (Redesigned Image 2) */
-.cf-select-all-container {
-  padding: 9px 16px;
+/* Keep selection and its action on one stable row, including partial selection. */
+.cf-trash-selection {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 8px 12px;
   background: #f8fafc;
   border-top: 1px solid var(--cf-line);
+  border-bottom: 1px solid var(--cf-line);
 }
+.cf-trash-selection-count { margin-left: auto; white-space: nowrap; font-size: 11px; color: #64748b; font-variant-numeric: tabular-nums; }
+.cf-trash-selection .cf-batch-icon-btn { flex-shrink: 0; }
+.cf-trash-selection .cf-batch-icon-btn:disabled { opacity: .4; cursor: not-allowed; }
 
 .cf-select-all-label {
   display: inline-flex;
@@ -318,6 +349,8 @@ fieldset:disabled .cf-amount-currency-suffix {
   cursor: pointer;
   user-select: none;
   font-size: 13px;
+  white-space: nowrap;
+  min-height: 34px;
   font-weight: 500;
   color: #334155;
   transition: color 140ms ease;
@@ -328,12 +361,24 @@ fieldset:disabled .cf-amount-currency-suffix {
 }
 
 .cf-select-all-label input[type="checkbox"] {
+  appearance: none;
+  display: grid;
+  place-content: center;
+  flex-shrink: 0;
+  margin: 0;
   width: 16px;
   height: 16px;
   cursor: pointer;
-  accent-color: var(--cf-blue, #2454e6);
+  border: 1px solid #a5b1c2;
+  background: #fff;
   border-radius: 4px;
 }
+.cf-select-all-label input:checked,
+.cf-select-all-label input:indeterminate { background: var(--cf-blue, #2454e6); border-color: var(--cf-blue, #2454e6); }
+.cf-select-all-label input:checked::after { content: ""; width: 8px; height: 4px; border-left: 2px solid #fff; border-bottom: 2px solid #fff; transform: translateY(-1px) rotate(-45deg); }
+.cf-select-all-label input:indeterminate::after { content: ""; width: 8px; height: 2px; background: #fff; transform: none; border: none; }
+.cf-select-all-label input:focus-visible { outline: 3px solid #2454e633; outline-offset: 2px; }
+.cf-select-all-label input:disabled { opacity: .5; cursor: not-allowed; }
 
 /* Thanh thao tác hàng loạt gọn gàng (Redesigned Image 1 & 2) */
 .cf-batch-actions-bar {
@@ -385,7 +430,7 @@ fieldset:disabled .cf-amount-currency-suffix {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 7px;
+  border-radius: 6px;
   border: 1px solid var(--cf-line);
   background: #ffffff;
   color: #64748b;
@@ -476,6 +521,17 @@ fieldset:disabled .cf-amount-currency-suffix {
 .cf-image-scroll img {
   display: block;
 }
+.cf-image-scroll canvas {
+  max-width: 100%;
+  height: auto;
+}
+.cf-pdf-pages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
 .cf-ocr-preview .cf-panel-head {
   padding: 16px;
 }
@@ -517,7 +573,7 @@ fieldset:disabled .cf-amount-currency-suffix {
   flex-wrap: wrap;
   border: 1px dashed #b2c2e8;
   background: #f8faff;
-  border-radius: 10px;
+  border-radius: 6px;
   padding: 18px;
   color: #35518c;
   font-size: 14px;
@@ -537,7 +593,7 @@ fieldset:disabled .cf-amount-currency-suffix {
  .cf-app .cf-ocr-preview-body.is-processing::after { animation: none !important; top: 0; opacity: .5; }
 }
 
-.cf-duplicate-review { border: 1px solid var(--cf-line); padding: 16px; border-radius: 8px; }
+.cf-duplicate-review { border: 1px solid var(--cf-line); padding: 16px; border-radius: 6px; }
 .cf-duplicate-candidate { padding: 12px 0; border-bottom: 1px solid var(--cf-line); margin-bottom: 12px; }
 .cf-duplicate-candidate p { margin: 6px 0; font-size: 13px; }
 .cf-duplicate-label { font-size: 11px; font-weight: 600; color: var(--cf-text); padding: 3px 6px; border: 1px solid var(--cf-line); border-radius: 4px; }

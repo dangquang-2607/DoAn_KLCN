@@ -1,18 +1,3 @@
-/**
- * ============================================================================
- * TÊN FILE: Toast.jsx
- * MÀN HÌNH / PHÂN HỆ: Thiết kế dùng chung
- * NHÓM VỆ TINH: dung-chung/UI-chung (UI dùng chung)
- * MỤC ĐÍCH CỤ THỂ:
- *   Hiển thị thông báo nổi qua React portal phía trình duyệt.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   Props React, icon Lucide và các design token CSS dùng chung.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Xuất Toast để route hoặc component khác sử dụng.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Không chứa secret hoặc tự thay đổi dữ liệu nghiệp vụ; luôn tôn trọng khả năng truy cập.
- * ============================================================================
- */
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, AlertTriangle, Info, X } from "lucide-react";

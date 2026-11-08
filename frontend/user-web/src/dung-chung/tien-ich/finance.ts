@@ -1,21 +1,18 @@
-/**
- * ============================================================================
- * TÊN FILE: finance.ts
- * MÀN HÌNH / PHÂN HỆ: Tiện ích tài chính & ngày tháng cốt lõi
- * NHÓM VỆ TINH: dung-chung (Thư viện tiện ích dùng chung)
- * MỤC ĐÍCH CỤ THỂ:
- *   Tập trung toàn bộ logic định dạng tiền tệ vi-VN, chuẩn hóa ngày tháng cục bộ,
- *   bóc tách thông điệp lỗi Axios, và hỗ trợ xuất báo cáo tài chính ra file Excel.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   Intl.NumberFormat, Date API, thư viện exceljs và file-saver.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Các hàm money, localDate, dateLabel, formatDateForDisplay, parseDateForApi,
- *   errorMessage, exportFinanceExcel.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Không làm tròn số nguyên khi hiển thị VND; tính toán ngày theo múi giờ Việt Nam (+07:00).
- * ============================================================================
- */
-import type { Money } from "@/dung-chung/nghiep-vu/finance";
+import type { Money, Transaction } from "@/dung-chung/nghiep-vu/finance";
+
+/** Giữ mã tự nhập; rút mã hóa đơn sinh tự động về 12 ký tự khi hiển thị. */
+export function billReferenceLabel(reference: string) {
+  return /^HD-(?:[0-9A-F]{32}|[A-Z2-7]{18}|[A-Z0-9]{8}-[0-9A-F]{8})$/.test(reference)
+    ? `HD-${reference.slice(3).replace("-", "").slice(0, 9)}` : reference;
+}
+
+/** Hiển thị 12 ký tự cho mã hóa đơn mô phỏng trong danh sách giao dịch ví. */
+export function transactionListDescription({ description, wallet_entry_id }: Pick<Transaction, "description" | "wallet_entry_id">) {
+  if (!wallet_entry_id || !description) return description;
+  return description.replace(/ · (HD-(?:[0-9A-F]{32}|[A-Z2-7]{18}|[A-Z0-9]{8}-[0-9A-F]{8}))$/, (_, reference: string) => {
+    return ` · ${billReferenceLabel(reference)}`;
+  });
+}
 
 // Định dạng để hiển thị; không làm tròn hoặc ghi ngược giá trị vào dữ liệu nguồn.
 /**
@@ -31,6 +28,11 @@ export function money(value: Money = 0, currency = "VND") {
     currency,
     maximumFractionDigits: currency === "VND" ? 0 : 2,
   }).format(Number(value) || 0);
+}
+
+/** Giá trị đã là phần trăm (80.5 => 80,5); chỉ định dạng hiển thị. */
+export function percent(value: Money, digits = 1) {
+  return new Intl.NumberFormat("vi-VN", { maximumFractionDigits: digits }).format(Number(value) || 0);
 }
 
 // Tạo ngày cục bộ thay vì UTC để tránh lệch một ngày theo múi giờ Việt Nam.
@@ -56,20 +58,44 @@ export function formatDateForDisplay(value?: string | null) {
   return match ? `${match[3]}/${match[2]}/${match[1]}` : value || "";
 }
 
-// Chỉ giữ 8 chữ số ngày/tháng/năm và tự chèn dấu / khi người dùng gõ hoặc dán.
+// Chuẩn hóa ngày gõ/dán; giữ nguyên dữ liệu sai để bước kiểm tra từ chối.
 export function formatDateForTyping(value: string) {
-  const iso = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/.exec(value.trim());
+  const text = (value || "").trim();
+  const iso = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/.exec(text);
   if (iso) return `${iso[3].padStart(2, "0")}/${iso[2].padStart(2, "0")}/${iso[1]}`;
-  const digits = value.replace(/\D/g, "").slice(0, 8);
+  const local = /^(\d{1,2})[/.](\d{1,2})[/.](\d{4})$/.exec(text);
+  if (local) return `${local[1].padStart(2, "0")}/${local[2].padStart(2, "0")}/${local[3]}`;
+  // Do not silently truncate a pasted date or turn arbitrary text into a date.
+  if (/[^\d/]/.test(text)) return text;
+  const digits = text.replace(/\D/g, "");
   return [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4)].filter(Boolean).join("/");
+}
+
+// Validate completed segments while still allowing a date to be typed/deleted.
+// February permits 29 until the year is complete, then applies Gregorian rules.
+export function dateInputError(value: string) {
+  if (!value) return "";
+  const match = /^(\d{1,2})(?:\/(\d{1,2})(?:\/(\d{1,4}))?)?$/.exec(value);
+  if (!match) return "Nhập ngày theo định dạng dd/mm/yyyy.";
+  const [, day, month = "", year = ""] = match;
+  if (Number(day) > 31 || (day.length === 1 && Number(day) > 3) || day === "00")
+    return "Ngày phải từ 01 đến 31.";
+  if (Number(month) > 12 || (month.length === 1 && Number(month) > 1) || month === "00")
+    return "Tháng phải từ 01 đến 12.";
+  if (year === "0000") return "Năm phải từ 0001 đến 9999.";
+  if (month.length === 2) {
+    const leap = year.length < 4 || Number(year) % 400 === 0 || (Number(year) % 4 === 0 && Number(year) % 100 !== 0);
+    const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][Number(month) - 1];
+    if (Number(day) > days) return `Tháng ${month}${year.length === 4 ? ` năm ${year}` : ""} chỉ có ${days} ngày.`;
+  }
+  return "";
 }
 
 export function parseDateForApi(value: string) {
   const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value.trim());
   if (!match) return null;
   const [, day, month, year] = match;
-  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
-  if (date.getUTCFullYear() !== Number(year) || date.getUTCMonth() + 1 !== Number(month) || date.getUTCDate() !== Number(day)) return null;
+  if (dateInputError(`${day}/${month}/${year}`)) return null;
   return `${year}-${month}-${day}`;
 }
 
@@ -104,7 +130,7 @@ export type ExcelTransaction = {
 type FinanceExport = { title: string; scope: string; transactions: ExcelTransaction[] };
 
 // Only load the workbook library when exporting. Text cells never become formulas.
-export async function createFinanceWorkbook({ title, scope, transactions }: FinanceExport) {
+async function createFinanceWorkbook({ title, scope, transactions }: FinanceExport) {
   const { default: ExcelJS } = await import("exceljs");
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "CapitalFlow";

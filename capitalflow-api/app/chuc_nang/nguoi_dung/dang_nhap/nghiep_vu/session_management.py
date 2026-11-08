@@ -19,6 +19,17 @@ def locked_user(db, user_id, expected_version=None):
     ).execution_options(populate_existing=True))
     if not user or not user.is_active or (expected_version is not None and user.token_version != expected_version):
         raise HTTPException(status_code=401, detail="Phiên đăng nhập không còn hợp lệ")
+    # Recheck the request's session after acquiring the same user lock as logout
+    # and session revocation. Background work and unauthenticated login setup do
+    # not carry a session family and keep their existing contract.
+    request = db.info.get("request")
+    family = getattr(getattr(request, "state", None), "session_family_id", None)
+    is_request_actor = getattr(getattr(request, "state", None), "user_id", None) == user.id
+    if is_request_actor and family is not None and db.scalar(select(RefreshToken.id).where(
+        RefreshToken.user_id == user.id, RefreshToken.family_id == family,
+        RefreshToken.revoked_at.is_(None), RefreshToken.expires_at > datetime.now(timezone.utc),
+    )) is None:
+        raise HTTPException(status_code=401, detail="Phiên đăng nhập đã bị thu hồi")
     return user
 
 

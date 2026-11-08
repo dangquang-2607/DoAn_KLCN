@@ -25,7 +25,7 @@ def begin_operation(db, user, action, body):
         if existing.payload_hash != payload_hash:
             conflict("IDEMPOTENCY_KEY_REUSED", "Khóa yêu cầu đã được dùng cho nội dung khác.")
         result = json.loads(existing.response_json)
-        if action == "invoice-confirm":
+        if action in {"invoice-record", "invoice-confirm"}:
             transaction_id = uuid.UUID(result["transaction_id"])
             if not db.scalar(select(Transaction.id).where(Transaction.id == transaction_id, Transaction.user_id == user.id)):
                 conflict("CONFIRMATION_NO_LONGER_ACTIVE", "Khoản chi đã bị xóa. Hãy tải lại hóa đơn để ghi nhận lại.")

@@ -1,20 +1,6 @@
-/**
- * ============================================================================
- * TÊN FILE: page.tsx
- * MÀN HÌNH / PHÂN HỆ: Hóa đơn AI / OCR
- * NHÓM VỆ TINH: page.tsx (Điều phối)
- * MỤC ĐÍCH CỤ THỂ:
- *   Điều phối dữ liệu, trạng thái và hành vi của màn hình tương ứng.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   TanStack Query, API client, state React và các component vệ tinh của phân hệ.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Xuất page để route hoặc component khác sử dụng.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Giới hạn định dạng/kích thước/số lượng tệp; chỉ tạo khoản chi sau bước người dùng xác nhận.
- * ============================================================================
- */
 ﻿"use client";
 import "./CSS/ocr.css";
+import density from "./CSS/invoice-density.module.css";
 /** Trang điều phối upload, theo dõi xử lý và kiểm duyệt kết quả hóa đơn OCR. */
 import { OcrSteps } from "@/dung-chung/UI-chung/Motion";
 import { useEffect, useRef, useState } from "react";
@@ -22,13 +8,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ScanLine,
   Trash2,
-  RefreshCw,
   ZoomIn,
   ZoomOut,
   RotateCw,
   ExternalLink,
 } from "lucide-react";
-import api from "@/dung-chung/connect-api/api";
+import api, { sessionOwner } from "@/dung-chung/connect-api/api";
 import {
   PageHead,
   Panel,
@@ -39,14 +24,17 @@ import {
   Empty,
 } from "@/dung-chung/UI-chung/ui";
 import { errorMessage } from "@/dung-chung/tien-ich/finance";
+import Toast from "@/dung-chung/UI-chung/Toast";
 import InvoiceStatusBadge from "./thanh-phan/InvoiceStatusBadge";
 import InvoiceDetailForm from "./thanh-phan/InvoiceRecordForm";
 import InvoiceQueueList from "./thanh-phan/InvoiceQueueList";
 import InvoiceTrashNotice from "./thanh-phan/InvoiceTrashNotice";
 import InvoiceUploadZone from "./thanh-phan/InvoiceUploadZone";
 import InvoiceIntakeFeedback from "./thanh-phan/InvoiceIntakeFeedback";
-import type { Invoice, UploadResult, UploadEntry } from "./xu-ly/InvoiceTypes";
+import InvoicePdfPreview from "./thanh-phan/InvoicePdfPreview";
+import type { Invoice, UploadEntry } from "./xu-ly/InvoiceTypes";
 import { uploadInvoice, invoiceMutation, invoiceError } from "./xu-ly/invoiceApi";
+import { invoiceUploadError, prepareInvoiceImage } from "./xu-ly/invoiceUpload";
 export default function Ocr() {
   const cache = useQueryClient(),
     uploadInput = useRef<HTMLInputElement>(null);
@@ -66,7 +54,9 @@ export default function Ocr() {
     [zoom, setZoom] = useState(1),
     [rotation, setRotation] = useState(0);
   const [uploadResults, setUploadResults] = useState<UploadEntry[]>([]);
-  const [uploadMatch, setUploadMatch] = useState<UploadResult | null>(null);
+  const [duplicateNotice, setDuplicateNotice] = useState<{ created: number; reused: number } | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<{ name: string; index: number; total: number } | null>(null);
+  const uploadPending = useRef(false);
   const [permanentDelete, setPermanentDelete] = useState(false);
   const [missingFile, setMissingFile] = useState(false);
   const query = useQuery<{ items: Invoice[]; total: number }>({
@@ -135,30 +125,40 @@ export default function Ocr() {
       ].map((key) => cache.invalidateQueries({ queryKey: [key] })),
     );
   };
-  // Kiểm tra định dạng và giới hạn 10 MB trước khi tuần tự tải từng tệp lên backend.
+  // Validate the entire selection before starting one OCR request per image.
   const upload = async (files: FileList | File[] | null, ticket?: string) => {
-    if (!files?.length || busy) return;
+    if (!files?.length || busy || uploadPending.current) return;
     const valid = Array.from(files);
-    const unsupported = valid.find(
-      (f) =>
-        f.size > 10 * 1024 * 1024 || !/\.(jpe?g|png|webp|pdf|xml)$/i.test(f.name),
-    );
-    if (unsupported) {
-      setError(
-        `Tệp “${unsupported.name}” không hợp lệ. Chỉ nhận JPG, PNG, WEBP, PDF, XML tối đa 10 MB/tệp.`,
-      );
+    const selectionError = invoiceUploadError(valid);
+    if (selectionError) {
+      if (uploadInput.current) uploadInput.current.value = "";
+      setError(selectionError);
+      setNotice("");
+      setDuplicateNotice(null);
       return;
     }
+    uploadPending.current = true;
+    const owner = sessionOwner();
     setBusy("upload");
     setError("");
     setNotice("");
-    const results: UploadEntry[] = uploadResults.filter(r => r.error && !valid.includes(r.file));
+    setDuplicateNotice(null);
+    const results: UploadEntry[] = uploadResults.filter(r => r.error && !valid.some(file =>
+      file.name === r.file.name && file.size === r.file.size &&
+      file.type === r.file.type && file.lastModified === r.file.lastModified,
+    ));
     try {
-      for (const file of valid) {
+      for (const [index, file] of valid.entries()) {
+        if (sessionOwner() !== owner) {
+          setError("Phiên đăng nhập đã thay đổi. Hãy đăng nhập và chọn lại các ảnh chưa tải.");
+          break;
+        }
+        setUploadProgress({ name: file.name, index: index + 1, total: valid.length });
         try {
-          const result = await uploadInvoice(file, ticket);
+          const prepared = await prepareInvoiceImage(file);
+          if (sessionOwner() !== owner) throw new Error("Phiên đăng nhập đã thay đổi. Hãy đăng nhập và chọn lại ảnh.");
+          const result = await uploadInvoice(prepared, ticket);
           results.push({ file, result }); setSelectedId(result.id);
-          if (result.outcome !== "CREATED") setUploadMatch(result);
         } catch (e) { const issue = invoiceError(e); results.push({ file, error: issue.message, issue }); }
         setUploadResults([...results]);
       }
@@ -167,13 +167,22 @@ export default function Ocr() {
       setChecked([]);
       const created = results.filter(r => r.result?.outcome === "CREATED").length;
       const reused = results.filter(r => r.result && r.result.outcome !== "CREATED").length;
-      setNotice(`${created} hóa đơn mới · ${reused} bản đã có · ${results.filter(r => r.error).length} tệp chưa hoàn tất.`);
+      const incomplete = results.filter(r => r.error).length;
+      const summary = `${created} hóa đơn mới · ${reused} ảnh khớp hóa đơn đã có · ${incomplete} ảnh chưa hoàn tất.`;
+      if (incomplete) setError(summary);
+      else if (reused) setDuplicateNotice({ created, reused });
+      else setNotice(summary);
     } catch (e) {
       setError(invoiceError(e).message);
     } finally {
-      await invalidate(); setPreviewVersion(v => v + 1);
-      setBusy("");
-      if (uploadInput.current) uploadInput.current.value = "";
+      try {
+        await invalidate(); setPreviewVersion(v => v + 1);
+      } finally {
+        uploadPending.current = false;
+        setUploadProgress(null);
+        setBusy("");
+        if (uploadInput.current) uploadInput.current.value = "";
+      }
     }
   };
   // Giới hạn tối đa năm hóa đơn mỗi lô và bỏ qua tài liệu đang xử lý/đã xác nhận.
@@ -274,229 +283,211 @@ export default function Ocr() {
   );
   const inv = detail.data;
   return (
-    <div className="cf-stack">
+    <div className={`cf-stack ${density.workspace}`}>
       <PageHead
         eyebrow="HÓA ĐƠN AI"
         title="Từ hóa đơn đến khoản chi"
         description="01 Tải lên · 02 Quét và kiểm tra · 03 Xác nhận giao dịch"
-        actions={
-          <>
-            <button
-              className="cf-btn"
-              onClick={() => query.refetch()}
-              disabled={!!busy}
-            >
-              <RefreshCw />
-              Làm mới
-            </button>
-          </>
-        }
       />
-      {error && <Alert onDismiss={() => setError("")}>{error}</Alert>}
-      {notice && <Alert kind="success" onDismiss={() => setNotice("")}>{notice}</Alert>}
-      <InvoiceUploadZone inputRef={uploadInput} busy={!!busy} onUpload={upload} />
-      <InvoiceIntakeFeedback entries={uploadResults} match={uploadMatch} busy={!!busy} checking={busy === "upload"}
-        onRetry={(file, token) => upload([file], token)} onOpen={id => { setSelectedId(id); setVersion(v => v + 1); }}
-        onRemove={file => setUploadResults(rows => rows.filter(r => r.file !== file))} onDismiss={() => setUploadMatch(null)} />
-      <div className="cf-ocr-grid">
-        <InvoiceQueueList
-          query={query}
-          list={list}
-          status={status}
-          page={page}
-          checked={checked}
-          eligible={eligible}
-          selectedId={activeSelectedId}
-          busy={!!busy}
-          onStatusChange={(value) => {
-            setStatus(value);
-            setPage(1);
-            setSelectedId(null);
-            setChecked([]);
-          }}
-          onPageChange={(nextPage) => {
-            if (busy) return;
-            setPage(nextPage);
-            setSelectedId(null);
-            setChecked([]);
-          }}
-          onCheckedChange={setChecked}
-          onSelect={setSelectedId}
-          onScan={scan}
-          onDelete={ids => { setPermanentDelete(status === "HIDDEN"); setDeleting(ids); }}
-        />
-        <Panel
-          title="Kiểm tra thông tin"
-          action={inv && <InvoiceStatusBadge value={inv.status} />}
-        >
-          {!activeSelectedId ? (
-            <Empty
-              title="Chọn một hóa đơn"
-              description="Thông tin nhận diện sẽ xuất hiện ở đây."
-            />
-          ) : detail.isPending ? (
-            <Loading />
-          ) : detail.isError ? (
-            <ErrorState retry={() => detail.refetch()} />
-          ) : (
-            inv && (
-              <>
-                <div
-                  className="cf-panel-body cf-row cf-between"
-                  style={{ paddingBottom: 0, justifyContent: inv.deleted_at ? "flex-end" : "space-between" }}
-                >
-                  {!inv.deleted_at && !["CONFIRMED", "PROCESSING"].includes(inv.status) && inv.mime_type !== "application/xml" && (
-                    <button
-                      className="cf-btn cf-btn-primary cf-btn-sm"
-                      disabled={!!busy}
-                      onClick={() => scan([inv.id])}
-                    >
-                      <ScanLine />
-                      {busy === "scan"
-                        ? "Đang nhận diện…"
-                        : inv.status === "REVIEW_REQUIRED"
-                          ? "Quét lại"
-                          : "Quét AI"}
-                    </button>
-                  )}
-                  <button
-                    className="cf-btn cf-btn-ghost cf-btn-sm"
-                    disabled={!!busy}
-                    onClick={() => { setPermanentDelete(!!inv.deleted_at); setDeleting([inv.id]); }}
-                  >
-                    <Trash2 />
-                    {inv.deleted_at ? "Xóa vĩnh viễn" : "Chuyển vào Thùng rác"}
-                  </button>
-                </div>
-                <InvoiceTrashNotice invoice={inv} busy={!!busy} onRestore={restoreInvoice} />
-                <InvoiceDetailForm
-                  key={inv.id + ":" + inv.status + ":" + version}
-                  invoice={inv}
-                  busy={!!busy}
-                  onConfirm={confirm}
-                  onOpen={setSelectedId}
-                />
-              </>
-            )
-          )}
-        </Panel>
-        <Panel
-          title="Bản gốc"
-          className="cf-ocr-preview"
-          action={
-            <div className="cf-row" style={{ gap: 4 }}>
-              <button
-                className="cf-icon-btn"
-                disabled={!blob || inv?.mime_type === "application/pdf" || inv?.mime_type === "application/xml"}
-                aria-label="Thu nhỏ"
-                onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
-              >
-                <ZoomOut size={16} />
-              </button>
-              <button
-                className="cf-icon-btn"
-                disabled={!blob || inv?.mime_type === "application/pdf" || inv?.mime_type === "application/xml"}
-                aria-label="Phóng to"
-                onClick={() => setZoom((z) => Math.min(3, z + 0.25))}
-              >
-                <ZoomIn size={16} />
-              </button>
-              <button
-                className="cf-icon-btn"
-                disabled={!blob || inv?.mime_type === "application/pdf" || inv?.mime_type === "application/xml"}
-                aria-label="Xoay ảnh"
-                onClick={() => setRotation((r) => r + 90)}
-              >
-                <RotateCw size={16} />
-              </button>
-            </div>
-          }
-        >
-          {inv && <OcrSteps status={inv.status} />}
-          <div style={{ minHeight: 240 }} className={`cf-ocr-preview-body ${inv?.status === "PROCESSING" ? "is-processing" : ""}`}>
-          {!activeSelectedId ? (
-              <Empty title="Chưa chọn tài liệu" />
-            ) : previewBusy ? (
+      <div className={density.content}>
+        {duplicateNotice && <Toast kind="info" title="Phát hiện hóa đơn trùng" className={density.duplicateToast} duration={6000} onDismiss={() => setDuplicateNotice(null)}>
+          {duplicateNotice.created ? `Đã thêm ${duplicateNotice.created} hóa đơn mới; ${duplicateNotice.reused} ảnh trùng được giữ nguyên bản cũ.` : `${duplicateNotice.reused} ảnh đã có trong hệ thống. Không tạo thêm hóa đơn.`}
+        </Toast>}
+        {error && !deleting && <Alert onDismiss={() => setError("")}>{error}</Alert>}
+        {notice && <Alert kind="success" onDismiss={() => setNotice("")}>{notice}</Alert>}
+        <InvoiceUploadZone inputRef={uploadInput} busy={!!busy} onUpload={upload} />
+        <InvoiceIntakeFeedback entries={uploadResults} progress={uploadProgress} busy={!!busy} checking={busy === "upload"}
+          onRetry={(file, token) => upload([file], token)} onOpen={id => { setSelectedId(id); setVersion(v => v + 1); }}
+          onRemove={file => setUploadResults(rows => rows.filter(r => r.file !== file))} />
+        <div className="cf-ocr-grid">
+          <InvoiceQueueList
+            query={query}
+            list={list}
+            status={status}
+            page={page}
+            checked={checked}
+            eligible={eligible}
+            selectedId={activeSelectedId}
+            busy={!!busy}
+            onStatusChange={(value) => {
+              setStatus(value);
+              setPage(1);
+              setSelectedId(null);
+              setChecked([]);
+            }}
+            onPageChange={(nextPage) => {
+              if (busy) return;
+              setPage(nextPage);
+              setSelectedId(null);
+              setChecked([]);
+            }}
+            onCheckedChange={setChecked}
+            onSelect={setSelectedId}
+            onScan={scan}
+            onDelete={ids => { setError(""); setPermanentDelete(status === "HIDDEN"); setDeleting(ids); }}
+          />
+          <Panel
+            title="Kiểm tra thông tin"
+            action={inv && <InvoiceStatusBadge value={inv.status} />}
+          >
+            {!activeSelectedId ? (
+              <Empty
+                title="Chọn một hóa đơn"
+                description="Thông tin nhận diện sẽ xuất hiện ở đây."
+              />
+            ) : detail.isPending ? (
               <Loading />
-            ) : missingFile ? (
-              <Empty title="Ảnh gốc không còn lưu" description="Thông tin hóa đơn vẫn được giữ. Sau khi khôi phục, tải lại đúng tệp nếu cần xem hoặc quét lại." />
-            ) : previewError ? (
-              <ErrorState retry={() => setPreviewVersion((v) => v + 1)} />
-            ) : blob ? (
-              inv?.mime_type === "application/pdf" ? (
-                <object
-                  data={blob}
-                  type="application/pdf"
-                  className="cf-pdf"
-                  aria-label="Bản gốc hóa đơn PDF"
-                >
-                  <a
-                    className="cf-btn"
-                    href={blob}
-                    target="_blank"
-                    rel="noreferrer"
+            ) : detail.isError ? (
+              <ErrorState retry={() => detail.refetch()} />
+            ) : (
+              inv && (
+                <>
+                  <div
+                    className="cf-panel-body cf-row cf-between"
+                    style={{ paddingBottom: 0, justifyContent: inv.deleted_at ? "flex-end" : "space-between" }}
                   >
-                    Mở PDF
-                  </a>
-                </object>
-              ) : inv?.mime_type === "application/xml" ? (
-                <object data={blob} type="application/xml" className="cf-pdf" aria-label="Bản gốc hóa đơn XML">
-                  <a className="cf-btn" href={blob} target="_blank" rel="noreferrer">Mở XML</a>
-                </object>
-              ) : (
-                <div className="cf-image-scroll">
-                  {/* URL blob là bản xem trước cục bộ nên không thể dùng tối ưu ảnh của Next.js. */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={blob}
-                    alt={inv?.original_filename || "Bản gốc hóa đơn"}
-                    style={{
-                      width: `${zoom * 100}%`,
-                      maxWidth: "none",
-                      transform: `rotate(${rotation}deg)`,
-                      transformOrigin: "center",
-                    }}
+                    {!inv.deleted_at && !["CONFIRMED", "PROCESSING"].includes(inv.status) && inv.mime_type !== "application/xml" && (
+                      <button
+                        className="cf-btn cf-btn-primary cf-btn-sm"
+                        disabled={!!busy}
+                        onClick={() => scan([inv.id])}
+                      >
+                        <ScanLine />
+                        {busy === "scan"
+                          ? "Đang nhận diện…"
+                          : inv.status === "REVIEW_REQUIRED"
+                            ? "Quét lại"
+                            : "Quét AI"}
+                      </button>
+                    )}
+                    <button
+                      className="cf-btn cf-btn-ghost cf-btn-sm"
+                      disabled={!!busy}
+                      onClick={() => { setError(""); setPermanentDelete(!!inv.deleted_at); setDeleting([inv.id]); }}
+                    >
+                      <Trash2 />
+                      {inv.deleted_at ? "Xóa vĩnh viễn" : "Chuyển vào Thùng rác"}
+                    </button>
+                  </div>
+                  <InvoiceTrashNotice invoice={inv} busy={!!busy} onRestore={restoreInvoice} />
+                  <InvoiceDetailForm
+                    key={inv.id + ":" + inv.status + ":" + version}
+                    invoice={inv}
+                    busy={!!busy}
+                    onConfirm={confirm}
+                    onOpen={setSelectedId}
                   />
-                </div>
+                </>
               )
-            ) : null}
-          </div>
-          {blob && (
-            <div className="cf-panel-body">
-              <a
-                className="cf-btn cf-btn-sm"
-                href={blob}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <ExternalLink size={15} />
-                Mở bản gốc
-              </a>
+            )}
+          </Panel>
+          <Panel
+            title="Bản gốc"
+            className="cf-ocr-preview"
+            action={
+              <div className="cf-row" style={{ gap: 4 }}>
+                <button
+                  className="cf-icon-btn"
+                  disabled={!blob || inv?.mime_type === "application/pdf" || inv?.mime_type === "application/xml"}
+                  aria-label="Thu nhỏ"
+                  onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
+                >
+                  <ZoomOut size={16} />
+                </button>
+                <button
+                  className="cf-icon-btn"
+                  disabled={!blob || inv?.mime_type === "application/pdf" || inv?.mime_type === "application/xml"}
+                  aria-label="Phóng to"
+                  onClick={() => setZoom((z) => Math.min(3, z + 0.25))}
+                >
+                  <ZoomIn size={16} />
+                </button>
+                <button
+                  className="cf-icon-btn"
+                  disabled={!blob || inv?.mime_type === "application/pdf" || inv?.mime_type === "application/xml"}
+                  aria-label="Xoay ảnh"
+                  onClick={() => setRotation((r) => r + 90)}
+                >
+                  <RotateCw size={16} />
+                </button>
+              </div>
+            }
+          >
+            {inv && <OcrSteps status={inv.status} />}
+            <div style={{ minHeight: 240 }} className={`cf-ocr-preview-body ${inv?.status === "PROCESSING" ? "is-processing" : ""}`}>
+            {!activeSelectedId ? (
+                <Empty title="Chưa chọn tài liệu" />
+              ) : previewBusy ? (
+                <Loading />
+              ) : missingFile ? (
+                <Empty title="Ảnh gốc không còn lưu" description="Thông tin hóa đơn vẫn được giữ. Sau khi khôi phục, tải lại đúng tệp nếu cần xem hoặc quét lại." />
+              ) : previewError ? (
+                <ErrorState retry={() => setPreviewVersion((v) => v + 1)} />
+              ) : blob ? (
+                inv?.mime_type === "application/pdf" ? (
+                  <InvoicePdfPreview key={blob} src={blob} />
+                ) : inv?.mime_type === "application/xml" ? (
+                  <object data={blob} type="application/xml" className="cf-pdf" aria-label="Bản gốc hóa đơn XML">
+                    <a className="cf-btn" href={blob} target="_blank" rel="noreferrer">Mở XML</a>
+                  </object>
+                ) : (
+                  <div className="cf-image-scroll">
+                    {/* URL blob là bản xem trước cục bộ nên không thể dùng tối ưu ảnh của Next.js. */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={blob}
+                      alt={inv?.original_filename || "Bản gốc hóa đơn"}
+                      style={{
+                        width: `${zoom * 100}%`,
+                        maxWidth: "none",
+                        transform: `rotate(${rotation}deg)`,
+                        transformOrigin: "center",
+                      }}
+                    />
+                  </div>
+                )
+              ) : null}
             </div>
-          )}
-        </Panel>
+            {blob && (
+              <div className="cf-panel-body">
+                <a
+                  className="cf-btn cf-btn-sm"
+                  href={blob}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <ExternalLink size={15} />
+                  Mở bản gốc
+                </a>
+              </div>
+            )}
+          </Panel>
+        </div>
+        <p className={`cf-muted ${density.note}`}>
+          Nhận ảnh JPG, JPEG, PNG và WEBP, tối đa 3 ảnh/lượt và 20 MB/ảnh. Ảnh lớn được tự động giảm dung lượng trước khi tải lên.
+          Mỗi lần quét lại hàng loạt tối đa 5 hóa đơn đã có.
+        </p>
       </div>
-      <p className="cf-muted" style={{ fontSize: 12 }}>
-        Nhận JPG, PNG, WEBP và PDF tối đa 10 MB/tệp. Mỗi lần quét hàng loạt tối
-        đa 5 hóa đơn.
-      </p>
       {deleting && (
         <Modal
+          className={density.dialog}
           title={permanentDelete ? "Xóa vĩnh viễn hóa đơn" : "Chuyển hóa đơn vào Thùng rác"}
-          onClose={() => setDeleting(null)}
+          onClose={() => { setDeleting(null); setError(""); }}
           busy={!!busy}
         >
-          <div className="cf-form">
-            {error && <Alert onDismiss={() => setError("")}>{error}</Alert>}
-            {permanentDelete ? <p>Xóa vĩnh viễn {deleting.length} hóa đơn cùng ảnh và chi tiết mặt hàng? Thao tác này không thể khôi phục. Các khoản chi đã ghi sổ vẫn được giữ lại.</p> : <p>
-              Chuyển {deleting.length} hóa đơn vào Thùng rác? Giữ ảnh và thông tin trong 30 ngày, sau đó xóa vĩnh viễn hóa đơn. Các khoản chi đã ghi sổ vẫn được giữ.
-              Bạn có thể khôi phục hóa đơn từ Thùng rác trước khi hết hạn.
-            </p>}
-            <div className="cf-form-actions">
+          <div className={density.form}>
+            <div className={density.fields}>
+              {error && <Alert persistent onDismiss={() => setError("")}>{error}</Alert>}
+              {permanentDelete ? <p>Xóa vĩnh viễn {deleting.length} hóa đơn cùng ảnh và chi tiết mặt hàng? Thao tác này không thể khôi phục. Các khoản chi đã ghi sổ vẫn được giữ lại.</p> : <p>
+                Chuyển {deleting.length} hóa đơn vào Thùng rác? Giữ ảnh và thông tin trong 30 ngày, sau đó xóa vĩnh viễn hóa đơn. Các khoản chi đã ghi sổ vẫn được giữ.
+                Bạn có thể khôi phục hóa đơn từ Thùng rác trước khi hết hạn.
+              </p>}
+            </div>
+            <div className={density.footer}>
               <button
                 className="cf-btn"
                 disabled={!!busy}
-                onClick={() => setDeleting(null)}
+                onClick={() => { setDeleting(null); setError(""); }}
               >
                 Hủy
               </button>

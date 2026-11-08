@@ -1,22 +1,7 @@
-/**
- * ============================================================================
- * TÊN FILE: InvoiceTypes.ts
- * MÀN HÌNH / PHÂN HỆ: Hóa đơn AI / OCR
- * NHÓM VỆ TINH: thanh-phan (Chức năng con)
- * MỤC ĐÍCH CỤ THỂ:
- *   Khai báo kiểu dữ liệu và nhãn trạng thái của miền hóa đơn.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   Props từ component cha, kiểu nghiệp vụ và các primitive UI liên quan.
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Xuất kiểu dữ liệu, hằng số và hàm tiện ích cho các module liên quan.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Giới hạn định dạng/kích thước/số lượng tệp; chỉ tạo khoản chi sau bước người dùng xác nhận.
- * ============================================================================
- */
 import type { Money } from "@/dung-chung/nghiep-vu/finance";
 
 // Kiểu dòng hàng giữ Money linh hoạt vì backend có thể tuần tự số thập phân thành chuỗi.
-export interface InvoiceItem {
+interface InvoiceItem {
   id: string;
   name: string;
   sku?: string | null;
@@ -64,7 +49,8 @@ export interface Invoice {
   items?: InvoiceItem[];
 }
 
-export interface DuplicateCandidate {
+interface DuplicateCandidate {
+  purged?: boolean;
   similarity_percent?: number;
   level?: "EXACT" | "SUSPECTED";
   invoice_id: string;
@@ -96,6 +82,8 @@ export interface UploadResult {
 }
 
 export interface UploadIssue {
+  transaction_id?: string;
+  matched_invoice_id?: string;
   code?: string;
   message: string;
   upload_ticket?: string;

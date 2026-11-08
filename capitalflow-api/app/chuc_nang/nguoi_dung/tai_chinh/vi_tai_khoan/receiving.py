@@ -4,7 +4,7 @@ import re
 import uuid
 from urllib.parse import urlsplit, parse_qs
 from fastapi import HTTPException
-from pydantic import EmailStr, TypeAdapter, ValidationError
+from pydantic import EmailStr, TypeAdapter
 from sqlalchemy import select
 import qrcode
 from qrcode.image.svg import SvgPathFillImage
@@ -17,8 +17,6 @@ from .wallet_codes import insert_wallet, CODE_ALPHABET
 def ensure_default_wallet(db, user):
     # Serialize registration/login/list fallback: concurrent calls never mint funds.
     user = locked_user(db, user.id, user.token_version)
-    if user.is_deleted:
-        raise HTTPException(403, 'Tài khoản không còn hoạt động')
     wallet = db.scalar(select(Wallet).where(Wallet.user_id == user.id, Wallet.is_default == True))
     if wallet is None:
         wallet = insert_wallet(db, user_id=user.id, name='Ví mặc định', balance=0, is_default=True)
@@ -50,10 +48,10 @@ def parse_recipient(value):
 def resolve_recipient(db, sender, value):
     try:
         kind, identity = parse_recipient(value)
-    except (ValueError, ValidationError):
+    except ValueError:
         raise HTTPException(422, 'Email, mã ví hoặc QR CapitalFlow không hợp lệ') from None
-    query = select(Wallet, User.full_name).join(User).where(
-        Wallet.is_active == True, User.is_active == True, User.is_deleted == False)
+    query = select(Wallet, User.full_name, User.email).join(User).where(
+        Wallet.is_active == True, User.is_active == True)
     if kind == 'email':
         query = query.where(User.email == identity, Wallet.is_default == True)
     elif kind == 'code':
@@ -63,9 +61,10 @@ def resolve_recipient(db, sender, value):
     row = db.execute(query).first()
     if row is None:
         raise HTTPException(404, 'Không tìm thấy ví nhận đang hoạt động')
-    wallet, name = row
+    wallet, name, email = row
     return {'id': str(wallet.id), 'name': wallet.name, 'recipient_name': name or 'Người dùng CapitalFlow',
-            'is_own': wallet.user_id == sender.id, 'is_default': wallet.is_default}
+            'is_own': wallet.user_id == sender.id, 'is_default': wallet.is_default,
+            'receive_code': email if wallet.is_default else wallet.short_code}
 
 
 def receive_info(wallet, user):

@@ -1,57 +1,211 @@
-/**
- * ============================================================================
- * TÊN FILE: OverviewCharts.tsx
- * MÀN HÌNH / PHÂN HỆ: Bảng điều khiển Tổng quan (Dashboard)
- * NHÓM VỆ TINH: thanh-phan (Thành phần giao diện con)
- * MỤC ĐÍCH CỤ THỂ:
- *   Hiển thị biểu đồ tóm tắt tài chính trên dashboard: Biểu đồ xu hướng dòng tiền
- *   (thu nhập vs chi phí) và biểu đồ tròn phân bổ số dư giữa các ví tài khoản.
- * ĐẦU VÀO & PHỤ THUỘC (Inputs / Dependencies):
- *   trendQuery (truy vấn xu hướng từ analytics API), accountsQuery (truy vấn danh sách ví).
- * ĐẦU RA & CUNG CẤP (Outputs / Exports):
- *   Default export OverviewCharts component.
- * LƯU Ý AN TOÀN & NGHIỆP VỤ (Security / Business Notes):
- *   Chỉ hiển thị các tài khoản đang hoạt động (is_active) và có số dư khả dụng lớn hơn 0.
- * ============================================================================
- */
 "use client";
 
-import type { UseQueryResult } from "@tanstack/react-query";
-import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ErrorState, Loading } from "@/dung-chung/UI-chung/ui";
+import { useId, useState, type ReactNode } from "react";
+import CardAction from "./CardAction";
+import {
+  Area,
+  CartesianGrid,
+  ComposedChart,
+  Line,
+  ReferenceDot,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { dateLabel, money } from "@/dung-chung/tien-ich/finance";
-import { type Account } from "@/dung-chung/nghiep-vu/finance";
-import type { ReportTrendPoint } from "@/dung-chung/nghiep-vu/report-types";
+import { formatChartMoney } from "@/dung-chung/tien-ich/reportChart";
+import {
+  monthlyComparison,
+  monthlyTotals,
+  type Metric,
+  type MonthlyTrend,
+} from "../monthlyTrend";
 import styles from "../CSS/overview.module.css";
 
-const palette = ["#208f87", "#8259ba", "#dfab49", "#e6816c", "#6682c3", "#b4779b", "#8b9b6e"];
-const compact = (value: number) => `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 }).format(value / 1_000_000)} tr`;
-const tooltipStyle = { border: "1px solid #e9e4dc", borderRadius: 12, background: "#fffdf9", fontSize: 12 };
+type Props = { data?: MonthlyTrend; state?: ReactNode };
+const labels = { expense: "Tổng đã chi", income: "Tổng thu" };
+const colors = { expense: "#c9474b", income: "#077da2" };
 
-/**
- * Hệ thống biểu đồ trực quan hóa số dư ví và xu hướng dòng tiền tại trang Tổng quan.
- */
-export default function OverviewCharts({ trendQuery, accountsQuery }: {
-  trendQuery: UseQueryResult<{ period_trend: ReportTrendPoint[] }>;
-  accountsQuery: UseQueryResult<Account[]>;
-}) {
-  const trend = trendQuery.data?.period_trend ?? [];
-  const accounts = (accountsQuery.data ?? []).filter((account) => account.is_active && account.balance_available !== false && !account.exclude_from_total && Number(account.balance) > 0);
-  const chartAccounts = accounts.map((account) => ({ ...account, amount: Number(account.balance) }));
-  const total = accounts.reduce((sum, account) => sum + Number(account.balance), 0);
-  const mixedCurrencies = new Set(accounts.map((account) => account.currency)).size > 1;
-  return <div className={styles.charts}>
-    <section className={styles.panel}>
-      <header className={styles.sectionHead}><span className={styles.overline}>GÓC NHÌN 30 NGÀY</span><h2>Dòng tiền có nhịp điệu</h2><p>Thu và chi theo từng ngày gần đây</p></header>
-      <div className={styles.legend}><span><i style={{ background: "#208f87" }} />Thu nhập</span><span><i style={{ background: "#e6816c" }} />Chi tiêu</span></div>
-      {trendQuery.isPending ? <Loading /> : trendQuery.isError ? <ErrorState retry={() => trendQuery.refetch()} /> : !trend.length ? <div className={styles.empty}>Chưa có giao dịch trong 30 ngày qua.</div> : <div className={styles.chart} role="img" aria-label="Xu hướng thu nhập và chi tiêu trong 30 ngày qua"><ResponsiveContainer width="100%" height="100%"><AreaChart data={trend} margin={{ top: 12, right: 10, bottom: 0, left: 0 }}><CartesianGrid vertical={false} stroke="#eeeae3" strokeDasharray="3 5" /><XAxis dataKey="date" tickFormatter={(value) => dateLabel(value).slice(0, 5)} axisLine={false} tickLine={false} minTickGap={24} tick={{ fill: "#837f88", fontSize: 11 }} /><YAxis axisLine={false} tickLine={false} width={49} tickFormatter={compact} tick={{ fill: "#837f88", fontSize: 11 }} /><Tooltip contentStyle={tooltipStyle} labelFormatter={(value) => dateLabel(String(value))} formatter={(value, name) => [money(Number(value)), String(name)]} /><Area type="monotone" name="Thu nhập" dataKey="income" stroke="#208f87" strokeWidth={2.5} fill="#208f87" fillOpacity={0.09} isAnimationActive={false} /><Area type="monotone" name="Chi tiêu" dataKey="expense" stroke="#e6816c" strokeWidth={2.5} fill="#e6816c" fillOpacity={0.10} isAnimationActive={false} /></AreaChart></ResponsiveContainer></div>}
+export default function OverviewCharts({ data, state }: Props) {
+  const [metric, setMetric] = useState<Metric>("expense");
+  const [hoverDay, setHoverDay] = useState<number | null>(null);
+  const gradient = useId();
+  const month = data?.through.slice(0, 7);
+  const points = data ? monthlyComparison(data, metric) : [];
+  const cutoff = Number(data?.through.slice(-2));
+  const selected = points[(hoverDay ?? cutoff) - 1] ?? points[cutoff - 1];
+  const color = colors[metric];
+  const totals = data && monthlyTotals(data);
+
+  return (
+    <section
+      className={`${styles.panel} ${styles.monthlyCard}`}
+      aria-label="Báo cáo theo tháng"
+    >
+      <header className={styles.monthlyHead}>
+        <h2>Báo cáo xu hướng</h2>
+        <CardAction href="/analytics">Xem báo cáo</CardAction>
+      </header>
+      {state ??
+        (totals && selected && month && (
+          <>
+            <div
+              className={styles.metricSwitch}
+              role="group"
+              aria-label="Chọn khoản thu hoặc chi"
+            >
+              {(["expense", "income"] as const).map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={metric === key}
+                  style={{ color: colors[key] }}
+                  onClick={() => {
+                    setMetric(key);
+                    setHoverDay(null);
+                  }}
+                >
+                  <span>{labels[key]}</span>
+                  <strong>{money(totals[key])}</strong>
+                </button>
+              ))}
+            </div>
+            <div className={styles.readout}>
+              <div>
+                <time dateTime={selected.date}>{dateLabel(selected.date)}</time>
+                <strong style={{ color }}>
+                  {selected.actual === null ? "—" : money(selected.actual)}
+                </strong>
+              </div>
+              <div>
+                <span>Trung bình 3 tháng trước</span>
+                <b>{money(Math.round(selected.average))}</b>
+              </div>
+            </div>
+            <div
+              className={styles.plotScroll}
+              role="region"
+              aria-label="Biểu đồ theo từng ngày trong tháng"
+              tabIndex={0}
+            >
+              <div className={styles.monthPlot}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart
+                    data={points}
+                    margin={{ top: 12, bottom: 3, right: 8, left: 28 }}
+                    onMouseMove={(event) => {
+                      if (event.activeLabel != null)
+                        setHoverDay(Number(event.activeLabel));
+                    }}
+                    onClick={(event) => {
+                      if (event.activeLabel != null)
+                        setHoverDay(Number(event.activeLabel));
+                    }}
+                    onMouseLeave={() => setHoverDay(null)}
+                  >
+                    <defs>
+                      <linearGradient id={gradient} x1="0" y1="0" x2="0" y2="1">
+                        <stop stopColor={color} stopOpacity={0.17} />
+                        <stop
+                          offset="100%"
+                          stopColor={color}
+                          stopOpacity={0.01}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid
+                      vertical={false}
+                      stroke="#e7e4e0"
+                      strokeDasharray="4 5"
+                    />
+                    <XAxis
+                      dataKey="day"
+                      interval={1}
+                      height={30}
+                      tickFormatter={(day) =>
+                        `${day}/${Number(month.slice(5))}`
+                      }
+                      tick={{ fill: "#625e68", fontSize: 11 }}
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                    />
+                    <YAxis
+                      orientation="right"
+                      width={54}
+                      tickFormatter={formatChartMoney}
+                      tickCount={4}
+                      tick={{ fill: "#625e68", fontSize: 11 }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip content={() => null} cursor={false} />
+                    <Line
+                      dataKey="average"
+                      name="Trung bình 3 tháng trước"
+                      type="linear"
+                      stroke="#a7a8b0"
+                      strokeWidth={3}
+                      dot={false}
+                      isAnimationActive={false}
+                    />
+                    <Area
+                      dataKey="actual"
+                      name={labels[metric]}
+                      type="linear"
+                      stroke={color}
+                      strokeWidth={3}
+                      fill={`url(#${gradient})`}
+                      isAnimationActive={false}
+                    />
+                    <ReferenceLine x={selected.day} stroke="#cbc7c8" />
+                    {selected.actual !== null && (
+                      <ReferenceDot
+                        x={selected.day}
+                        y={selected.actual}
+                        r={4}
+                        fill="white"
+                        stroke={color}
+                        strokeWidth={2.5}
+                      />
+                    )}
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            <div className={styles.seriesKey}>
+              <span>
+                <i style={{ background: color }} />
+                Tháng này
+              </span>
+              <span>
+                <i />
+                Trung bình 3 tháng trước
+              </span>
+            </div>
+            <table className={styles.srOnly}>
+              <caption>{labels[metric]} lũy kế theo ngày</caption>
+              <thead>
+                <tr>
+                  <th>Ngày</th>
+                  <th>Tháng này</th>
+                  <th>Trung bình 3 tháng trước</th>
+                </tr>
+              </thead>
+              <tbody>
+                {points.map((point) => (
+                  <tr key={point.date}>
+                    <th>{dateLabel(point.date)}</th>
+                    <td>{point.actual === null ? "—" : money(point.actual)}</td>
+                    <td>{money(Math.round(point.average))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        ))}
     </section>
-    <section className={`${styles.panel} ${styles.panelPurple}`}>
-      <header className={styles.sectionHead}><span className={styles.overline}>CƠ CẤU TÀI SẢN</span><h2>Tiền đang ở đâu?</h2><p>Phân bổ theo số dư hiện có</p></header>
-      {accountsQuery.isPending ? <Loading /> : accountsQuery.isError ? <ErrorState retry={() => accountsQuery.refetch()} /> : mixedCurrencies ? <div className={styles.empty}>Các ví dùng nhiều loại tiền. Chưa thể hiện tỷ trọng khi chưa quy đổi.</div> : !total ? <div className={styles.empty}>Chưa có số dư tài khoản để phân bổ.</div> : <>
-        <div className={styles.donut} role="img" aria-label="Phân bổ số dư theo tài khoản"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={chartAccounts} dataKey="amount" nameKey="name" innerRadius={62} outerRadius={82} paddingAngle={3} stroke="none" isAnimationActive={false}>{accounts.map((account, index) => <Cell key={account.id} fill={palette[index % palette.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} formatter={(value) => money(Number(value))} /></PieChart></ResponsiveContainer><div className={styles.donutCenter}><strong>{accounts.length}</strong><small>nguồn tiền</small></div></div>
-        <div className={styles.miniList}>{accounts.slice(0, 5).map((account, index) => <div key={account.id}><i className={styles.dot} style={{ background: palette[index % palette.length] }} /><span>{account.name}</span><strong>{Math.round(Number(account.balance) / total * 100)}%</strong></div>)}</div>
-      </>}
-    </section>
-  </div>;
+  );
 }

@@ -6,14 +6,33 @@ Vai trò: kiểm tra payload đăng ký, đăng nhập, refresh, OTP và đổi 
 Ràng buộc: không đưa mật khẩu, OTP hoặc refresh token vào log/chuỗi biểu diễn tùy chỉnh.
 """
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, EmailStr, Field, field_validator
+from typing import Annotated
+
+from pydantic import AfterValidator, AliasChoices, BaseModel, ConfigDict, EmailStr, Field, field_validator
+from app.dung_chung.text.unicode import normalize_unicode_text, validate_utf16_length
+
+
+def validate_new_password(value: str) -> str:
+    if sum(not character.isspace() for character in value) < 6:
+        raise ValueError("Mật khẩu phải có ít nhất 6 ký tự không phải khoảng trắng.")
+    return value
+
+
+NewPassword = Annotated[str, Field(min_length=6, max_length=128), AfterValidator(validate_new_password)]
 
 
 class RegisterRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
     email: EmailStr
-    password: str = Field(min_length=6, max_length=128)
+    password: NewPassword
     full_name: str = Field(default="", max_length=150)
+
+    @field_validator("full_name", mode="before")
+    @classmethod
+    def valid_full_name(cls, value: str) -> str:
+        value = normalize_unicode_text(value, strip=True)
+        validate_utf16_length(value, 150, "Họ tên")
+        return value
 
     @field_validator('email')
     @classmethod
@@ -60,13 +79,13 @@ class VerifyOTPRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     email: EmailStr
     otp_code: str = Field(..., min_length=6, max_length=6)
-    new_password: str = Field(..., min_length=6, max_length=128)
+    new_password: NewPassword
 
 
 class FirstTimePasswordRequest(BaseModel):
-    new_password: str = Field(..., min_length=6, max_length=128)
+    new_password: NewPassword
 
 
 class ChangePasswordRequest(BaseModel):
     current_password: str
-    new_password: str = Field(..., min_length=6, max_length=128)
+    new_password: NewPassword
