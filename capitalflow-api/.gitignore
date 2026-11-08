@@ -27,12 +27,7 @@ build/
 htmlcov/
 
 # Kết quả kiểm thử tải sinh tự động; chỉ giữ file đánh dấu thư mục.
-# Ket qua kiem thu, bao cao va ban sao sinh tu dong
-/output/
 
-# Cau hinh cong cu ca nhan
-/.codex/
-**/.impeccable/
 # IDE
 .vscode/
 .idea/
