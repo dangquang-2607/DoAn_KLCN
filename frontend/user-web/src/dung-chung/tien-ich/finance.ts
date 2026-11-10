@@ -124,68 +124,117 @@ export type ExcelTransaction = {
   amount: Money;
   currency: string;
   description: string;
+  note?: string | null;
   source: string;
 };
 
 type FinanceExport = { title: string; scope: string; transactions: ExcelTransaction[] };
 
+// API money is Decimal(19,2). Sum integer cents before deciding whether Excel's
+// approximately 15 significant digits can represent a value as a numeric cell.
+function exportCents(value: Money): bigint {
+  const text = String(value).trim();
+  const match = /^([+-]?)(\d+)(?:\.(\d{1,2}))?$/.exec(text);
+  if (!match) throw new Error('Số tiền xuất không hợp lệ.');
+  const cents = BigInt(match[2]) * 100n + BigInt((match[3] || '').padEnd(2, '0'));
+  return match[1] === '-' ? -cents : cents;
+}
+
+function exportDecimal(cents: bigint): string {
+  const absolute = cents < 0n ? -cents : cents;
+  const fraction = absolute % 100n;
+  return `${cents < 0n ? '-' : ''}${absolute / 100n}${fraction ? `.${String(fraction).padStart(2, '0')}` : ''}`;
+}
+
+function excelMoney(cents: bigint): number | string {
+  const text = exportDecimal(cents);
+  const digits = text.replace(/[-.]/g, '').replace(/^0+/, '');
+  return digits.length <= 15 ? Number(text) : text;
+}
+
+function exportNumberFormat(currency: string, cents: bigint): string {
+  return currency !== 'VND' || cents % 100n !== 0n
+    ? '#,##0.00;[Red](#,##0.00);"—"'
+    : '#,##0;[Red](#,##0);"—"';
+}
+
 // Only load the workbook library when exporting. Text cells never become formulas.
-async function createFinanceWorkbook({ title, scope, transactions }: FinanceExport) {
+export async function createFinanceWorkbook({ title, scope, transactions }: FinanceExport) {
   const { default: ExcelJS } = await import("exceljs");
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "CapitalFlow";
   workbook.created = new Date();
   workbook.calcProperties.fullCalcOnLoad = true;
-  const sheet = workbook.addWorksheet("Báo cáo", { properties: { defaultRowHeight: 24, tabColor: { argb: "FF243047" } } });
-  const widths = [16, 18, 28, 25, 23, 13, 54, 20, 22];
+  const sheet = workbook.addWorksheet("CapitalFlow", { properties: { defaultRowHeight: 24, tabColor: { argb: "FF243047" } } });
+  const widths = [16, 16, 26, 24, 26, 12, 52, 40, 22, 23];
   widths.forEach((width, index) => { sheet.getColumn(index + 1).width = width; });
   const colors = { ink: "FF243047", muted: "FF687488", green: "FF087F5B", red: "FFC0394D", white: "FFFFFFFF" };
-  const amounts = transactions.map((transaction) => {
-    const amount = Number(transaction.amount);
-    if (transaction.amount === "" || !Number.isFinite(amount)) throw new Error("Số tiền xuất không hợp lệ.");
-    return amount;
-  });
+  const cents = transactions.map(transaction => exportCents(transaction.amount));
+  const amounts = cents.map(excelMoney);
   const currencies = [...new Set(transactions.map((transaction) => transaction.currency))].sort();
+  const summaries = currencies.map(currency => {
+    let income = 0n, expense = 0n, numericRows = true;
+    transactions.forEach((transaction, index) => {
+      if (transaction.include_in_reports === false || transaction.currency !== currency || (transaction.kind && transaction.kind !== 'NORMAL')) return;
+      if (transaction.type === 'INCOME') income += cents[index];
+      else if (transaction.type === 'EXPENSE') expense -= cents[index];
+      else return;
+      if (typeof amounts[index] === 'string') numericRows = false;
+    });
+    const totals = [income, expense, income - expense];
+    return { currency, totals, formulas: numericRows && totals.every(value => typeof excelMoney(value) === 'number') };
+  });
   const headerRow = Math.max(9, 7 + currencies.length);
   const firstRow = headerRow + 1;
   const lastRow = headerRow + transactions.length;
   if (lastRow > 1_048_576) throw new Error("Dữ liệu vượt giới hạn Excel. Hãy chọn khoảng ngày ngắn hơn.");
-  const numberFormat = (currency: string) => currency === "VND" ? '#,##0;[Red](#,##0);"—"' : '#,##0.00;[Red](#,##0.00);"—"';
   sheet.getCell("A2").value = title;
   sheet.getCell("A3").value = scope;
   sheet.getCell("A4").value = "Tổng thu/chi theo từng loại tiền, không gồm chuyển khoản, điều chỉnh và các khoản đã tắt tính thu chi.";
+  if (amounts.some(value => typeof value === 'string') || summaries.some(summary => !summary.formulas)) {
+    sheet.getCell('A4').value += ' Số tiền dài được lưu dạng văn bản để giữ chính xác. Nhóm có số tiền hoặc tổng quá lớn dùng tổng cố định tại thời điểm xuất, không tự tính lại khi sửa dòng.';
+  }
+  sheet.mergeCells('A4:J4');
+  sheet.getCell('A4').alignment = { vertical: 'middle', wrapText: true };
+  sheet.getRow(4).height = sheet.getCell('A4').text.length > 180 ? 44 : 28;
   sheet.getRow(5).values = ["Tiền tệ", "Tổng thu", "Tổng chi", "Thu trừ chi"];
-  currencies.forEach((currency, index) => {
+  summaries.forEach(({ currency, totals, formulas }, index) => {
     const row = 6 + index;
-    const income = transactions.reduce((sum, transaction, i) => sum + (transaction.include_in_reports !== false && transaction.currency === currency && (!transaction.kind || transaction.kind === "NORMAL") && transaction.type === "INCOME" ? amounts[i] : 0), 0);
-    const expense = transactions.reduce((sum, transaction, i) => sum - (transaction.include_in_reports !== false && transaction.currency === currency && (!transaction.kind || transaction.kind === "NORMAL") && transaction.type === "EXPENSE" ? amounts[i] : 0), 0);
     sheet.getCell(row, 1).value = currency;
-    const criteria = `$F$${firstRow}:$F$${lastRow},A${row},$I$${firstRow}:$I$${lastRow},"Thu/chi"`;
-    sheet.getCell(row, 2).value = { formula: `SUMIFS($E$${firstRow}:$E$${lastRow},$B$${firstRow}:$B$${lastRow},"Thu nhập",${criteria})`, result: income };
-    sheet.getCell(row, 3).value = { formula: `-SUMIFS($E$${firstRow}:$E$${lastRow},$B$${firstRow}:$B$${lastRow},"Chi tiêu",${criteria})`, result: expense };
-    sheet.getCell(row, 4).value = { formula: `B${row}-C${row}`, result: income - expense };
-    for (let col = 2; col <= 4; col++) sheet.getCell(row, col).numFmt = numberFormat(currency);
+    const criteria = `$F$${firstRow}:$F$${lastRow},A${row},$J$${firstRow}:$J$${lastRow},"Thu/chi"`;
+    const expressions = [
+      `ROUND(SUMIFS($E$${firstRow}:$E$${lastRow},$B$${firstRow}:$B$${lastRow},"Thu nhập",${criteria}),2)`,
+      `-ROUND(SUMIFS($E$${firstRow}:$E$${lastRow},$B$${firstRow}:$B$${lastRow},"Chi tiêu",${criteria}),2)`,
+      `ROUND(B${row}-C${row},2)`,
+    ];
+    totals.forEach((total, index) => {
+      const cell = sheet.getCell(row, index + 2);
+      const value = excelMoney(total);
+      cell.value = formulas ? { formula: expressions[index], result: Number(value) } : value;
+      cell.numFmt = typeof value === 'string' ? '@' : exportNumberFormat(currency, total);
+    });
   });
   if (!currencies.length) sheet.getCell("A6").value = "Không có giao dịch trong phạm vi đã chọn.";
-  sheet.getRow(headerRow).values = ["Ngày", "Loại", "Tài khoản", "Danh mục", "Số tiền", "Tiền tệ", "Diễn giải", "Nguồn", "Nghiệp vụ"];
+  sheet.getRow(headerRow).values = ["Ngày", "Loại", "Tài khoản", "Danh mục", "Số tiền", "Tiền tệ", "Diễn giải", "Ghi chú", "Nguồn", "Nghiệp vụ"];
   transactions.forEach((transaction, index) => {
     const date = new Date(`${transaction.transaction_date.slice(0, 10)}T00:00:00Z`);
     if (Number.isNaN(date.getTime())) throw new Error("Ngày giao dịch không hợp lệ.");
     const row = sheet.getRow(firstRow + index);
     row.values = [date, ({ INCOME: "Thu nhập", EXPENSE: "Chi tiêu" } as Record<string, string>)[transaction.type] || transaction.type,
-      transaction.account_name, transaction.category_name, amounts[index], transaction.currency, transaction.description,
-      ({ WALLET: "Thanh toán ví", MANUAL: "Nhập thủ công", OCR: "Hóa đơn AI", BANK: "Ngân hàng", IMPORT: "Nhập dữ liệu", SYSTEM: "Hệ thống" } as Record<string, string>)[transaction.source] || transaction.source,
+      transaction.account_name, transaction.category_name, amounts[index], transaction.currency, transaction.description, transaction.note || '',
+      ({ WALLET: "Thanh toán ví", MANUAL: "Nhập thủ công", OCR: "Hóa đơn AI", XML: "Hóa đơn điện tử", BANK: "Ngân hàng", IMPORT: "Nhập dữ liệu", SYSTEM: "Hệ thống" } as Record<string, string>)[transaction.source] || transaction.source,
       transaction.include_in_reports === false ? "Không tính thu chi" : ({ NORMAL: "Thu/chi", TRANSFER: "Chuyển khoản", ADJUSTMENT: "Điều chỉnh số dư" } as Record<string, string>)[transaction.kind || "NORMAL"] || transaction.kind];
     row.getCell(1).numFmt = "dd/mm/yyyy";
-    row.getCell(5).numFmt = numberFormat(transaction.currency);
-    const lines = Math.max(1, ...[transaction.account_name, transaction.category_name, transaction.description].map((text, i) =>
-      String(text || "").split(/\r?\n/).reduce((sum, line) => sum + Math.max(1, Math.ceil(line.length / ([25, 22, 50][i]))), 0)));
+    row.getCell(5).numFmt = typeof amounts[index] === 'string' ? '@' : exportNumberFormat(transaction.currency, cents[index]);
+    const lines = Math.max(1, ...[transaction.account_name, transaction.category_name, transaction.description, transaction.note].map((text, i) =>
+      String(text || "").split(/\r?\n/).reduce((sum, line) => sum + Math.max(1, Math.ceil(line.length / ([24, 22, 50, 38][i]))), 0)));
     row.height = Math.min(409, Math.max(28, lines * 15 + 10));
   });
   sheet.eachRow((row, rowNumber) => {
-    row.eachCell((cell) => {
+    row.eachCell((cell, columnNumber) => {
       cell.font = { name: "Arial", size: 11, color: { argb: colors.ink } };
-      cell.alignment = { vertical: "middle", horizontal: typeof cell.value === "number" || cell.type === ExcelJS.ValueType.Formula ? "right" : "left", wrapText: rowNumber > headerRow };
+      const moneyCell = (rowNumber > headerRow && columnNumber === 5) || (rowNumber >= 6 && rowNumber < 6 + currencies.length && columnNumber >= 2 && columnNumber <= 4);
+      cell.alignment = { vertical: "middle", horizontal: moneyCell || typeof cell.value === "number" || cell.type === ExcelJS.ValueType.Formula ? "right" : "left", wrapText: rowNumber > headerRow || rowNumber === 4 };
       if (rowNumber > headerRow && (rowNumber - firstRow) % 2 === 0) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF3F5F8" } };
     });
   });
@@ -201,11 +250,11 @@ async function createFinanceWorkbook({ title, scope, transactions }: FinanceExpo
   sheet.getRow(2).height = 32;
   for (const address of ["A3", "A4"]) sheet.getCell(address).font = { name: "Arial", size: 11, italic: true, color: { argb: colors.muted } };
   // Phạm vi có thể chứa nhiều bộ lọc; cho phép xuống dòng trong vùng trình bày.
-  sheet.mergeCells("A3:I3");
+  sheet.mergeCells("A3:J3");
   sheet.getCell("A3").alignment = { vertical: "middle", wrapText: true };
   sheet.getRow(3).height = Math.max(24, Math.ceil(scope.length / 190) * 16 + 8);
   if (transactions.length) {
-    sheet.autoFilter = `A${headerRow}:I${lastRow}`;
+    sheet.autoFilter = `A${headerRow}:J${lastRow}`;
     sheet.addConditionalFormatting({ ref: `B${firstRow}:B${lastRow}`, rules: [
       { type: "containsText", operator: "containsText", text: "Thu nhập", priority: 1, style: { font: { color: { argb: colors.green }, bold: true } } },
       { type: "containsText", operator: "containsText", text: "Chi tiêu", priority: 2, style: { font: { color: { argb: colors.red }, bold: true } } },
@@ -216,7 +265,7 @@ async function createFinanceWorkbook({ title, scope, transactions }: FinanceExpo
     ] });
   }
   sheet.views = [{ state: "frozen", ySplit: headerRow, activeCell: `A${firstRow}`, showGridLines: false }];
-  sheet.pageSetup = { orientation: "landscape", paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: `${headerRow}:${headerRow}`, printArea: `A1:I${Math.max(lastRow, headerRow)}` };
+  sheet.pageSetup = { orientation: "landscape", paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: `${headerRow}:${headerRow}`, printArea: `A1:J${Math.max(lastRow, headerRow)}` };
   return workbook;
 }
 

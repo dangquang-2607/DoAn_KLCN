@@ -17,6 +17,7 @@ from app.chuc_nang.nguoi_dung.danh_muc.luu_tru.danh_muc import Category, Categor
 from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan.luu_tru.account import Account, AccountType
 from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan.luu_tru.wallet import Wallet, WalletEntry, UserBankLink, DemoBankBalance
 from app.chuc_nang.nguoi_dung.tai_chinh.thong_bao.luu_tru.thong_bao import Notification
+from app.chuc_nang.nguoi_dung.tai_chinh.thong_bao.luu_tru.push import PushRegistration
 from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.invoice import Invoice
 from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.posting_evidence import InvoicePostingEvidence
 from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.lich_su import InvoiceEvent
@@ -32,6 +33,6 @@ from app.chuc_nang.nguoi_dung.goi_dich_vu.luu_tru import Subscription, PaymentOr
 __all__ = [
     "Base", "User", "UserRole", "Category", "CategoryType", "Account", "AccountType",
     "Invoice", "InvoiceItem", "OcrJob", "Transaction", "TransactionType", "Budget", "BudgetPeriod", "BudgetChange",
-    "RefreshToken", "AuditLog", "SystemSetting", "Notification",
+    "RefreshToken", "AuditLog", "SystemSetting", "Notification", "PushRegistration",
     "PasswordResetOTP", "AccountSupportCase", "SupportRequest", "Subscription", "PaymentOrder", "AiUsage",
 ]

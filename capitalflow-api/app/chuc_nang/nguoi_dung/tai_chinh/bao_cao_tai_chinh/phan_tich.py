@@ -9,10 +9,7 @@ Ràng buộc: không trộn dữ liệu giữa người dùng và không tự đ
 from datetime import date, timedelta
 from typing import Literal
 import calendar
-import csv
-import io
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from app.dung_chung.http.phu_thuoc import get_current_user, get_db
@@ -115,12 +112,6 @@ def monthly_trend(db: Session = Depends(get_db), user: User = Depends(get_curren
             "expense_categories": overview_expense_categories(db, user.id, today)}
 
 
-def _csv_safe(value) -> str:
-    text_value = str(value or "")
-    dangerous = text_value.lstrip(" \t\r\n").startswith(("=", "+", "-", "@"))
-    return "'" + text_value if dangerous or text_value.startswith(("\t", "\r", "\n")) else text_value
-
-
 def _export_rows(
     start_date: date | None, end_date: date | None, scope: str | None,
     db: Session, user: User,
@@ -158,9 +149,16 @@ def export_analytics_data(
         "period": {"start_date": start_date, "end_date": end_date},
         "transactions": [
             {
+                "id": transaction.id,
+                "account_id": transaction.account_id,
+                "invoice_id": transaction.invoice_id,
+                "wallet_entry_id": transaction.wallet_entry_id,
+                "include_in_reports": transaction.include_in_reports,
+                "note": transaction.note or "",
                 "transaction_date": transaction.transaction_date,
                 "type": transaction.type, "kind": transaction.kind,
                 "account_name": account_name,
+                "category_id": transaction.category_id,
                 "category_name": category_name or "Không phân loại",
                 "amount": str(transaction.amount), "currency": currency,
                 "description": transaction.description or "", "source": transaction.source,
@@ -168,28 +166,3 @@ def export_analytics_data(
             for transaction, account_name, currency, category_name in rows
         ],
     }
-
-
-@router.get("/export.csv")
-def export_analytics_csv(
-    start_date: date | None = Query(None),
-    end_date: date | None = Query(None),
-    scope: str | None = Query(None, pattern="^all$"),
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
-):
-    start_date, end_date, rows = _export_rows(start_date, end_date, scope, db, user)
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(["Ngày", "Loại", "Tài khoản", "Danh mục", "Số tiền", "Diễn giải", "Nguồn"])
-    for transaction, account_name, _currency, category_name in rows:
-        writer.writerow([
-            transaction.transaction_date.isoformat(), transaction.type,
-            _csv_safe(account_name), _csv_safe(category_name or "Không phân loại"),
-            transaction.amount, _csv_safe(transaction.description), transaction.source,
-        ])
-    return Response(
-        content="\ufeff" + output.getvalue(),
-        media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="bao-cao-{start_date}-{end_date}.csv"'},
-    )

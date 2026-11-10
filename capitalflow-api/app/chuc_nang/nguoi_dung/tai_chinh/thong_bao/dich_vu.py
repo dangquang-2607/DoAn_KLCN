@@ -34,6 +34,7 @@ def emit_notification(
         if existing:
             return existing
     notification = Notification(
+        id=uuid.uuid4(),
         user_id=user_id, kind=kind, severity=severity, title=title,
         message=message, source_type=source_type, source_id=source_id,
         action_url=action_url,
@@ -41,6 +42,8 @@ def emit_notification(
         dedupe_key=dedupe_key,
     )
     db.add(notification)
+    from .push import queue_notification
+    queue_notification(db, notification)
     return notification
 
 

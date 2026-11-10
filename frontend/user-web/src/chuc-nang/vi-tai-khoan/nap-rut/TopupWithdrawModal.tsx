@@ -8,7 +8,7 @@ import {
   X,
   Building2,
   Check,
-  Plus,
+  Link2,
   Loader2,
   AlertCircle
 } from "lucide-react";
@@ -55,6 +55,7 @@ export default function TopupWithdrawModal({
   onRetryBanks,
   selectedBankId,
   onSelectBankId,
+  onOpenBankManagement,
   onOpenLinkBank,
   amount,
   onAmountChange,
@@ -75,6 +76,7 @@ export default function TopupWithdrawModal({
   onRetryBanks: () => void;
   selectedBankId: string;
   onSelectBankId: (id: string) => void;
+  onOpenBankManagement: () => void;
   onOpenLinkBank: () => void;
   amount: string;
   onAmountChange: (val: string) => void;
@@ -103,10 +105,13 @@ export default function TopupWithdrawModal({
   const enteredAmountNum = Number(amount || 0);
   const isInsufficient = activeTab === "withdraw" && enteredAmountNum > currentBalNum;
   const connectedBanks = banks?.filter((b) => b.status === "CONNECTED") || [];
+  const hasSelectedBank = connectedBanks.some((bank) => bank.id === selectedBankId);
 
   const isFormValid =
     enteredAmountNum > 0 &&
-    Boolean(selectedBankId) &&
+    hasSelectedBank &&
+    !banksLoading &&
+    !banksError &&
     !isInsufficient &&
     !busy;
 
@@ -193,8 +198,8 @@ export default function TopupWithdrawModal({
           <section className={styles.section}>
             <div className={styles.sectionHeader}>
               <h3 className={styles.sectionTitle}> {activeTab === "topup" ? "Từ nguồn tiền" : "Rút về tài khoản"} </h3>
-              <button type="button" className={styles.linkBankBtn} onClick={onOpenLinkBank} >
-                <Plus size={14} /> Thêm liên kết
+              <button type="button" className={styles.linkBankBtn} onClick={onOpenBankManagement} disabled={busy}>
+                <Link2 size={14} aria-hidden="true" /> Quản lý ngân hàng liên kết
               </button>
             </div>
 
@@ -265,7 +270,7 @@ export default function TopupWithdrawModal({
             <select
               aria-label="Ngân hàng liên kết"
               className={styles.srOnly}
-              value={selectedBankId}
+              value={hasSelectedBank ? selectedBankId : ""}
               onChange={(e) => onSelectBankId(e.target.value)}
             >
               <option value="">Chọn ngân hàng</option>

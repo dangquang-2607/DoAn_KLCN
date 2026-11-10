@@ -1,6 +1,7 @@
 .list { display: grid; gap: 8px; margin: 0; padding: 0 20px 20px; list-style: none; }
 .list li { min-width: 0; }
 .details { display: grid; gap: 16px; }
+.quotaWarning { margin: 0; font-size: 13px; line-height: 20px; color: var(--cf-danger, #b42318); }
 .facts { display: grid; gap: 0; margin: 0; }
 .facts > div { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--cf-line); font-size: 13px; }
 .facts dt { color: var(--cf-muted); }

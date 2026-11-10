@@ -4,6 +4,7 @@ import { Alert, Field, Modal } from "@/dung-chung/UI-chung/ui";
 import MoneyInput from "@/dung-chung/UI-chung/MoneyInput";
 import DateInput from "@/dung-chung/UI-chung/DateInput";
 import { dateLabel, localDate, money, percent } from "@/dung-chung/tien-ich/finance";
+import { canonicalDecimal } from "@/dung-chung/tien-ich/decimal";
 import type { Budget, Category } from "@/dung-chung/nghiep-vu/finance";
 import type { BudgetForm } from "./BudgetModal";
 import styles from "../CSS/BudgetEditForm.module.css";
@@ -19,13 +20,28 @@ const periods: Record<string, string> = { WEEKLY: "Hàng tuần", MONTHLY: "Hàn
 
 export default function BudgetEditForm({ editing, categories, form, setForm, error, busy, onSubmit, onClose, onClearError }: Props) {
   const id = useId();
-  const update = (key: keyof BudgetForm, value: string) => setForm((current) => ({ ...current, [key]: value }));
+  const update = <K extends keyof BudgetForm>(key: K, value: BudgetForm[K]) => setForm((current) => ({ ...current, [key]: value }));
+  const withTiming = (draft: BudgetForm, timing: BudgetForm["effective_from"]): BudgetForm => {
+    if (draft.effective_from === timing) return draft;
+    const previousNext = draft.effective_from === "NEXT";
+    const next = timing === "NEXT";
+    return {
+      ...draft,
+      name: draft.name === (previousNext ? editing.configured_name : editing.budget_name)
+        ? (next ? editing.configured_name : editing.budget_name) : draft.name,
+      amount_limit: canonicalDecimal(draft.amount_limit) === canonicalDecimal(previousNext ? editing.configured_amount_limit : editing.amount_limit)
+        ? String(next ? editing.configured_amount_limit : editing.amount_limit) : draft.amount_limit,
+      warning_percent: canonicalDecimal(draft.warning_percent) === canonicalDecimal(previousNext ? editing.configured_warning_percent : editing.warning_percent)
+        ? String(next ? editing.configured_warning_percent : editing.warning_percent) : draft.warning_percent,
+      effective_from: timing,
+    };
+  };
   const next = editing.is_recurring && form.effective_from === "NEXT";
   const dateRangeChanged = !editing.is_recurring && (form.start_date !== editing.start_date || form.end_date !== editing.end_date);
   const nextDate = new Date(`${editing.end_date}T12:00:00`);
   nextDate.setDate(nextDate.getDate() + 1);
   const nextStart = localDate(nextDate);
-  const nextUnavailable = editing.recurrence_end_date === editing.end_date;
+  const nextUnavailable = !form.auto_renew || editing.end_date === "9999-12-31";
   const limit = Number(next ? editing.amount_limit : form.amount_limit);
   const warning = Number(next ? editing.warning_percent : form.warning_percent);
   const spent = Number(editing.spent_amount);
@@ -54,7 +70,18 @@ export default function BudgetEditForm({ editing, categories, form, setForm, err
           </Field>
           </div>
 
-          {editing.is_recurring && (
+          {editing.is_recurring && <>
+            <label className={styles.renewal} htmlFor={`${id}-renewal`}>
+              <span><strong>Tự chuyển kỳ</strong><span id={`${id}-renewal-hint`}>
+                {form.auto_renew ? "Tiếp tục ngân sách khi sang kỳ mới." : `Kết thúc sau ngày ${dateLabel(editing.end_date)}.`}
+              </span></span>
+              <input id={`${id}-renewal`} className="cf-switch-input" type="checkbox" role="switch"
+                aria-label="Tự chuyển kỳ" aria-describedby={`${id}-renewal-hint`} checked={form.auto_renew} disabled={busy}
+                onChange={(event) => {
+                  const enabled = event.currentTarget.checked;
+                  setForm((draft) => ({ ...(enabled ? draft : withTiming(draft, "CURRENT")), auto_renew: enabled }));
+                }} />
+            </label>
             <fieldset className={styles.timing} disabled={busy}>
               <legend>Áp dụng thay đổi khi nào?</legend>
               <div className={styles.choices}>
@@ -64,7 +91,7 @@ export default function BudgetEditForm({ editing, categories, form, setForm, err
                 ] as const).map(([value, title, subtitle, Icon]) => (
                   <label key={value} className={`${styles.choice} ${form.effective_from === value ? styles.selected : ""}`}>
                     <input type="radio" name={`${id}-timing`} value={value} checked={form.effective_from === value} disabled={value === "NEXT" && nextUnavailable}
-                      onChange={() => update("effective_from", value)} />
+                      onChange={() => setForm((draft) => withTiming(draft, value))} />
                     <Icon size={20} aria-hidden="true" />
                     <span><strong>{title}</strong><span>{subtitle}</span></span>
                     {form.effective_from === value && <Check size={17} aria-hidden="true" className={styles.check} />}
@@ -72,7 +99,7 @@ export default function BudgetEditForm({ editing, categories, form, setForm, err
                 ))}
               </div>
             </fieldset>
-          )}
+          </>}
 
           <div className={styles.editor}>
           <div className={styles.controls}>

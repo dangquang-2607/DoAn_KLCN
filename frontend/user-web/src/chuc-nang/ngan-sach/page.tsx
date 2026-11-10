@@ -31,6 +31,7 @@ const fresh = (): BudgetForm => ({
   ),
   warning_percent: "80",
   effective_from: "NEXT",
+  auto_renew: true,
 });
 
 export default function Budgets() {
@@ -51,7 +52,18 @@ export default function Budgets() {
   // Khởi tạo khoảng thời gian theo tháng hiện tại hoặc nạp ngân sách cần chỉnh sửa.
   const open = (budget?: Budget) => {
     setEditing(budget || null); setError("");
-    setForm(budget ? { name: budget.configured_name, category_id: budget.category_id || "", amount_limit: String(budget.configured_amount_limit), currency: budget.currency, period_type: budget.period_type, start_date: budget.applies_from, end_date: budget.end_date, warning_percent: String(budget.configured_warning_percent), effective_from: budget.recurrence_end_date === budget.end_date ? "CURRENT" : "NEXT" } : fresh());
+    if (budget) {
+      const autoRenew = budget.is_recurring && budget.recurrence_end_date !== budget.end_date;
+      const next = autoRenew && budget.end_date !== "9999-12-31";
+      setForm({
+        name: next ? budget.configured_name : budget.budget_name,
+        category_id: budget.category_id || "", currency: budget.currency,
+        amount_limit: String(next ? budget.configured_amount_limit : budget.amount_limit),
+        period_type: budget.period_type, start_date: budget.applies_from, end_date: budget.end_date,
+        warning_percent: String(next ? budget.configured_warning_percent : budget.warning_percent),
+        effective_from: next ? "NEXT" : "CURRENT", auto_renew: autoRenew,
+      });
+    } else setForm(fresh());
     setShow(true);
   };
   const reuse = (budget: Budget) => {
@@ -84,6 +96,7 @@ export default function Budgets() {
         ...(form.name.trim() && form.name.trim() !== (form.effective_from === "CURRENT" ? editing.budget_name : editing.configured_name) ? { name: form.name.trim() } : {}),
         ...(canonicalDecimal(form.amount_limit) !== canonicalDecimal(form.effective_from === "CURRENT" ? editing.amount_limit : editing.configured_amount_limit) ? { amount_limit: form.amount_limit } : {}),
         ...(canonicalDecimal(form.warning_percent) !== canonicalDecimal(form.effective_from === "CURRENT" ? editing.warning_percent : editing.configured_warning_percent) ? { warning_percent: form.warning_percent } : {}),
+        ...(form.auto_renew !== (editing.recurrence_end_date !== editing.end_date) ? { auto_renew: form.auto_renew } : {}),
         effective_from: form.effective_from,
       });
       else if (editing) await api.patch("/budgets/" + editing.budget_id, {

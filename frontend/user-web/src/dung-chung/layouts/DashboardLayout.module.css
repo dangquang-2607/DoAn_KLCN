@@ -6,11 +6,11 @@
 .settingsToggle:focus-visible, .childLink:focus-visible { outline: 2px solid var(--cf-blue); outline-offset: -2px; }
 .submenu { margin: 0 0 8px 20px; padding-inline-start: 8px; border-inline-start: 1px solid var(--cf-line); }
 .submenu[hidden] { display: none; }
-.childLink { position: relative; display: flex; align-items: center; gap: 8px; min-height: 40px; margin-bottom: 4px; padding: 8px 10px; border-radius: var(--cf-radius); color: var(--cf-muted); font-size: 13px; line-height: 20px; text-decoration: none; min-width: 0; }
+.childLink { position: relative; display: flex; align-items: center; gap: 8px; min-height: 40px; margin-bottom: 4px; padding: 8px 10px; border-radius: var(--cf-radius); color: var(--cf-muted); font-size: 14px; line-height: 20px; text-decoration: none; min-width: 0; }
 .childLink > svg, .childLink > span { position: relative; z-index: 2; }
 .childLink > svg { flex-shrink: 0; }
 .childLink > span { min-width: 0; }
-.childLink:hover { color: var(--cf-ink); background: var(--cf-bg); }
+.childLink:hover { color: var(--cf-blue); background: var(--cf-bg); }
 .childLink[aria-current="page"] { color: var(--cf-blue); font-weight: 600; }
 .parentCrumb { display: inline-flex; align-items: center; gap: 12px; }
 .parentCrumb a { color: inherit; text-decoration: none; }

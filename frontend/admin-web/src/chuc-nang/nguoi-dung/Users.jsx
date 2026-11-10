@@ -2,7 +2,6 @@ import density from "../../dung-chung/CSS/management.module.css";
 import { useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { UsersRound } from "lucide-react";
 import api from "../../dung-chung/connect-api/api";
 import { Alert } from "../../dung-chung/UI-chung/ui";
 import PageHead from "../../dung-chung/UI-chung/WorkspaceHead";
@@ -76,7 +75,6 @@ function UsersContent({ initialSearch, initialStatus }) {
     queryFn: async ({ signal }) => (await api.get("/admin/users/" + activeId, { signal })).data,
     enabled: !!activeId,
   });
-  const overview = useQuery({ queryKey: ["admin-overview"], queryFn: async () => (await api.get("/admin/overview")).data });
   const selectable = selectableUsers(list, me.data?.id);
   const selectedIds = validSelection(selected, list, me.data?.id);
 
@@ -173,20 +171,26 @@ function UsersContent({ initialSearch, initialStatus }) {
           {notice}
         </Alert>
       )}
-      {overview.data && !overview.isError && <div className="adm-rest-signal adm-rest-signal--users"><UsersRound size={20} /><div><strong>{overview.data.users.total} tài khoản hiện có</strong><span>{overview.data.users.active} có thể truy cập · {overview.data.users.banned} bị khóa.</span></div><span className="adm-rest-signal-number">{overview.data.users.banned}<small>đã khóa</small></span></div>}
-      <div className="adm-rest-heading"><div><p className="adm-eyebrow">DANH SÁCH TÀI KHOẢN</p><h2>Hồ sơ & quyền truy cập</h2><span>{list.length} / {query.data?.total ?? "—"} người dùng khớp bộ lọc</span></div>
-        <UserFilters
-          search={search}
-          role={role}
-          status={status}
-          list={list}
-          selected={selectedIds}
-          page={page}
-          onSearch={(v) => filter(setSearch, v)}
-          onRole={(v) => filter(setRole, v)}
-          onStatus={(v) => filter(setStatus, v)}
-        />
-      </div>
+      <section className={`adm-card adm-rest-heading ${density.directoryToolbar}`} aria-labelledby="user-directory-title">
+        <div>
+          <p className="adm-eyebrow">DANH SÁCH TÀI KHOẢN</p>
+          <h2 id="user-directory-title">Hồ sơ & quyền truy cập</h2>
+          <span>{list.length} / {query.data?.total ?? "—"} người dùng khớp bộ lọc</span>
+        </div>
+        <div className={density.directoryControls}>
+          <UserFilters
+            search={search}
+            role={role}
+            status={status}
+            list={list}
+            selected={selectedIds}
+            page={page}
+            onSearch={(v) => filter(setSearch, v)}
+            onRole={(v) => filter(setRole, v)}
+            onStatus={(v) => filter(setStatus, v)}
+          />
+        </div>
+      </section>
       <div className="adm-rest-split"><section className="adm-card adm-rest-list">
         <UserBulkBar
           count={selectedIds.length}

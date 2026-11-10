@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, field_serializer
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
@@ -13,8 +13,29 @@ from app.chuc_nang.nguoi_dung.tai_chinh.thong_bao.dich_vu import utc_now_naive
 from app.chuc_nang.nguoi_dung.tai_chinh.thong_bao.luu_tru.thong_bao import Notification
 from app.dung_chung.http.phu_thuoc import get_current_user, get_db
 from app.dung_chung.money import normalize_money_message
+from .luu_tru.push import PushRegistration
+from .push import PushInput, configuration, register
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
+
+
+@router.get("/push/config")
+def push_config(_user: User = Depends(get_current_user)):
+    return configuration()
+
+
+@router.post("/push/subscriptions")
+def subscribe_push(payload: PushInput, request: Request, db: Session = Depends(get_db),
+                   user: User = Depends(get_current_user)):
+    return {"id": register(db, user, request.state.session_family_id, payload)}
+
+
+@router.delete("/push/subscriptions/{registration_id}", status_code=204)
+def unsubscribe_push(registration_id: uuid.UUID, request: Request, db: Session = Depends(get_db),
+                     user: User = Depends(get_current_user)):
+    db.execute(delete(PushRegistration).where(PushRegistration.id == registration_id,
+        PushRegistration.user_id == user.id, PushRegistration.session_id == request.state.session_family_id))
+    db.commit()
 
 
 class NotificationOut(BaseModel):
@@ -48,15 +69,16 @@ class NotificationPage(BaseModel):
 def list_notifications(
     page: int = Query(1, ge=1),
     page_size: int = Query(30, ge=1, le=100),
+    unread_only: bool = False,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     owned = Notification.user_id == user.id
-    total = db.scalar(select(func.count()).select_from(Notification).where(owned)) or 0
-    unread_count = db.scalar(select(func.count()).select_from(Notification).where(
-        owned, Notification.read_at.is_(None),
-    )) or 0
-    items = db.scalars(select(Notification).where(owned)
+    unread = owned & Notification.read_at.is_(None)
+    count = select(func.count()).select_from(Notification)
+    unread_count = db.scalar(count.where(unread)) or 0
+    total = unread_count if unread_only else (db.scalar(count.where(owned)) or 0)
+    items = db.scalars(select(Notification).where(unread if unread_only else owned)
         .order_by(Notification.created_at.desc(), Notification.id.desc())
         .offset((page - 1) * page_size).limit(page_size)).all()
     return NotificationPage(items=items, unread_count=unread_count,

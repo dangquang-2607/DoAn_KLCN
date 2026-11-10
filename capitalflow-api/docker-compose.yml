@@ -20,7 +20,7 @@ services:
   capitalflow-worker:
     build: .
     restart: unless-stopped
-    command: ["python", "-m", "app.dung_chung.tac_vu_nen.trinh_chay", "--kinds", "EMAIL,BUDGET,FILE_DELETE,BILLING"]
+    command: ["python", "-m", "app.dung_chung.tac_vu_nen.trinh_chay", "--kinds", "EMAIL,BUDGET,FILE_DELETE,BILLING,PUSH"]
     env_file:
       - ${CAPITALFLOW_ENV_FILE:-.env}
     volumes:

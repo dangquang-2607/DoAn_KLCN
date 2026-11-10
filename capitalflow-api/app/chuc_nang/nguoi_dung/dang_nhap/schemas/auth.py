@@ -34,10 +34,15 @@ class RegisterRequest(BaseModel):
         validate_utf16_length(value, 150, "Họ tên")
         return value
 
-    @field_validator('email')
+    @field_validator('email', mode='before')
     @classmethod
-    def canonical_email(cls, value):
-        return str(value).lower()
+    def canonical_email(cls, value: object) -> object:
+        if not isinstance(value, str):
+            return value
+        email = value.strip().lower()
+        if not email.endswith('@gmail.com'):
+            raise ValueError("Vui lòng sử dụng địa chỉ email @gmail.com để đăng ký.")
+        return email
 
 class LoginRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')

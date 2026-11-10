@@ -1,4 +1,4 @@
-type Limits = { wallets: number; budgets: number; ai: number };
+type Limits = { wallets: number; budgets: number; categories: number; ai: number };
 export type Subscription = {
   plan: "FREE" | "PREMIUM"; premium_until: string | null; limits: Limits;
   plans: { FREE: Limits; PREMIUM: Limits };

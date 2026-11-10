@@ -5,7 +5,6 @@
 .demo.local.json
 demo-uploads/
 /nghiem_thu/
-/output/ocr-dedup-20261022/
 !.env.example
 !.env.docker.example
 
@@ -68,6 +67,7 @@ Thumbs.db
 
 # Database dumps - KHONG commit!
 .maintenance-backups/
+/database.sql
 CSDL.sql
 **/CSDL.sql
 

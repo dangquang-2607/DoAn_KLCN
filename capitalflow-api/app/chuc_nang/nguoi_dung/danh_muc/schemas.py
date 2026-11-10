@@ -97,8 +97,17 @@ class CategoryOut(BaseModel):
     owner_user_id: UUID | None  # None = global category
     created_at: datetime
     updated_at: datetime
+    can_permanently_delete: bool = False
 
     model_config = {"from_attributes": True}
+
+
+class CategoryQuota(BaseModel):
+    plan: str
+    used: int
+    limit: int
+    remaining: int
+    can_create: bool
 
 
 class CategoryRestore(_CategoryText):

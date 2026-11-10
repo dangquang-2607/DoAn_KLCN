@@ -101,7 +101,7 @@ export default function BudgetCard({ budget, category, onEdit, onDelete, onReuse
           {history
             ? "Kỳ đã kết thúc"
             : budget.is_recurring
-              ? "Tự chuyển kỳ"
+              ? budget.recurrence_end_date === budget.end_date ? "Dừng sau kỳ này" : "Tự chuyển kỳ"
               : "Một lần"}{" "}
           · Cảnh báo tại {percent(budget.warning_percent, 2)}%
         </span>

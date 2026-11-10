@@ -29,6 +29,7 @@ export interface Category {
   keywords?: string | null;
   sort_order: number;
   is_active: boolean;
+  can_permanently_delete?: boolean;
 }
 
 export interface Transaction {

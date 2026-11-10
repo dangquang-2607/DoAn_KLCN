@@ -3,7 +3,13 @@
  * Khung ứng dụng sau đăng nhập: bảo vệ phiên, điều hướng sidebar/header và
  * chứa các màn nghiệp vụ. Không đặt logic CRUD của từng tính năng tại đây.
  */
-import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -29,48 +35,94 @@ import {
   ShieldCheck,
   CreditCard,
 } from "lucide-react";
-import api, { clearSession, restoreSession } from "@/dung-chung/connect-api/api";
+import api, {
+  clearSession,
+  restoreSession,
+} from "@/dung-chung/connect-api/api";
 import { Loading, ErrorState } from "@/dung-chung/UI-chung/ui";
 import SecuritySettings from "@/dung-chung/xac-thuc/SecuritySettings";
 import type { Profile } from "@/dung-chung/nghiep-vu/finance";
 import NotificationCenter from "../thong-bao/NotificationCenter";
+import InvoiceUploadQueue from "@/chuc-nang/hoa-don-ai/xu-ly/InvoiceUploadQueue";
 import styles from "./DashboardLayout.module.css";
 
 const settingsLinks = [
   { href: "/settings", label: "Tài khoản & bảo mật", icon: ShieldCheck },
   { href: "/settings/subscription", label: "Gói sử dụng", icon: CreditCard },
 ];
-const settingsPageFor = (pathname: string) => [...settingsLinks].reverse().find(item => pathname === item.href || pathname.startsWith(`${item.href}/`));
+const settingsPageFor = (pathname: string) =>
+  [...settingsLinks]
+    .reverse()
+    .find(
+      (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
+    );
 
-function SettingsNavigation({ pathname, collapsed, onExpand, onNavigate }: {
-  pathname: string; collapsed: boolean; onExpand: () => void; onNavigate: () => void;
+function SettingsNavigation({
+  pathname,
+  collapsed,
+  onExpand,
+  onNavigate,
+}: {
+  pathname: string;
+  collapsed: boolean;
+  onExpand: () => void;
+  onNavigate: () => void;
 }) {
   const id = useId();
   const active = pathname === "/settings" || pathname.startsWith("/settings/");
   const [expanded, setExpanded] = useState(active);
-  return <>
-    <button type="button" className={`cf-nav-link ${styles.settingsToggle}`} aria-label="Cài đặt & bảo mật"
-      data-active={active} data-collapsed={collapsed} aria-expanded={expanded && !collapsed} aria-controls={id}
-      onClick={() => {
-        if (collapsed) { onExpand(); setExpanded(true); }
-        else setExpanded(value => !value);
-      }}>
-      <Settings aria-hidden="true" /><span className="cf-nav-label-text">Cài đặt & bảo mật</span>
-      <ChevronRight className={styles.toggleChevron} data-open={expanded} aria-hidden="true" />
-    </button>
-    <div id={id} className={styles.submenu} hidden={!expanded || collapsed}>
-      {settingsLinks.map(item => {
-        const selected = settingsPageFor(pathname)?.href === item.href;
-        const Icon = item.icon;
-        return <Link key={item.href} href={item.href} onClick={onNavigate} aria-current={selected ? "page" : undefined}
-          className={styles.childLink}>
-          {selected && <motion.div layoutId="cfNavActivePill" className="cf-nav-sliding-pill"
-            transition={{ type: "spring", stiffness: 380, damping: 30 }} />}
-          <Icon size={16} aria-hidden="true" /><span>{item.label}</span>
-        </Link>;
-      })}
-    </div>
-  </>;
+  return (
+    <>
+      <button
+        type="button"
+        className={`cf-nav-link ${styles.settingsToggle}`}
+        aria-label="Cài đặt & bảo mật"
+        data-active={active}
+        data-collapsed={collapsed}
+        aria-expanded={expanded && !collapsed}
+        aria-controls={id}
+        onClick={() => {
+          if (collapsed) {
+            onExpand();
+            setExpanded(true);
+          } else setExpanded((value) => !value);
+        }}
+      >
+        <Settings aria-hidden="true" />
+        <span className="cf-nav-label-text">Cài đặt & bảo mật</span>
+        <ChevronRight
+          className={styles.toggleChevron}
+          data-open={expanded}
+          aria-hidden="true"
+        />
+      </button>
+      <div id={id} className={styles.submenu} hidden={!expanded || collapsed}>
+        {settingsLinks.map((item) => {
+          const selected = settingsPageFor(pathname)?.href === item.href;
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={onNavigate}
+              aria-current={selected ? "page" : undefined}
+              className={styles.childLink}
+            >
+              {selected && (
+                <motion.div
+                  layoutId="cfNavActivePill"
+                  className="cf-nav-sliding-pill"
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                />
+              )}
+              <Icon size={16} aria-hidden="true" />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </>
+  );
 }
 
 interface NavItem {
@@ -93,7 +145,7 @@ const groups: { label: string; items: NavItem[] }[] = [
       },
       {
         href: "/accounts",
-        label: "Ví cá nhân",
+        label: "Ví của tôi",
         icon: Wallet,
         shortcut: "Ctrl+2",
       },
@@ -273,6 +325,7 @@ export default function DashboardLayout({
     "CapitalFlow";
 
   return (
+    <InvoiceUploadQueue key={user.id} owner={user.id} enabled={!user.must_change_password}>
     <div className="cf-app">
       <a href="#main-content" className="cf-skip">
         Chuyển đến nội dung
@@ -348,19 +401,6 @@ export default function DashboardLayout({
           )}
         </Link>
 
-        {/* Thẻ nhận diện không gian làm việc hiện tại. */}
-        <div className="cf-workspace">
-          <span
-            className="cf-icon"
-            style={{ width: 32, height: 32, flexShrink: 0 }}
-          >
-            <Wallet size={16} />
-          </span>
-          <div>
-            Tài chính cá nhân<small>Không gian của bạn</small>
-          </div>
-        </div>
-
         {/* Danh sách điều hướng với nền chỉ báo chuyển động mượt. */}
         <nav className="cf-nav" aria-label="Điều hướng chính">
           {groups.map((g) => (
@@ -390,38 +430,47 @@ export default function DashboardLayout({
                       setTooltipData(null);
                     }}
                   >
-                    {i.href === "/settings" ? <SettingsNavigation key={pathname} pathname={pathname} collapsed={collapsed}
-                      onExpand={toggleCollapsed} onNavigate={() => setOpen(false)} /> : <Link
-                      href={i.href}
-                      onClick={() => setOpen(false)}
-                      aria-current={isActive ? "page" : undefined}
-                      className={`cf-nav-link ${isActive ? "active" : ""}`}
-                    >
-                      {/* Nền chỉ báo mục điều hướng đang hoạt động. */}
-                      {isActive && (
-                        <motion.div
-                          layoutId="cfNavActivePill"
-                          className="cf-nav-sliding-pill"
-                          transition={{
-                            type: "spring",
-                            stiffness: 380,
-                            damping: 30,
-                          }}
-                        />
-                      )}
+                    {i.href === "/settings" ? (
+                      <SettingsNavigation
+                        key={pathname}
+                        pathname={pathname}
+                        collapsed={collapsed}
+                        onExpand={toggleCollapsed}
+                        onNavigate={() => setOpen(false)}
+                      />
+                    ) : (
+                      <Link
+                        href={i.href}
+                        onClick={() => setOpen(false)}
+                        aria-current={isActive ? "page" : undefined}
+                        className={`cf-nav-link ${isActive ? "active" : ""}`}
+                      >
+                        {/* Nền chỉ báo mục điều hướng đang hoạt động. */}
+                        {isActive && (
+                          <motion.div
+                            layoutId="cfNavActivePill"
+                            className="cf-nav-sliding-pill"
+                            transition={{
+                              type: "spring",
+                              stiffness: 380,
+                              damping: 30,
+                            }}
+                          />
+                        )}
 
-                      <Icon />
-                      <span className="cf-nav-label-text">{i.label}</span>
+                        <Icon />
+                        <span className="cf-nav-label-text">{i.label}</span>
 
-                      {i.isAi && (
-                        <span
-                          className="cf-badge info"
-                          style={{ marginLeft: "auto" }}
-                        >
-                          AI
-                        </span>
-                      )}
-                    </Link>}
+                        {i.isAi && (
+                          <span
+                            className="cf-badge info"
+                            style={{ marginLeft: "auto" }}
+                          >
+                            AI
+                          </span>
+                        )}
+                      </Link>
+                    )}
 
                     {/* Tooltip dùng vị trí cố định để không bị sidebar cắt. */}
                   </div>
@@ -441,7 +490,6 @@ export default function DashboardLayout({
             <LogOut />
             <span>Đăng xuất</span>
           </button>
-          <p>CapitalFlow · Personal workspace</p>
         </div>
         {/* Tooltip nổi khi thanh điều hướng đang thu gọn. */}
         <AnimatePresence>
@@ -492,10 +540,18 @@ export default function DashboardLayout({
           <div className="cf-crumb">
             <span>Không gian cá nhân</span>
             <ChevronRight size={14} />
-            {settingsPageFor(pathname) && <span className={styles.parentCrumb}>
-              <Link href="/settings">Cài đặt & bảo mật</Link><ChevronRight size={14} aria-hidden="true" />
-              {checkoutPage && <><Link href="/settings/subscription">Gói sử dụng</Link><ChevronRight size={14} aria-hidden="true" /></>}
-            </span>}
+            {settingsPageFor(pathname) && (
+              <span className={styles.parentCrumb}>
+                <Link href="/settings">Cài đặt & bảo mật</Link>
+                <ChevronRight size={14} aria-hidden="true" />
+                {checkoutPage && (
+                  <>
+                    <Link href="/settings/subscription">Gói sử dụng</Link>
+                    <ChevronRight size={14} aria-hidden="true" />
+                  </>
+                )}
+              </span>
+            )}
             <strong>{title}</strong>
           </div>
 
@@ -538,5 +594,6 @@ export default function DashboardLayout({
         </main>
       </div>
     </div>
+    </InvoiceUploadQueue>
   );
 }

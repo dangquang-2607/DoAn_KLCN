@@ -51,7 +51,10 @@
   top: calc(100% + 10px);
   right: 0;
   z-index: 100;
+  display: flex;
+  flex-direction: column;
   width: min(390px, calc(100vw - 32px));
+  max-height: calc(100dvh - 90px);
   overflow: hidden;
   border: 1px solid var(--cf-line);
   border-radius: 14px;
@@ -80,33 +83,103 @@
   font-weight: 400;
 }
 
+.toolbar,
+.confirm {
+  display: grid;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--cf-line);
+}
+
+.filters,
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+}
+
+.toolbar .filters,
+.toolbar .actions {
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+
+.actionButton {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  border-color: transparent;
+  background: transparent;
+  cursor: pointer;
+}
+
+.actionButton:hover:not(:disabled) {
+  background: var(--cf-soft);
+  color: var(--cf-blue);
+}
+
+.actionButton:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+.filters button[aria-pressed="true"] {
+  border-color: var(--cf-blue);
+  background: var(--cf-soft);
+  color: var(--cf-blue);
+}
+
+.confirm {
+  background: var(--cf-soft);
+}
+
+.confirm p {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .list {
-  max-height: min(var(--three-items-height, 252px), calc(100dvh - 130px));
+  min-height: 0;
+  max-height: var(--three-items-height, 252px);
   overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--cf-line);
+  color: var(--cf-ink);
 }
 
 .item {
   display: flex;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   gap: 10px;
-  padding: 13px 16px;
+  padding: 12px 16px;
   border: 0;
-  border-bottom: 1px solid #eef1f5;
-  background: #fff;
-  color: var(--cf-ink);
+  background: transparent;
+  color: inherit;
   text-align: left;
   cursor: pointer;
 }
 
-.item:last-child {
-  border-bottom: 0;
-}
-
-.item:hover {
+.row:hover {
   background: #f7f9fc;
 }
 
 .item:focus-visible,
+.actionButton:focus-visible,
 .more:focus-visible {
   outline: 2px solid var(--cf-blue);
   outline-offset: -2px;
@@ -158,6 +231,7 @@
   margin-bottom: 2px;
   font-size: 13px;
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .message {
@@ -207,6 +281,14 @@
   cursor: pointer;
 }
 
+@media (min-width: 768px) and (max-width: 1000px) {
+  .panel {
+    position: fixed;
+    top: 82px;
+    right: 16px;
+  }
+}
+
 @media (max-width: 767px) {
   .panel {
     position: fixed;
@@ -214,9 +296,6 @@
     right: 12px;
     left: 12px;
     width: auto;
-  }
-
-  .list {
-    max-height: min(var(--three-items-height, 252px), calc(100dvh - 150px));
+    max-height: calc(100dvh - 82px);
   }
 }

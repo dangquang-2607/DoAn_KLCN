@@ -10,20 +10,6 @@
   --cf-line: #e8e2d9;
   --cf-soft: #f2eaf5;
 }
-.cf-app:not(.cf-admin) .cf-nav-group:nth-child(1) { --nav-accent: #167f78; --nav-tint: #e6f4f0; --nav-line: #c9e5dc; }
-.cf-app:not(.cf-admin) .cf-nav-group:nth-child(2) { --nav-accent: #7650aa; --nav-tint: #f1e8f7; --nav-line: #e3d5ed; }
-.cf-app:not(.cf-admin) .cf-nav-group:nth-child(3) { --nav-accent: #9a6821; --nav-tint: #fbf1df; --nav-line: #ebd8b7; }
-.cf-app:not(.cf-admin) .cf-nav-group .cf-nav-link:hover,
-.cf-app:not(.cf-admin) .cf-nav-group .cf-nav-link.active { color: var(--nav-accent) !important; }
-.cf-app:not(.cf-admin) .cf-nav-group .cf-nav-link.active .cf-nav-sliding-pill {
-  background: var(--nav-tint);
-  border-color: var(--nav-line);
-  box-shadow: none;
-}
-.cf-app:not(.cf-admin) .cf-nav-group .cf-nav-link.active .cf-nav-sliding-pill::before {
-  background: var(--nav-accent);
-  box-shadow: none;
-}
 
 :root {
   --background: #f8fafc; /* slate-50 — nền Swiss Platinum dịu mắt */

@@ -1,5 +1,5 @@
 import { useId, useState } from "react";
-import { Pencil, Trash2, RotateCcw } from "lucide-react";
+import { Pencil, Trash2, RotateCcw, EyeOff } from "lucide-react";
 import { CategoryIcon } from "@/dung-chung/UI-chung/CategoryIcon";
 import { Empty, Panel } from "@/dung-chung/UI-chung/ui";
 import type { Category } from "@/dung-chung/nghiep-vu/finance";
@@ -16,6 +16,7 @@ export default function CategoryTable({
   onClearFilter,
   onEdit,
   onDelete,
+  onPermanentDelete,
   onRestore,
 }: {
   categories: Category[];
@@ -24,6 +25,7 @@ export default function CategoryTable({
   onClearFilter?: () => void;
   onEdit: (category: Category) => void;
   onDelete: (category: Category) => void;
+  onPermanentDelete: (category: Category) => void;
   onRestore: (category: Category) => void;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>();
@@ -116,9 +118,10 @@ export default function CategoryTable({
                 ) : (
                   <>
                     <button type="button" className="cf-btn cf-btn-primary" onClick={() => onEdit(selected)} > {" "} <Pencil size={16} /> Sửa danh mục{" "} </button>
-                    <button type="button" className="cf-btn" onClick={() => onDelete(selected)} > {" "} <Trash2 size={16} /> Ẩn danh mục{" "} </button>
+                    <button type="button" className="cf-btn" onClick={() => onDelete(selected)} > <EyeOff size={16} /> Ẩn danh mục </button>
                   </>
                 )}
+                {selected.can_permanently_delete === true && <button type="button" className="cf-btn cf-btn-danger" onClick={() => onPermanentDelete(selected)}><Trash2 size={16} />Xóa vĩnh viễn</button>}
               </div>
               <p className={styles.notice}>
                 {" "}

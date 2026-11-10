@@ -10,6 +10,11 @@
 .controls .settings { grid-template-columns: 1fr; }
 .context { display: flex; flex-wrap: wrap; gap: 8px; }
 .context > span { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border-radius: 6px; background: #f2f4f7; color: #526074; font-size: 13px; }
+.renewal { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; cursor: pointer; }
+.renewal > span { display: grid; gap: 4px; }
+.renewal strong { font-size: 14px; }
+.renewal > span > span { color: var(--cf-muted); font-size: 13px; }
+.renewal input { flex-shrink: 0; }
 .timing { border: 0; padding: 0; margin: 0; min-width: 0; }
 .timing legend { font-weight: 650; margin-bottom: 10px; font-size: 14px; }
 .choices, .settings, .dateFields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }

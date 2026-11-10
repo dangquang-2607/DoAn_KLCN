@@ -152,12 +152,14 @@ def format_progress(budget: Budget, start: date, end: date, today: date, spent: 
     warning = Decimal(snapshot.warning_percent)
     usage = spent / limit * 100
     current = settings_on(budget, today).is_active if budget.is_recurring else budget.is_active
-    pending = next((change.effective_date for change in budget.changes
-                    if change.effective_date > today and (
-                        change.name != snapshot.name or change.amount_limit != snapshot.amount_limit
-                        or change.warning_percent != snapshot.warning_percent)), None) if budget.is_recurring else None
-    pending_state = next((change.effective_date for change in budget.changes
-                          if change.effective_date > today and change.is_active != current), None) if budget.is_recurring else None
+    recurrence_end = budget.recurrence_end_date or date.max
+    future_changes = [change for change in budget.changes
+                      if today < change.effective_date <= recurrence_end] if budget.is_recurring else []
+    pending = next((change.effective_date for change in future_changes
+                    if (change.name != snapshot.name or change.amount_limit != snapshot.amount_limit
+                        or change.warning_percent != snapshot.warning_percent)), None)
+    pending_state = next((change.effective_date for change in future_changes
+                          if change.is_active != current), None)
     ended = end < today or (budget.is_recurring and budget.recurrence_end_date == today and not budget.is_active)
     period_state = "COMPLETED" if ended else "UPCOMING" if start > today else "PAUSED" if not current else "CURRENT"
     period_days = (end - start).days + 1

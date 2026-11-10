@@ -17,6 +17,44 @@
   transform: translate3d(0, 0, 0);
 }
 
+.formPanel {
+  padding: 24px 20px;
+}
+
+.formPanel :is(button, a, input[type="checkbox"]):not(:disabled) {
+  cursor: pointer;
+}
+
+.formPanel :is(button, input):disabled {
+  cursor: not-allowed;
+}
+
+.formPanel input:not([type="checkbox"]) {
+  min-width: 0;
+  min-height: 44px;
+  padding-top: 9px;
+  padding-bottom: 9px;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.formPanel button[type="submit"] {
+  min-height: 44px;
+  padding: 10px 20px;
+  font-size: 15px;
+  line-height: 24px;
+}
+
+@media (min-width: 640px) {
+  .formPanel {
+    padding: 24px;
+  }
+
+  .formPanel input:not([type="checkbox"]) {
+    font-size: 14px;
+  }
+}
+
 /* Hai cột trượt nhịp nhàng (kích thước cũ 5/12 và 7/12), gia tốc mượt mà 720ms */
 @media (min-width: 1024px) {
   .showcase,
@@ -48,11 +86,6 @@
 
   .card {
     transform: none !important;
-  }
-
-  .formPanel input:not([type="checkbox"]) {
-    min-width: 0;
-    font-size: 16px;
   }
 }
 

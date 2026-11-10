@@ -131,6 +131,10 @@ def process_ocr(job_id, lease, payload, sessions):
         consume_ai(db, oid)
         if ocr.started_at:
             ocr.processing_ms=max(0,int((completed_at-ocr.started_at).total_seconds()*1000))
+        from app.chuc_nang.nguoi_dung.tai_chinh.thong_bao.dich_vu import emit_notification
+        emit_notification(db, user_id=uid, kind="INVOICE", title="Hóa đơn đã quét xong",
+                          message="Mở hóa đơn để kiểm tra kết quả nhận dạng.", source_type="INVOICE",
+                          source_id=iid, action_url="/ocr", dedupe_key=f"ocr:completed:{oid}")
         db.commit()
 
 
@@ -164,6 +168,9 @@ def validated_confidence(value):
 
 
 def dispatch(job_id,lease,kind,payload,sessions):
+    if kind == "PUSH":
+        from app.chuc_nang.nguoi_dung.tai_chinh.thong_bao.push import deliver
+        return deliver(payload, sessions)
     if kind=="BILLING":
         from app.chuc_nang.nguoi_dung.goi_dich_vu.dich_vu import reconcile_in_background
         return reconcile_in_background(payload, sessions)
@@ -282,7 +289,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(levelname)s %(name)s %(message)s")
-    allowed_kinds = {"OCR", "EMAIL", "FILE_DELETE", "BUDGET", "BILLING"}
+    allowed_kinds = {"OCR", "EMAIL", "FILE_DELETE", "BUDGET", "BILLING", "PUSH"}
     kinds = {value.strip().upper() for value in (args.kinds or "").split(",") if value.strip()}
     unknown = kinds - allowed_kinds
     if unknown:

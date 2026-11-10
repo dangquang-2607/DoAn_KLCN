@@ -21,20 +21,28 @@ def _payload_owner(payload):
         return None
 
 
-def enqueue(db, kind, payload, dedupe_key=None, owner_user_id=None):
+def enqueue(db, kind, payload, dedupe_key=None, owner_user_id=None, *, defer_flush=False):
     key = dedupe_key or str(uuid.uuid4())
     # Tuần tự hóa kiểm tra sức chứa và khử trùng lặp hàng đợi giữa các API process trên SQL Server.
     if db.bind.dialect.name == "mssql":
         db.execute(text("DECLARE @r INT; EXEC @r=sys.sp_getapplock @Resource='capitalflow_outbox_enqueue', @LockMode='Exclusive', @LockOwner='Transaction', @LockTimeout=5000; IF @r<0 THROW 51010,'Queue busy',1;"))
+    pending = [job for job in db.new if isinstance(job, BackgroundJob)] if defer_flush else []
+    existing = next((job for job in pending if job.dedupe_key == key), None)
+    if existing: return existing
     existing = db.scalar(select(BackgroundJob).where(BackgroundJob.dedupe_key==key))
     if existing: return existing
     count=db.scalar(select(func.count()).select_from(BackgroundJob).where(BackgroundJob.status.in_(["PENDING","RUNNING"])))
-    if count >= settings.worker_queue_limit:
+    limit = settings.worker_queue_limit
+    if kind == "PUSH":
+        # Reserve worker capacity for OCR, billing and other business jobs.
+        limit -= max(1, limit // 10)
+    if count + len(pending) >= limit:
         raise HTTPException(status_code=503, detail="Hàng đợi đang đầy. Vui lòng thử lại sau.")
     encrypted=Fernet(settings.job_encryption_key.encode()).encrypt(json.dumps(jsonable_encoder(payload)).encode()).decode()
     owner = owner_user_id or _payload_owner(payload)
     job=BackgroundJob(id=uuid.uuid4(),kind=kind,payload=encrypted,dedupe_key=key,status="PENDING",attempts=0,available_at=now(),owner_user_id=owner)
-    db.add(job);db.flush()
+    db.add(job)
+    if not defer_flush: db.flush()
     return job
 
 

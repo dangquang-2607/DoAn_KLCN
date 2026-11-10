@@ -8,8 +8,8 @@ Ràng buộc: không cho người dùng sửa danh mục hệ thống ngoài quy
 
 import uuid
 from typing import Literal
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, or_, case
+from fastapi import APIRouter, Depends, HTTPException, Response
+from sqlalchemy import select, or_, case, exists
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.luu_tru.giao_dich import Transaction
@@ -18,10 +18,39 @@ from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.invoice import Invoice
 from app.dung_chung.http.phu_thuoc import get_current_user, get_db
 from app.chuc_nang.nguoi_dung.danh_muc.luu_tru.danh_muc import Category, CategoryType
 from app.chuc_nang.nguoi_dung.dang_nhap.luu_tru.nguoi_dung import User
-from app.chuc_nang.nguoi_dung.danh_muc.schemas import CategoryCreate, CategoryOut, CategoryUpdate, CategoryRestore, CategorySuggestionRequest, CategorySuggestionOut
+from app.chuc_nang.nguoi_dung.danh_muc.schemas import CategoryCreate, CategoryOut, CategoryQuota, CategoryUpdate, CategoryRestore, CategorySuggestionRequest, CategorySuggestionOut
 from app.chuc_nang.nguoi_dung.danh_muc.phan_loai import suggest_category
+from app.chuc_nang.nguoi_dung.goi_dich_vu.han_muc import LIMITS, category_count, lock_owner, plan_for, require_capacity
 
-router = APIRouter(prefix="/categories", tags=["Categories"])
+
+def private_categories(response: Response):
+    response.headers["Cache-Control"] = "no-store, private"
+
+
+router = APIRouter(prefix="/categories", tags=["Categories"], dependencies=[Depends(private_categories)])
+
+
+def _references(category_id):
+    # Bao gồm cả bản ghi lịch sử/đã ẩn/thùng rác, không chỉ dữ liệu đang dùng.
+    return or_(*(exists().where(model.category_id == category_id) for model in (Transaction, Budget, Invoice)))
+
+
+def _category_out(category, in_use):
+    return CategoryOut.model_validate(category).model_copy(update={
+        "can_permanently_delete": category.owner_user_id is not None and not in_use,
+    })
+
+
+def _single_out(db, category):
+    return _category_out(category, db.scalar(select(case((_references(category.id), True), else_=False))))
+
+
+@router.get("/limits", response_model=CategoryQuota)
+def category_limits(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    plan, _ = plan_for(db, user.id)
+    used = category_count(db, user.id)
+    limit = LIMITS[plan]["categories"]
+    return {"plan": plan, "used": used, "limit": limit, "remaining": max(0, limit - used), "can_create": used < limit}
 
 @router.get(
     "",
@@ -39,18 +68,19 @@ def list_categories(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    query = select(Category).where(or_(Category.owner_user_id == user.id, Category.owner_user_id.is_(None)))
+    query = select(Category, case((_references(Category.id), True), else_=False).label("in_use")).where(or_(Category.owner_user_id == user.id, Category.owner_user_id.is_(None)))
     # SQL Server bit cần phép so sánh (= 1/0); .is_(True/False) sinh SQL "IS 1/0" không hợp lệ.
     if status == "active":
         query = query.where(Category.is_active == True)
     elif status == "archived":
         query = query.where(Category.owner_user_id == user.id, Category.is_active == False)
-    return db.scalars(
+    rows = db.execute(
         query.order_by(
             case((Category.owner_user_id.is_(None), 1), else_=0).desc(),
             Category.sort_order.asc(), Category.name.asc(), Category.id.asc(),
         )
     ).all()
+    return [_category_out(category, in_use) for category, in_use in rows]
 
 @router.post(
     "",
@@ -67,11 +97,12 @@ def create_category(payload: CategoryCreate, db: Session = Depends(get_db), user
     existing = _duplicate_category(db, *scope)
     if existing:
         _raise_duplicate(existing)
+    require_capacity(db, user.id, "categories")
     cat = Category(owner_user_id=user.id, **payload.model_dump())
     db.add(cat)
     _commit(db, duplicate_scope=scope)
     db.refresh(cat)
-    return cat
+    return _single_out(db, cat)
 
 
 @router.post("/suggest", response_model=CategorySuggestionOut)
@@ -119,8 +150,9 @@ def _commit(db: Session, *, duplicate_scope: tuple[uuid.UUID, str, CategoryType]
         raise HTTPException(status_code=409, detail="Danh mục cùng tên và loại đã tồn tại")
 
 
-def _owned_category(db, category_id, user_id):
-    cat = db.scalar(select(Category).where(Category.id == category_id, Category.owner_user_id == user_id).with_hint(Category, "WITH (UPDLOCK, ROWLOCK)", dialect_name="mssql").execution_options(populate_existing=True))
+def _owned_category(db, category_id, user_id, *, exclusive=False):
+    hint = "WITH (XLOCK, ROWLOCK)" if exclusive else "WITH (UPDLOCK, ROWLOCK)"
+    cat = db.scalar(select(Category).where(Category.id == category_id, Category.owner_user_id == user_id).with_hint(Category, hint, dialect_name="mssql").execution_options(populate_existing=True))
     if not cat:
         raise HTTPException(status_code=404, detail="Không tìm thấy danh mục tùy chỉnh")
     return cat
@@ -140,7 +172,7 @@ def update_category(category_id: uuid.UUID, payload: CategoryUpdate, db: Session
         setattr(cat, key, value)
     _commit(db)
     db.refresh(cat)
-    return cat
+    return _single_out(db, cat)
 
 
 @router.delete("/{category_id}", status_code=204)
@@ -148,6 +180,28 @@ def delete_category(category_id: uuid.UUID, db: Session = Depends(get_db), user:
     cat = _owned_category(db, category_id, user.id)
     cat.is_active = False
     _commit(db)
+
+
+def _used_category_error():
+    return HTTPException(status_code=409, detail={
+        "code": "CATEGORY_IN_USE",
+        "message": "Danh mục đã liên kết với giao dịch, ngân sách hoặc hóa đơn. Bạn chỉ có thể ẩn danh mục để giữ nguyên lịch sử.",
+    })
+
+
+@router.delete("/{category_id}/permanent", status_code=204, summary="Xóa vĩnh viễn danh mục cá nhân chưa sử dụng")
+def permanently_delete_category(category_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    # Cùng thứ tự khóa với cấp hạn mức. XLOCK chặn tham chiếu FK mới cho đến commit.
+    lock_owner(db, user.id)
+    cat = _owned_category(db, category_id, user.id, exclusive=True)
+    if db.scalar(select(case((_references(cat.id), True), else_=False))):
+        raise _used_category_error()
+    db.delete(cat)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise _used_category_error()
 
 
 @router.post("/{category_id}/restore", response_model=CategoryOut, summary="Khôi phục danh mục cá nhân đã ẩn")
@@ -160,11 +214,11 @@ def restore_category(
     cat = _owned_category(db, category_id, user.id)
     # Retry hoặc hai cửa sổ khôi phục cùng lúc không ghi đè metadata đã được lưu.
     if cat.is_active:
-        return cat
+        return _single_out(db, cat)
     if payload is not None:
         for key, value in payload.model_dump(exclude_unset=True).items():
             setattr(cat, key, value)
     cat.is_active = True
     _commit(db)
     db.refresh(cat)
-    return cat
+    return _single_out(db, cat)

@@ -6,11 +6,11 @@ import DateInput from "@/dung-chung/UI-chung/DateInput";
 import { type Budget, type Category } from "@/dung-chung/nghiep-vu/finance";
 import BudgetEditForm from "./BudgetEditForm";
 
-export type BudgetForm = { name: string; category_id: string; amount_limit: string; currency: string; period_type: string; start_date: string; end_date: string; warning_percent: string; effective_from: "NEXT" | "CURRENT" };
+export type BudgetForm = { name: string; category_id: string; amount_limit: string; currency: string; period_type: string; start_date: string; end_date: string; warning_percent: string; effective_from: "NEXT" | "CURRENT"; auto_renew: boolean };
 
 /** Biểu mẫu tạo/chỉnh sửa hạn mức; danh mục bị khóa sau khi ngân sách được tạo. */
 export default function BudgetModal({ editing, categories, form, setForm, error, busy, onSubmit, onClose, onClearError }: { editing: Budget | null; categories: Category[]; form: BudgetForm; setForm: Dispatch<SetStateAction<BudgetForm>>; error: string; busy: boolean; onSubmit: (event: FormEvent) => void; onClose: () => void; onClearError: () => void }) {
-  const update = (key: keyof BudgetForm, value: string) => setForm((current) => ({ ...current, [key]: value }));
+  const update = <K extends keyof BudgetForm>(key: K, value: BudgetForm[K]) => setForm((current) => ({ ...current, [key]: value }));
   if (editing) return <BudgetEditForm {...{ editing, categories, form, setForm, error, busy, onSubmit, onClose, onClearError }} />;
   return (
     <Modal

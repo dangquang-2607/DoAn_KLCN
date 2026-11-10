@@ -74,108 +74,101 @@ export default function AuditLogs() {
         }
       />
 
-      <div className="adm-audit-header">
-        <div>
+      <section
+        className={`adm-card ${density.auditToolbar}`}
+        aria-labelledby="audit-activity-title"
+      >
+        <header className="adm-audit-header">
           <p className="adm-eyebrow">NHẬT KÝ HỆ THỐNG</p>
-          <h2>Dòng hoạt động</h2>
+          <h2 id="audit-activity-title">Dòng hoạt động</h2>
           <span>{list.length} / {query.data?.total ?? "—"} bản ghi khớp bộ lọc</span>
-        </div>
-      </div>
-
-      {/* Thanh bộ lọc gọn gàng, liền mạch trên cùng 1 hàng */}
-      <div className="adm-audit-filter-bar">
-        {/* Ô tìm kiếm */}
-        <div className="adm-audit-filter-item adm-audit-search-item">
-          <Search size={15} className="adm-audit-icon" aria-hidden="true" />
-          <input
-            maxLength={150}
-            value={search}
-            onChange={(e) => filter(setSearch, e.target.value)}
-            placeholder="Hành động, người dùng, mã truy vết…"
-            aria-label="Tìm kiếm nhật ký"
-          />
-          {search && (
-            <button
-              type="button"
-              className="adm-audit-clear-btn"
-              onClick={() => filter(setSearch, "")}
-              title="Xóa tìm kiếm"
-              aria-label="Xóa tìm kiếm"
-            >
-              <X size={13} />
-            </button>
+          {hasFilter && (
+            <div className={density.auditReset}>
+              <button type="button" className="adm-audit-reset-btn" onClick={resetFilters}>
+                <RotateCcw size={14} aria-hidden="true" />
+                Bỏ lọc
+              </button>
+            </div>
           )}
-        </div>
+        </header>
+        <div className="adm-audit-filter-bar">
+          {/* Ô tìm kiếm */}
+          <div className="adm-audit-filter-item adm-audit-search-item">
+            <Search size={15} className="adm-audit-icon" aria-hidden="true" />
+            <input
+              maxLength={150}
+              value={search}
+              onChange={(e) => filter(setSearch, e.target.value)}
+              placeholder="Tìm trong nhật ký…"
+              aria-label="Tìm kiếm nhật ký"
+            />
+            {search && (
+              <button
+                type="button"
+                className="adm-audit-clear-btn"
+                onClick={() => filter(setSearch, "")}
+                title="Xóa tìm kiếm"
+                aria-label="Xóa tìm kiếm"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
 
-        {/* Lọc theo Nhóm hoạt động */}
-        <div className="adm-audit-filter-item adm-audit-select-item">
-          <Filter size={15} className="adm-audit-icon" aria-hidden="true" />
-          <select
-            value={group}
-            onChange={(e) => filter(setGroup, e.target.value)}
-            aria-label="Lọc nhóm hoạt động"
-          >
-            <option value="">Mọi hoạt động</option>
-            <option value="auth">Đăng nhập & phiên</option>
-            <option value="users">Người dùng</option>
-            <option value="categories">Danh mục</option>
-            <option value="ocr">Hóa đơn / OCR</option>
-            <option value="email">Email & cấu hình</option>
-          </select>
-          <ChevronDown size={14} className="adm-audit-chevron" aria-hidden="true" />
-        </div>
+          {/* Lọc theo Nhóm hoạt động */}
+          <div className="adm-audit-filter-item adm-audit-select-item">
+            <Filter size={15} className="adm-audit-icon" aria-hidden="true" />
+            <select
+              value={group}
+              onChange={(e) => filter(setGroup, e.target.value)}
+              aria-label="Lọc nhóm hoạt động"
+            >
+              <option value="">Mọi hoạt động</option>
+              <option value="auth">Đăng nhập & phiên</option>
+              <option value="users">Người dùng</option>
+              <option value="categories">Danh mục</option>
+              <option value="ocr">Hóa đơn / OCR</option>
+              <option value="email">Email & cấu hình</option>
+            </select>
+            <ChevronDown size={14} className="adm-audit-chevron" aria-hidden="true" />
+          </div>
 
-        {/* Lọc theo Kết quả HTTP */}
-        <div className="adm-audit-filter-item adm-audit-select-item">
-          <Globe size={15} className="adm-audit-icon" aria-hidden="true" />
-          <select
-            value={result}
-            onChange={(e) => filter(setResult, e.target.value)}
-            aria-label="Lọc kết quả HTTP"
-          >
-            <option value="">Mọi kết quả HTTP</option>
-            <option value="success">HTTP 2xx / 3xx</option>
-            <option value="error">HTTP lỗi ≥ 400</option>
-            <option value="unknown">Chưa ghi mã HTTP</option>
-          </select>
-          <ChevronDown size={14} className="adm-audit-chevron" aria-hidden="true" />
-        </div>
+          {/* Lọc theo Kết quả HTTP */}
+          <div className="adm-audit-filter-item adm-audit-select-item">
+            <Globe size={15} className="adm-audit-icon" aria-hidden="true" />
+            <select
+              value={result}
+              onChange={(e) => filter(setResult, e.target.value)}
+              aria-label="Lọc kết quả HTTP"
+            >
+              <option value="">Mọi kết quả HTTP</option>
+              <option value="success">HTTP 2xx / 3xx</option>
+              <option value="error">HTTP lỗi ≥ 400</option>
+              <option value="unknown">Chưa ghi mã HTTP</option>
+            </select>
+            <ChevronDown size={14} className="adm-audit-chevron" aria-hidden="true" />
+          </div>
 
-        {/* Từ ngày */}
-        <div className="adm-audit-filter-item adm-audit-date-item">
-          <span className="adm-audit-inline-label">Từ</span>
-          <DateInput
-            value={start}
-            max={end || undefined}
-            onChange={(val) => filter(setStart, val)}
-            aria-label="Từ ngày"
-          />
+          <div className="adm-audit-filter-item adm-audit-date-item">
+            <span className="adm-audit-inline-label">Từ</span>
+            <DateInput
+              value={start}
+              max={end || undefined}
+              onChange={(val) => filter(setStart, val)}
+              aria-label="Từ ngày"
+            />
+          </div>
+          <div className="adm-audit-filter-item adm-audit-date-item">
+            <span className="adm-audit-inline-label">Đến</span>
+            <DateInput
+              value={end}
+              min={start || undefined}
+              onChange={(val) => filter(setEnd, val)}
+              aria-label="Đến ngày"
+            />
+          </div>
         </div>
-
-        {/* Đến ngày */}
-        <div className="adm-audit-filter-item adm-audit-date-item">
-          <span className="adm-audit-inline-label">Đến</span>
-          <DateInput
-            value={end}
-            min={start || undefined}
-            onChange={(val) => filter(setEnd, val)}
-            aria-label="Đến ngày"
-          />
-        </div>
-
-        {/* Nút Bỏ lọc */}
-        {hasFilter && (
-          <button
-            type="button"
-            className="adm-audit-reset-btn"
-            onClick={resetFilters}
-            title="Xóa toàn bộ bộ lọc"
-          >
-            <RotateCcw size={14} />
-            <span>Bỏ lọc</span>
-          </button>
-        )}
-      </div>
+      </section>
 
       <div className="adm-audit-layout">
         <AuditLogTable

@@ -26,11 +26,20 @@ async function mutation<T>(path: string, body: unknown, signature: string, user:
     throw error;
   }
 }
-export async function uploadInvoice(file: File, ticket?: string) {
-  const user = sessionOwner();
-  const digest = await sha256Hex(await file.arrayBuffer());
+export async function uploadInvoice(file: File, ticket?: string, queued?: {
+  owner: string; requestKey: string; signal: AbortSignal;
+}) {
+  const user = queued?.owner ?? sessionOwner();
   const data = new FormData(); data.append("file", file); data.append("source", "UPLOAD");
   if (ticket) { data.append("upload_ticket", ticket); data.append("accept_distinct", "true"); }
+  if (queued) {
+    if (sessionOwner() !== user) throw new Error("Phiên đăng nhập đã thay đổi.");
+    return (await api.post<UploadResult>("/invoices", data, {
+      _moneyOwner: user, signal: queued.signal, timeout: 120000,
+      headers: { "Idempotency-Key": queued.requestKey },
+    })).data;
+  }
+  const digest = await sha256Hex(await file.arrayBuffer());
   return mutation<UploadResult>("/invoices", data, digest + ":UPLOAD", user);
 }
 export function invoiceMutation<T>(id: string, action: string, payload: Record<string, unknown>) {

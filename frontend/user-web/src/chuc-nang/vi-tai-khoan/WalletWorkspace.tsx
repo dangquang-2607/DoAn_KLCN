@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 import Link from "next/link";
@@ -38,18 +38,27 @@ import WalletCards from "./thanh-phan/WalletCards";
 import dialogStyles from "./CSS/WalletDialog.module.css";
 import BillReceipt from "./thanh-toan/BillReceipt";
 import { normalizeDemoAccountNumber } from "@/dung-chung/tien-ich/formValidation";
-import { billPaymentStatus, resolveBillQR, type BillInfo, type PaidBill } from "./xu-ly/billQr";
-import BillQrScanner from "./thanh-toan/BillQrScanner";
+import {
+  billPaymentStatus,
+  resolveBillQR,
+  type BillInfo,
+  type PaidBill,
+} from "./xu-ly/billQr";
+import WalletQrScanner from "./thanh-phan/WalletQrScanner";
 import qrStyles from "./CSS/BillPayment.module.css";
 import WalletHistoryDialog from "./WalletHistoryDialog";
+import BankLinksDialog, { type BankLink } from "./thanh-phan/BankLinksDialog";
 
 type PaymentReceipt = {
   bill: BillInfo;
   displayedAt: string;
 };
 
-const pendingBillKey = (bill: BillInfo) => `cf-pending-money:bill:${sessionOwner()}:${bill.bill_reference}`;
-const unresolvedPayment = "Chưa xác định được kết quả thanh toán. Hãy kiểm tra lại khi có kết nối.";
+const pendingBillKey = (bill: BillInfo) =>
+  `cf-pending-money:bill:${sessionOwner()}:${bill.bill_reference}`;
+const unresolvedPayment =
+  "Chưa xác định được kết quả thanh toán. Hãy kiểm tra lại khi có kết nối.";
+const transferQrPrefix = "capitalflow://transfer?";
 
 export type Wallet = {
   id: string;
@@ -69,13 +78,8 @@ type ReceiveInfo = {
   qr_payload: string;
   qr_image_data_url: string;
 };
-type Bank = {
-  id: string;
-  provider: string;
-  account_number_masked: string;
-  status: string;
-};
 type Provider = { name: string; demo_number: string; label: string };
+type BankMoneyTab = "topup" | "withdraw";
 type Recipient = {
   id: string;
   name: string;
@@ -107,6 +111,8 @@ export default function WalletWorkspace() {
   });
   const [selected, setSelected] = useState<Wallet | null>(null);
   const [mode, setMode] = useState("");
+  const bankReturnTab = useRef<BankMoneyTab>("topup");
+  const linkReturnMode = useRef<BankMoneyTab | "banks">("topup");
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [linkId, setLinkId] = useState("");
@@ -117,6 +123,9 @@ export default function WalletWorkspace() {
   const [resendAvailableAt, setResendAvailableAt] = useState(0);
   const [resendSeconds, setResendSeconds] = useState(0);
   const [target, setTarget] = useState("");
+  const [transferScannerOpen, setTransferScannerOpen] = useState(false);
+  const recipientInputId = useId();
+  const transferScannerButton = useRef<HTMLButtonElement>(null);
   const [recipient, setRecipient] = useState<Recipient | null>(null);
   const [resolvedTarget, setResolvedTarget] = useState("");
   const [resolving, setResolving] = useState(false);
@@ -139,9 +148,9 @@ export default function WalletWorkspace() {
   const [billDisplayedAt, setBillDisplayedAt] = useState("");
   const [paymentPending, setPaymentPending] = useState(false);
   const [receipt, setReceipt] = useState<PaymentReceipt | null>(null);
-  const banks = useQuery<Bank[]>({
+  const banks = useQuery<BankLink[]>({
     queryKey: ["wallet-banks"],
-    enabled: ["topup", "withdraw", "link"].includes(mode),
+    enabled: ["topup", "withdraw", "link", "banks"].includes(mode),
     queryFn: async () => (await api.get("/wallets/banks")).data,
   });
   // Each user has one assigned demo account per provider.
@@ -189,7 +198,7 @@ export default function WalletWorkspace() {
     );
   useEffect(() => {
     const value = target.trim();
-    if (mode !== "transfer" || transferReview || !value) return;
+    if (mode !== "transfer" || transferReview || transferScannerOpen || !value) return;
     const controller = new AbortController();
     let cancelled = false;
     const timer = setTimeout(async () => {
@@ -219,7 +228,7 @@ export default function WalletWorkspace() {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [mode, target, selected?.id, transferReview]);
+  }, [mode, target, selected?.id, transferReview, transferScannerOpen]);
   const changeTarget = (value: string) => {
     setTarget(value);
     setRecipient(null);
@@ -228,6 +237,14 @@ export default function WalletWorkspace() {
     setResolving(false);
     setTransferReview(null);
     setError("");
+  };
+  const readTransferQr = (value: string) => {
+    if (!value.startsWith(transferQrPrefix)) {
+      throw new Error("Hãy dùng mã QR nhận tiền CapitalFlow.");
+    }
+    changeTarget(value);
+    setTransferScannerOpen(false);
+    transferScannerButton.current?.focus({ preventScroll: true });
   };
   const open = (next: string, wallet: Wallet | null = null) => {
     setSelected(wallet);
@@ -239,6 +256,7 @@ export default function WalletWorkspace() {
     setOtp("");
     setNumber("");
     setTarget("");
+    setTransferScannerOpen(false);
     setRecipient(null);
     setError("");
     setResolvedTarget("");
@@ -251,10 +269,29 @@ export default function WalletWorkspace() {
     setPaymentPending(false);
     setCopied(false);
   };
-  const showPaidBill = (bill: BillInfo, result: PaidBill, storageKey: string) => {
+  const bankMoneyTab = mode === "withdraw" ? "withdraw" : "topup";
+  const openBankLink = (returnTo: BankMoneyTab | "banks") => {
+    linkReturnMode.current = returnTo;
+    setChallenge("");
+    setOtp("");
+    setNumber("");
+    setError("");
+    setMode("link");
+  };
+  const closeWalletDialog = () => {
+    setMode(mode === "link" ? linkReturnMode.current : "");
+  };
+  const showPaidBill = (
+    bill: BillInfo,
+    result: PaidBill,
+    storageKey: string,
+  ) => {
     sessionStorage.removeItem(storageKey);
     setMode("");
-    setReceipt({ bill: { ...bill, amount: result.paid_amount }, displayedAt: result.paid_at });
+    setReceipt({
+      bill: { ...bill, amount: result.paid_amount },
+      displayedAt: result.paid_at,
+    });
     void refresh().catch(() => {});
   };
   const readBill = async (value: string, signal: AbortSignal) => {
@@ -304,7 +341,8 @@ export default function WalletWorkspace() {
     try {
       const root = `/wallets/${selected?.id}`;
       if (mode === "pay") {
-        if (!qrBill) throw new Error("Vui lòng quét QR hóa đơn trước khi thanh toán.");
+        if (!qrBill)
+          throw new Error("Vui lòng quét QR hóa đơn trước khi thanh toán.");
         const storageKey = pendingBillKey(qrBill);
         if (paymentPending || sessionStorage.getItem(storageKey)) {
           await checkPayment(qrBill, storageKey);
@@ -326,30 +364,49 @@ export default function WalletWorkspace() {
       if (mode === "create") await api.post("/wallets", { name: name.trim() });
       if (mode === "rename") await api.patch(root, { name: name.trim() });
       if (mode === "archive") await api.delete(root);
-      if (mode === "topup" || mode === "withdraw")
+      if (mode === "topup" || mode === "withdraw") {
+        if (
+          !banks.data?.some(
+            (bank) => bank.id === linkId && bank.status === "CONNECTED",
+          )
+        ) {
+          throw new Error("Vui lòng chọn ngân hàng còn liên kết.");
+        }
         await api.post(`${root}/${mode}`, { link_id: linkId, amount });
+      }
       if (mode === "pay" && qrBill) {
         const storageKey = pendingBillKey(qrBill);
         sessionStorage.setItem(storageKey, "pending");
         try {
-          const { data } = await api.post<PaidBill>(`${root}/payments/create`,
-            { qr_payload: qrBill.qr_payload }, { timeout: 15000 });
+          const { data } = await api.post<PaidBill>(
+            `${root}/payments/create`,
+            { qr_payload: qrBill.qr_payload },
+            { timeout: 15000 },
+          );
           showPaidBill(qrBill, data, storageKey);
         } catch (failure) {
-          if (isAxiosError(failure) && failure.code !== "ERR_CANCELED" &&
-              (!failure.response || failure.response.status >= 500 || failure.response.status === 408)) {
+          if (
+            isAxiosError(failure) &&
+            failure.code !== "ERR_CANCELED" &&
+            (!failure.response ||
+              failure.response.status >= 500 ||
+              failure.response.status === 408)
+          ) {
             await checkPayment(qrBill, storageKey);
             return;
           }
-          if (isAxiosError(failure) && failure.response) sessionStorage.removeItem(storageKey);
+          if (isAxiosError(failure) && failure.response)
+            sessionStorage.removeItem(storageKey);
           throw failure;
         }
         return;
       }
       if (mode === "transfer") {
         if (!transferReview) {
+          if (transferScannerOpen)
+            throw new Error("Hãy đọc mã QR hoặc đóng trình quét trước khi tiếp tục.");
           if (!recipient || resolving || resolvedTarget !== target.trim())
-            throw new Error("Vui lòng nhập đúng email hoặc mã ví người nhận.");
+            throw new Error("Vui lòng xác minh người nhận bằng email, mã ví hoặc QR nhận tiền.");
           if (!transferNote.trim() && !profile.data)
             throw new Error("Chưa tải được tên người gửi. Vui lòng thử lại.");
           const source = wallets.data!.find((w) => w.id === selected?.id)!;
@@ -422,7 +479,7 @@ export default function WalletWorkspace() {
         });
       }
       await refresh();
-      setMode("");
+      closeWalletDialog();
       setNotice("Đã hoàn tất thao tác.");
     } catch (e) {
       if (mode === "link" && isAxiosError(e) && e.response?.status === 429) {
@@ -488,7 +545,7 @@ export default function WalletWorkspace() {
   return (
     <div className={`cf-stack ${styles.workspace}`}>
       <PageHead
-        eyebrow="VÍ CỦA BẠN"
+        eyebrow="VÍ CỦA TÔI"
         title="Ví cá nhân"
         description="Nạp, rút, chuyển tiền và thanh toán hóa đơn. Theo dõi số dư, quản lý ví cá nhân."
       />
@@ -685,7 +742,7 @@ export default function WalletWorkspace() {
       </div>
       {["topup", "withdraw"].includes(mode) && (
         <TopupWithdrawModal
-          activeTab={mode as "topup" | "withdraw"}
+          activeTab={bankMoneyTab}
           onTabChange={(tab) => {
             setMode(tab);
             setError("");
@@ -699,7 +756,12 @@ export default function WalletWorkspace() {
           onRetryBanks={() => banks.refetch()}
           selectedBankId={linkId}
           onSelectBankId={(id) => setLinkId(id)}
-          onOpenLinkBank={() => open("link", selected)}
+          onOpenBankManagement={() => {
+            bankReturnTab.current = bankMoneyTab;
+            setError("");
+            setMode("banks");
+          }}
+          onOpenLinkBank={() => openBankLink(bankMoneyTab)}
           amount={amount}
           onAmountChange={(val) => setAmount(val)}
           busy={busy}
@@ -716,13 +778,26 @@ export default function WalletWorkspace() {
           onClose={() => setHistoryWallet(null)}
         />
       )}
+      {mode === "banks" && (
+        <BankLinksDialog
+          banks={banks.data}
+          loading={banks.isPending}
+          failed={banks.isError}
+          onRetry={() => void banks.refetch()}
+          onLink={() => openBankLink("banks")}
+          onClose={() => setMode(bankReturnTab.current)}
+          onChanged={() =>
+            cache.invalidateQueries({ queryKey: ["wallet-banks"] })
+          }
+        />
+      )}
       {mode === "scan" && (
         <Modal
           title="Quét QR hóa đơn"
           className={dialogStyles.compact}
           onClose={() => setMode("")}
         >
-          <BillQrScanner onRead={readBill} />
+          <WalletQrScanner kind="bill" onRead={readBill} />
         </Modal>
       )}
       {mode === "demo_checkout" && (
@@ -760,7 +835,9 @@ export default function WalletWorkspace() {
         </Modal>
       )}
       {mode &&
-        !["topup", "withdraw", "scan", "demo_checkout"].includes(mode) && (
+        !["topup", "withdraw", "scan", "demo_checkout", "banks"].includes(
+          mode,
+        ) && (
           <Modal
             className={`${dialogStyles.dialog} ${mode === "pay" ? qrStyles.paymentDialog : ""} ${["create", "rename", "archive", "receive"].includes(mode) ? dialogStyles.compact : ""}`}
             title={
@@ -768,7 +845,7 @@ export default function WalletWorkspace() {
                 ? "Kiểm tra thông tin chuyển tiền"
                 : titles[mode]
             }
-            onClose={() => setMode("")}
+            onClose={closeWalletDialog}
             busy={busy}
           >
             <form
@@ -777,7 +854,9 @@ export default function WalletWorkspace() {
               aria-busy={busy}
             >
               <div className={dialogStyles.fields}>
-                {mode === "pay" && paymentPending && busy && <p role="status">Đang kiểm tra kết quả thanh toán…</p>}
+                {mode === "pay" && paymentPending && busy && (
+                  <p role="status">Đang kiểm tra kết quả thanh toán…</p>
+                )}
                 {error && (
                   <Alert persistent onDismiss={() => setError("")}>
                     {error}
@@ -895,28 +974,47 @@ export default function WalletWorkspace() {
                   </p>
                 )}
                 {mode === "pay" && qrBill && (
-                  <BillReceipt
-                    bill={qrBill}
-                    displayedAt={billDisplayedAt}
-                  />
+                  <BillReceipt bill={qrBill} displayedAt={billDisplayedAt} />
                 )}
                 {mode === "transfer" && !transferReview && (
                   <>
-                    <Field label="Chuyển tiền đến ví">
-                      <input
-                        aria-label="Chuyển tiền đến ví"
-                        className="cf-input"
-                        placeholder="Nhập email hoặc mã người nhận"
-                        required
-                        maxLength={512}
-                        disabled={busy}
-                        value={target}
-                        onChange={(e) => changeTarget(e.target.value)}
-                      />
-                    </Field>
+                    <div className="cf-field">
+                      <label htmlFor={recipientInputId}>Chuyển tiền đến ví</label>
+                      <div className={dialogStyles.recipientInput}>
+                        <input
+                          id={recipientInputId}
+                          className="cf-input"
+                          placeholder="Nhập email hoặc mã người nhận"
+                          required
+                          maxLength={512}
+                          disabled={busy || transferScannerOpen}
+                          value={target.trim().startsWith(transferQrPrefix)
+                            ? recipient?.receive_code ?? ""
+                            : target}
+                          onChange={(e) => changeTarget(e.target.value)}
+                        />
+                        <button
+                          ref={transferScannerButton}
+                          type="button"
+                          className={`cf-icon-btn ${dialogStyles.scanButton}`}
+                          aria-label={transferScannerOpen ? "Đóng camera quét QR" : "Quét QR nhận tiền"}
+                          title={transferScannerOpen ? "Đóng camera quét QR" : "Quét QR nhận tiền"}
+                          aria-expanded={transferScannerOpen}
+                          aria-controls="wallet-transfer-qr"
+                          disabled={busy}
+                          onClick={() => setTransferScannerOpen(!transferScannerOpen)}
+                        >
+                          <ScanLine size={20} aria-hidden="true" />
+                        </button>
+                      </div>
+                    </div>
+                    <div id="wallet-transfer-qr" hidden={!transferScannerOpen}>
+                      {transferScannerOpen && <WalletQrScanner kind="transfer" onRead={readTransferQr} />}
+                    </div>
                     <div
                       className={dialogStyles.recipientStatus}
                       aria-live="polite"
+                      hidden={transferScannerOpen}
                     >
                       {resolving && <small>Đang tìm người nhận…</small>}
                       {!resolving &&
@@ -1105,7 +1203,7 @@ export default function WalletWorkspace() {
                         if (mode === "transfer" && transferReview) {
                           setTransferReview(null);
                           setError("");
-                        } else setMode("");
+                        } else closeWalletDialog();
                       }}
                     >
                       {mode === "transfer" && transferReview
@@ -1116,7 +1214,9 @@ export default function WalletWorkspace() {
                       className="cf-btn cf-btn-primary"
                       disabled={
                         busy ||
-                        (mode === "pay" && (!qrBill || (!paymentPending && !current?.is_active))) ||
+                        (mode === "pay" &&
+                          (!qrBill ||
+                            (!paymentPending && !current?.is_active))) ||
                         (mode === "link" &&
                           (!providers.data ||
                             banks.isPending ||
@@ -1125,15 +1225,20 @@ export default function WalletWorkspace() {
                             (!challenge && resendSeconds > 0))) ||
                         (mode === "transfer" &&
                           !transferReview &&
-                          (resolving ||
+                          (transferScannerOpen ||
+                            resolving ||
                             !recipient ||
                             resolvedTarget !== target.trim()))
                       }
                     >
                       {busy
-                        ? mode === "pay" && paymentPending ? "Đang kiểm tra…" : "Đang xử lý…"
+                        ? mode === "pay" && paymentPending
+                          ? "Đang kiểm tra…"
+                          : "Đang xử lý…"
                         : mode === "pay"
-                          ? paymentPending ? "Kiểm tra lại kết quả" : "Xác nhận thanh toán"
+                          ? paymentPending
+                            ? "Kiểm tra lại kết quả"
+                            : "Xác nhận thanh toán"
                           : mode === "link" && !challenge
                             ? resendSeconds > 0
                               ? `Gửi OTP sau ${resendSeconds}s`

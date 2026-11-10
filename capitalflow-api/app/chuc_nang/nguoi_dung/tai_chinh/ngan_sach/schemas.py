@@ -49,6 +49,7 @@ class BudgetUpdate(BaseModel):
     end_date: date | None = None
     warning_percent: Decimal | None = Field(default=None, gt=Decimal("0"), le=Decimal("100"), max_digits=5, decimal_places=2)
     effective_from: Literal["CURRENT", "NEXT"] = "NEXT"
+    auto_renew: bool | None = Field(default=None, strict=True, description="Tự chuyển kỳ; tắt để kết thúc sau kỳ đang xem")
 
     @field_validator("name")
     @classmethod

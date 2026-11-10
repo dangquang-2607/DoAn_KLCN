@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
 
+    fcm_credentials_file: str = ""
+
     frontend_url: str = "https://app.capitalflow.online"
     admin_url: str = "https://admin.capitalflow.online"
 

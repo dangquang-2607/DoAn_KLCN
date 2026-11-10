@@ -9,7 +9,7 @@ import { Plus, Search } from "lucide-react";
 import api from "@/dung-chung/connect-api/api";
 import { Alert, ErrorState, Loading, PageHead } from "@/dung-chung/UI-chung/ui";
 import { type Category } from "@/dung-chung/nghiep-vu/finance";
-import { useCategories, archivedCategoryFromError, categoryErrorMessage, type ArchivedCategory } from "@/dung-chung/nghiep-vu/danh-muc/categories";
+import { useCategories, useCategoryQuota, archivedCategoryFromError, categoryErrorMessage, type ArchivedCategory } from "@/dung-chung/nghiep-vu/danh-muc/categories";
 import CategoryRestoreModal from "@/dung-chung/nghiep-vu/danh-muc/CategoryRestoreModal";
 import CategoryDeleteModal from "./thanh-phan/CategoryDeleteModal";
 import CategoryModal, { type CategoryForm } from "./thanh-phan/CategoryModal";
@@ -21,12 +21,14 @@ export default function Categories() {
   const cache = useQueryClient();
   const query = useCategories();
   const archived = useCategories("archived");
+  const quota = useCategoryQuota();
   const [type, setType] = useState("EXPENSE");
   const [status, setStatus] = useState("active");
   const [search, setSearch] = useState("");
   const [show, setShow] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [deleting, setDeleting] = useState<Category | null>(null);
+  const [permanent, setPermanent] = useState(false);
   const [restoring, setRestoring] = useState<{ category: ArchivedCategory; draft: CategoryForm | null } | null>(null);
   const [form, setForm] = useState<CategoryForm>(() => emptyForm());
   const [error, setError] = useState("");
@@ -50,7 +52,7 @@ export default function Categories() {
     setError("");
     setShow(true);
   };
-  const refresh = () => Promise.all(["categories", "transactions", "budgets", "analytics", "dashboard", "invoice"].map(key => cache.invalidateQueries({ queryKey: [key] })));
+  const refresh = () => Promise.all(["categories", "category-limits", "subscription", "transactions", "budgets", "analytics", "dashboard", "invoice"].map(key => cache.invalidateQueries({ queryKey: [key] })));
   // Chuẩn hóa tên/từ khóa trước khi tạo hoặc cập nhật danh mục cá nhân.
   const save = async (event: FormEvent) => {
     event.preventDefault(); setBusy(true); setError("");
@@ -64,6 +66,7 @@ export default function Categories() {
       setType(form.type);
       setNotice(editing ? "Đã cập nhật danh mục." : "Đã tạo danh mục cá nhân.");
     } catch (caught) {
+      void quota.refetch();
       const category = !editing ? archivedCategoryFromError(caught) : null;
       if (category) setRestoring({ category, draft: { ...form } });
       else setError(categoryErrorMessage(caught));
@@ -74,8 +77,14 @@ export default function Categories() {
   // Ẩn danh mục khỏi lựa chọn mới; không xóa liên kết lịch sử ở giao dịch/ngân sách.
   const remove = async () => {
     if (!deleting) return; setBusy(true); setError("");
-    try { await api.delete("/categories/" + deleting.id); await refresh(); setDeleting(null); setNotice("Đã ẩn danh mục. Bạn có thể sử dụng lại tại mục Đã ẩn."); }
-    catch (caught) { setError(categoryErrorMessage(caught)); } finally { setBusy(false); }
+    try {
+      await api.delete(`/categories/${deleting.id}${permanent ? "/permanent" : ""}`);
+      await refresh(); setDeleting(null);
+      setNotice(permanent ? "Đã xóa vĩnh viễn danh mục." : "Đã ẩn danh mục. Bạn có thể sử dụng lại tại mục Đã ẩn.");
+    } catch (caught) {
+      setError(categoryErrorMessage(caught));
+      void refresh();
+    } finally { setBusy(false); }
   };
   const restore = async () => {
     if (!restoring) return;
@@ -105,6 +114,8 @@ export default function Categories() {
         }
       />
       <div className={density.content}>
+        {quota.data?.can_create === false && <p className={styles.quotaWarning} role="status">Đã đạt hạn mức tạo thêm. Bạn vẫn dùng được danh mục cũ. Xóa vĩnh viễn danh mục chưa sử dụng để có thêm chỗ.</p>}
+        {quota.isError && <Alert persistent>Không tải được hạn mức danh mục. <button type="button" className="cf-btn cf-btn-sm" onClick={() => quota.refetch()}>Thử lại</button></Alert>}
         {notice && (
           <Alert kind="success" onDismiss={() => setNotice("")}>
             {notice}
@@ -170,6 +181,12 @@ export default function Categories() {
             archived={status === "archived"}
             onEdit={open}
             onDelete={(category) => {
+              setPermanent(false);
+              setDeleting(category);
+              setError("");
+            }}
+            onPermanentDelete={(category) => {
+              setPermanent(true);
               setDeleting(category);
               setError("");
             }}
@@ -195,6 +212,7 @@ export default function Categories() {
       {deleting && (
         <CategoryDeleteModal
           category={deleting}
+          permanent={permanent}
           error={error}
           busy={busy}
           onConfirm={remove}

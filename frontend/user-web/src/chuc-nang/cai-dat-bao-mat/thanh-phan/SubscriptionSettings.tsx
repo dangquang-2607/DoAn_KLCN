@@ -17,6 +17,7 @@ const statusLabels: Record<string, string> = {
 const resources = [
   { key: "wallets", label: "Ví đang hoạt động" },
   { key: "budgets", label: "Ngân sách đang áp dụng" },
+  { key: "categories", label: "Danh mục cá nhân" },
   { key: "ai", label: "Lượt AI trong tháng" },
 ] as const;
 const tabs = [
@@ -163,6 +164,7 @@ export default function SubscriptionSettings({ asPage = false }: { asPage?: bool
             </dl>
             <p className={styles.note}>AI tính khi quét thành công, dùng chung trên mọi thiết bị và đặt lại đầu tháng theo giờ Việt Nam. Quét lại chủ động tính lượt mới.{current.usage.ai_pending > 0 ? ` ${current.usage.ai_pending} lượt đang xử lý.` : ""}</p>
             <p className={styles.note}>Ví và ngân sách cũ vẫn được giữ. Hạn mức tạo thêm tính theo số đang hoạt động.</p>
+            <p className={styles.note}>Danh mục cá nhân tính cả thu, chi và đã ẩn. Xóa vĩnh viễn danh mục chưa sử dụng sẽ trả lại một chỗ; ẩn không làm giảm số lượng.</p>
           </div>}
           {tab === "history" && <div className={styles.historyPanel}>
             {history.isPending ? <Loading /> : history.isError ? <ErrorState retry={() => history.refetch()} /> : !history.data.items.length ? <div className={styles.emptyHistory}><CreditCard size={24} aria-hidden="true" /><h3>Chưa có thanh toán</h3><p className={styles.note}>Các đơn nâng cấp và gia hạn Premium sẽ xuất hiện tại đây.</p></div> : <>

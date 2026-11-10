@@ -6,12 +6,13 @@ from fastapi import HTTPException
 from sqlalchemy import exists, func, select, update
 
 from app.chuc_nang.nguoi_dung.dang_nhap.luu_tru.nguoi_dung import User
+from app.chuc_nang.nguoi_dung.danh_muc.luu_tru.danh_muc import Category
 from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.tac_vu_ocr import OcrJob
 from app.chuc_nang.nguoi_dung.tai_chinh.ngan_sach.luu_tru.ngan_sach import Budget
 from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan.luu_tru.wallet import Wallet
 from .luu_tru import AiUsage, Subscription
 
-LIMITS = {"FREE": {"wallets": 2, "budgets": 3, "ai": 5}, "PREMIUM": {"wallets": 10, "budgets": 20, "ai": 100}}
+LIMITS = {"FREE": {"wallets": 2, "budgets": 3, "categories": 5, "ai": 5}, "PREMIUM": {"wallets": 10, "budgets": 20, "categories": 20, "ai": 100}}
 
 
 def utcnow():
@@ -38,6 +39,11 @@ def live_budget(budget, today):
     return bool(budget.is_active is not False and (end is None or end >= today))
 
 
+def category_count(db, user_id):
+    # Cả thu/chi và đã ẩn; danh mục hệ thống không thuộc tài khoản.
+    return db.scalar(select(func.count()).select_from(Category).where(Category.owner_user_id == user_id))
+
+
 def counts(db, user_id, exclude_budget_id=None, usage_month=None):
     today = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")).date()
     reserved = exists(select(OcrJob.id).where(OcrJob.id == AiUsage.job_id, OcrJob.status.in_(["QUEUED", "PROCESSING"])))
@@ -47,6 +53,7 @@ def counts(db, user_id, exclude_budget_id=None, usage_month=None):
     return {
         "wallets": db.scalar(select(func.count()).select_from(Wallet).where(Wallet.user_id == user_id, Wallet.is_active == True)),
         "budgets": sum(live_budget(b, today) for b in db.scalars(select(Budget).where(Budget.user_id == user_id)) if b.id != exclude_budget_id),
+        "categories": category_count(db, user_id),
         "ai": consumed, "ai_pending": pending,
     }
 
@@ -54,10 +61,10 @@ def counts(db, user_id, exclude_budget_id=None, usage_month=None):
 def require_capacity(db, user_id, resource, exclude_budget_id=None, usage_month=None):
     lock_owner(db, user_id)
     plan, _ = plan_for(db, user_id)
-    usage = counts(db, user_id, exclude_budget_id, usage_month)
+    usage = {"categories": category_count(db, user_id)} if resource == "categories" else counts(db, user_id, exclude_budget_id, usage_month)
     used = usage[resource] + (usage["ai_pending"] if resource == "ai" else 0)
     if used >= LIMITS[plan][resource]:
-        label = {"wallets": "ví đang hoạt động", "budgets": "ngân sách đang áp dụng", "ai": "lượt quét AI trong tháng"}[resource]
+        label = {"wallets": "ví đang hoạt động", "budgets": "ngân sách đang áp dụng", "categories": "danh mục cá nhân (tính cả đã ẩn)", "ai": "lượt quét AI trong tháng"}[resource]
         raise HTTPException(403, detail={"code": "PLAN_LIMIT_REACHED", "resource": resource,
             "message": f"Đã đạt hạn mức {LIMITS[plan][resource]} {label} của gói {plan}. Xem gói sử dụng tại Cài đặt & bảo mật.",
             "plan": plan, "limit": LIMITS[plan][resource]})

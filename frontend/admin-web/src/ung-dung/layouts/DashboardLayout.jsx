@@ -1,8 +1,32 @@
 import { useState, useEffect, useRef } from "react";
-import { Outlet, NavLink, Link, useNavigate, useLocation, Navigate } from "react-router-dom";
+import {
+  Outlet,
+  NavLink,
+  Link,
+  useNavigate,
+  useLocation,
+  Navigate,
+} from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { LayoutDashboard, Users, Tags, Settings, LogOut, ClipboardList, ChartNoAxesCombined, ScanLine, Mail, ShieldCheck, Menu, X, ChevronRight, ChevronLeft, Search, Command, LifeBuoy } from "lucide-react";
+import {
+  LayoutDashboard,
+  Users,
+  Tags,
+  Settings,
+  LogOut,
+  ClipboardList,
+  ChartNoAxesCombined,
+  ScanLine,
+  Mail,
+  Menu,
+  X,
+  ChevronRight,
+  ChevronLeft,
+  Search,
+  Command,
+  LifeBuoy,
+} from "lucide-react";
 import api, { clearSession } from "../../dung-chung/connect-api/api";
 import { Loading, ErrorState } from "../../dung-chung/UI-chung/ui";
 import { BrandMark } from "../../dung-chung/UI-chung/BrandMark";
@@ -14,12 +38,16 @@ const groups = [
   {
     label: "Tổng quan",
     items: [
-      { to: "/dashboard", label: "Bảng điều khiển", icon: LayoutDashboard, tone: "blue", shortcut: "Ctrl+1" },
+      {
+        to: "/dashboard",
+        label: "Bảng điều khiển",
+        icon: LayoutDashboard,
+        shortcut: "Ctrl+1",
+      },
       {
         to: "/system-analytics",
         label: "Phân tích vận hành",
         icon: ChartNoAxesCombined,
-        tone: "teal",
         shortcut: "Ctrl+2",
       },
     ],
@@ -27,18 +55,52 @@ const groups = [
   {
     label: "Quản lý",
     items: [
-      { to: "/users", label: "Người dùng", icon: Users, tone: "violet", shortcut: "Ctrl+3" },
-      { to: "/categories", label: "Danh mục hệ thống", icon: Tags, tone: "amber", shortcut: "Ctrl+4" },
-      { to: "/ocr-monitor", label: "Giám sát hóa đơn", icon: ScanLine, tone: "teal", shortcut: "Ctrl+5" },
+      {
+        to: "/users",
+        label: "Người dùng",
+        icon: Users,
+        shortcut: "Ctrl+3",
+      },
+      {
+        to: "/categories",
+        label: "Danh mục hệ thống",
+        icon: Tags,
+        shortcut: "Ctrl+4",
+      },
+      {
+        to: "/ocr-monitor",
+        label: "Giám sát hóa đơn",
+        icon: ScanLine,
+        shortcut: "Ctrl+5",
+      },
     ],
   },
   {
     label: "Vận hành & bảo mật",
     items: [
-      { to: "/audit-logs", label: "Nhật ký quản trị", icon: ClipboardList, tone: "coral", shortcut: "Ctrl+6" },
-      { to: "/email-logs", label: "Email & cấu hình", icon: Mail, tone: "blue", shortcut: "Ctrl+7" },
-      { to: "/settings", label: "Cài đặt & bảo mật", icon: Settings, tone: "violet", shortcut: "Ctrl+8" },
-      { to: "/support", label: "Hỗ trợ tài khoản", icon: LifeBuoy, tone: "teal" },
+      {
+        to: "/audit-logs",
+        label: "Nhật ký quản trị",
+        icon: ClipboardList,
+        shortcut: "Ctrl+6",
+      },
+      {
+        to: "/email-logs",
+        label: "Email & cấu hình",
+        icon: Mail,
+        shortcut: "Ctrl+7",
+      },
+      {
+        to: "/settings",
+        label: "Cài đặt & bảo mật",
+        icon: Settings,
+        shortcut: "Ctrl+8",
+      },
+      {
+        to: "/support",
+        label: "Hỗ trợ tài khoản",
+        icon: LifeBuoy,
+      },
     ],
   },
 ];
@@ -87,12 +149,18 @@ export default function DashboardLayout() {
         toggleCollapsed();
         setShowKeyToast(true);
         if (keyToastTimerRef.current) clearTimeout(keyToastTimerRef.current);
-        keyToastTimerRef.current = setTimeout(() => setShowKeyToast(false), 1500);
+        keyToastTimerRef.current = setTimeout(
+          () => setShowKeyToast(false),
+          1500,
+        );
       }
       if ((e.ctrlKey || e.metaKey) && e.key >= "1" && e.key <= "8") {
         const index = Number(e.key) - 1;
         const allItems = groups.flatMap((g) => g.items);
-        if (allItems[index] && (!supportOnly || allItems[index].to === "/settings")) {
+        if (
+          allItems[index] &&
+          (!supportOnly || allItems[index].to === "/settings")
+        ) {
           e.preventDefault();
           nav(allItems[index].to);
         }
@@ -146,12 +214,16 @@ export default function DashboardLayout() {
   if (supportOnly && !["/support", "/settings"].includes(location.pathname)) {
     return <Navigate to="/support" replace />;
   }
-  if (!supportAccess && location.pathname === "/support") return <Navigate to="/dashboard" replace />;
-  const visibleGroups = groups.map((group) => ({
-    ...group,
-    items: group.items.filter(({ to }) => to === "/support" ? supportAccess :
-      !supportOnly || to === "/settings"),
-  })).filter((group) => group.items.length);
+  if (!supportAccess && location.pathname === "/support")
+    return <Navigate to="/dashboard" replace />;
+  const visibleGroups = groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(({ to }) =>
+        to === "/support" ? supportAccess : !supportOnly || to === "/settings",
+      ),
+    }))
+    .filter((group) => group.items.length);
   const title =
     groups.flatMap((g) => g.items).find((i) => i.to === location.pathname)
       ?.label || "Quản trị";
@@ -174,7 +246,8 @@ export default function DashboardLayout() {
           >
             <Command size={14} />
             <span>
-              Phím tắt <strong>Ctrl + B</strong> kích hoạt ({collapsed ? "Thu gọn 72px" : "Mở rộng 244px"})
+              Phím tắt <strong>Ctrl + B</strong> kích hoạt (
+              {collapsed ? "Thu gọn 72px" : "Mở rộng 244px"})
             </span>
           </motion.div>
         )}
@@ -189,18 +262,28 @@ export default function DashboardLayout() {
       )}
 
       {/* Sidebar có thể thu gọn và giữ lựa chọn trong localStorage. */}
-      <aside className={`cf-sidebar ${open ? "open" : ""} ${collapsed ? "collapsed" : ""}`}>
+      <aside
+        className={`cf-sidebar ${open ? "open" : ""} ${collapsed ? "collapsed" : ""}`}
+      >
         {/* Nút điều khiển nằm trên đường biên sidebar. */}
         <button
           className="cf-rail-toggle-btn"
           onClick={toggleCollapsed}
-          title={collapsed ? "Mở rộng menu (Ctrl + B)" : "Thu gọn menu (Ctrl + B)"}
-          aria-label={collapsed ? "Mở rộng thanh điều hướng" : "Thu gọn thanh điều hướng"}
+          title={
+            collapsed ? "Mở rộng menu (Ctrl + B)" : "Thu gọn menu (Ctrl + B)"
+          }
+          aria-label={
+            collapsed ? "Mở rộng thanh điều hướng" : "Thu gọn thanh điều hướng"
+          }
         >
           <motion.div
             animate={{ rotate: collapsed ? 180 : 0 }}
             transition={{ duration: 0.24, ease: "easeInOut" }}
-            style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
           >
             <ChevronLeft size={14} />
           </motion.div>
@@ -223,14 +306,6 @@ export default function DashboardLayout() {
             </span>
           )}
         </Link>
-        <div className="cf-workspace">
-          <span className="cf-icon" style={{ width: 32, height: 32, flexShrink: 0 }}>
-            <ShieldCheck size={16} />
-          </span>
-          <div>
-            Không gian quản trị<small>Quản lý hệ thống</small>
-          </div>
-        </div>
 
         {/* Danh sách điều hướng với chỉ báo chuyển động theo route hiện tại. */}
         <nav className="cf-nav" aria-label="Điều hướng quản trị">
@@ -277,7 +352,7 @@ export default function DashboardLayout() {
                     <NavLink
                       to={i.to}
                       onClick={() => setOpen(false)}
-                      className={`cf-nav-link cf-tone-${i.tone} ${isActive ? "active" : ""}`}
+                      className={`cf-nav-link ${isActive ? "active" : ""}`}
                     >
                       {/* Chỉ báo route đang được chọn. */}
                       {isActive && (
@@ -304,13 +379,16 @@ export default function DashboardLayout() {
           ))}
         </nav>
         <div className="cf-nav-foot">
-          <button className="cf-btn cf-btn-ghost" onClick={logout} title="Đăng xuất">
+          <button
+            className="cf-btn cf-btn-ghost"
+            onClick={logout}
+            title="Đăng xuất"
+          >
             <LogOut />
             <span>Đăng xuất</span>
           </button>
-          <p>CapitalFlow · Admin workspace</p>
         </div>
-              {/* Tooltip nổi bên ngoài thanh điều hướng thu gọn. */}
+        {/* Tooltip nổi bên ngoài thanh điều hướng thu gọn. */}
         <AnimatePresence>
           {collapsed && tooltipData && (
             <motion.div
@@ -347,32 +425,35 @@ export default function DashboardLayout() {
             {open ? <X /> : <Menu />}
           </button>
 
-          
-
           <div className="cf-crumb">
             <span>Quản trị</span>
             <ChevronRight size={14} />
             <strong>{title}</strong>
           </div>
-          {!supportOnly && <form
-            className="cf-search"
-            onSubmit={(e) => {
-              e.preventDefault();
-              nav("/users?search=" + encodeURIComponent(search.trim()));
-            }}
-          >
-            <Search />
-            <input
-              className="cf-input"
-              aria-label="Tìm người dùng"
-              placeholder="Tìm người dùng…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </form>}
+          {!supportOnly && (
+            <form
+              className="cf-search"
+              onSubmit={(e) => {
+                e.preventDefault();
+                nav("/users?search=" + encodeURIComponent(search.trim()));
+              }}
+            >
+              <Search />
+              <input
+                className="cf-input"
+                aria-label="Tìm người dùng"
+                placeholder="Tìm người dùng…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </form>
+          )}
           <Link to="/settings" className="cf-profile">
             <span className="cf-avatar">
-              {((user?.full_name || user?.email || "AD").trim().slice(0, 2)).toUpperCase()}
+              {(user?.full_name || user?.email || "AD")
+                .trim()
+                .slice(0, 2)
+                .toUpperCase()}
             </span>
             <span>
               {user.full_name || user.email}
@@ -386,10 +467,19 @@ export default function DashboardLayout() {
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={location.pathname}
-              initial={{ opacity: motionAllowed ? 0 : 1, y: motionAllowed ? 6 : 0 }}
+              initial={{
+                opacity: motionAllowed ? 0 : 1,
+                y: motionAllowed ? 6 : 0,
+              }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: motionAllowed ? 0 : 1, y: motionAllowed ? -6 : 0 }}
-              transition={{ duration: motionAllowed ? 0.18 : 0, ease: "easeOut" }}
+              exit={{
+                opacity: motionAllowed ? 0 : 1,
+                y: motionAllowed ? -6 : 0,
+              }}
+              transition={{
+                duration: motionAllowed ? 0.18 : 0,
+                ease: "easeOut",
+              }}
               className="cf-route-scene"
             >
               {user.must_change_password ? (

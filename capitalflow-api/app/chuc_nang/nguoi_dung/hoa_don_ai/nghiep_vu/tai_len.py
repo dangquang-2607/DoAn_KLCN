@@ -128,6 +128,12 @@ def _upload(db, user, contents, filename, ext, mime, source, prepared, state, ac
                "RESTORE_REQUIRED" if invoice.deleted_at else "REUSED_DRAFT")
     if created:
         record_event(db, invoice, "UPLOAD", source=invoice.source)
+        request = db.info.get("request")
+        if getattr(getattr(request, "state", None), "background_upload", False):
+            from app.chuc_nang.nguoi_dung.tai_chinh.thong_bao.dich_vu import emit_notification
+            emit_notification(db, user_id=user.id, kind="INVOICE", title="Ảnh hóa đơn đã gửi xong",
+                              message="Mở hóa đơn để kiểm tra kết quả nhận dạng.", source_type="INVOICE",
+                              source_id=invoice.id, action_url="/ocr", dedupe_key=f"background-upload:{invoice.id}")
     result = {"id": str(invoice.id), "filename": invoice.original_filename, "status": invoice.status,
               "mime_type": invoice.mime_type, "created_at": invoice.created_at.isoformat(),
               "outcome": outcome, "revision": invoice.revision,

@@ -30,7 +30,14 @@ def create_access_token(user_id: str, role: str, token_version: int = 0, session
     return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
 
-def decode_token(token: str) -> dict:
+def create_invoice_upload_grant(user_id: str, token_version: int, session_id: str) -> tuple[str, datetime]:
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+    claims = {"sub": user_id, "type": "invoice_upload", "ver": token_version,
+              "sid": session_id, "exp": expires_at}
+    return jwt.encode(claims, settings.jwt_secret_key, algorithm=settings.jwt_algorithm), expires_at
+
+
+def decode_token(token: str, *, allowed_types: tuple[str, ...] = ("access",)) -> dict:
     """Xác minh JWT và trả claim hợp lệ cho lớp phân quyền."""
     payload = jwt.decode(
         token,
@@ -38,6 +45,6 @@ def decode_token(token: str) -> dict:
         algorithms=[settings.jwt_algorithm],
         options={"require": ["sub", "exp", "type", "ver"]},
     )
-    if payload.get("type") != "access" or type(payload.get("ver")) is not int:
+    if payload.get("type") not in allowed_types or type(payload.get("ver")) is not int:
         raise jwt.InvalidTokenError("Claim của access token không hợp lệ")
     return payload

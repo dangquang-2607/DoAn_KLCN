@@ -158,12 +158,20 @@ def update_budget(
     )
     if any(value is None for value in values.values()):
         raise HTTPException(status_code=422, detail="Trường ngân sách không được null")
+    auto_renew = values.pop("auto_renew", None)
     if budget.is_recurring:
         if {"period_type", "start_date", "end_date"} & values.keys():
             raise HTTPException(422, "Không thể đổi loại kỳ hoặc ngày bắt đầu của ngân sách định kỳ")
         today = today_vn()
         if budget.recurrence_end_date and budget.recurrence_end_date < today:
             raise HTTPException(409, "Ngân sách đã kết thúc; lịch sử chỉ có thể xem")
+        if auto_renew is True:
+            budget.recurrence_end_date = None
+        elif auto_renew is False:
+            bounds = period_bounds(budget, today)
+            if not bounds:
+                raise HTTPException(409, "Không tìm thấy kỳ ngân sách đang áp dụng")
+            budget.recurrence_end_date = bounds[1]
         setting_values = {key: values.pop(key) for key in ("name", "amount_limit", "warning_percent") if key in values}
         if "name" in setting_values and not setting_values["name"].strip():
             raise HTTPException(422, "Tên ngân sách không được chỉ có khoảng trắng")
@@ -183,6 +191,8 @@ def update_budget(
             raise HTTPException(422, "Trường cập nhật ngân sách không hợp lệ")
         _validate_budget(db, user.id, budget, exclude_id=budget.id)
     else:
+        if auto_renew is not None:
+            raise HTTPException(422, "Chỉ ngân sách định kỳ mới có thể tự chuyển kỳ")
         from app.chuc_nang.nguoi_dung.goi_dich_vu.han_muc import live_budget, require_capacity
         counted_before = live_budget(budget, today_vn())
         for key, value in values.items():

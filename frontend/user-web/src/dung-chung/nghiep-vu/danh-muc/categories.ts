@@ -14,6 +14,21 @@ export function useCategories(status?: "all" | "archived") {
   });
 }
 
+export type CategoryQuota = {
+  plan: "FREE" | "PREMIUM";
+  used: number;
+  limit: number;
+  remaining: number;
+  can_create: boolean;
+};
+
+export function useCategoryQuota() {
+  return useQuery({
+    queryKey: ["category-limits"],
+    queryFn: async () => (await api.get<CategoryQuota>("/categories/limits")).data,
+  });
+}
+
 export type ArchivedCategory = Pick<Category, "id" | "name" | "type">;
 
 type CategoryConflict = {
