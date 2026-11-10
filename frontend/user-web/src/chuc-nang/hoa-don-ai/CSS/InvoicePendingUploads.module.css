@@ -1,0 +1,70 @@
+.queue {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding-block: 16px;
+  border-block: 1px solid var(--cf-line);
+}
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.header h2 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 600;
+}
+.header p,
+.note {
+  margin: 4px 0 0;
+  color: var(--cf-muted);
+  font-size: 13px;
+  line-height: 20px;
+}
+.list {
+  display: grid;
+  max-height: 340px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+.list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding-block: 10px;
+  border-bottom: 1px solid var(--cf-line);
+}
+.list li:last-child {
+  border-bottom: 0;
+}
+.description {
+  display: grid;
+  flex: 1 1 180px;
+  gap: 4px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.description strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+.description span,
+.description small {
+  font-size: 13px;
+  color: var(--cf-muted);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.error {
+  margin: 0;
+  color: var(--cf-danger);
+}

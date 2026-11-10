@@ -1,0 +1,24 @@
+.cf-ocr-orbit { width:100%; margin:0; color:#243047; }
+.cf-ocr-orbit-desktop { display:block; width:min(100%,700px); height:auto; margin:0 auto; overflow:visible; }
+.cf-ocr-orbit-desktop .cf-ocr-orbit-total { fill:#243047; font-size:36px; font-weight:800; letter-spacing:-.06em; }
+.cf-ocr-orbit-desktop .cf-ocr-orbit-center-label { fill:#778498; font-size:13px; }
+.cf-ocr-orbit-callout { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; width:100%; height:100%; text-align:center; color:var(--orbit-color); }
+.cf-ocr-orbit-callout strong { font-size:24px; line-height:1; font-weight:750; font-variant-numeric:tabular-nums; letter-spacing:-.045em; }
+.cf-ocr-orbit-callout-icon { display:grid; place-items:center; width:35px; height:35px; border:2px solid currentColor; border-radius:50%; background:#fff; box-shadow:0 3px 12px #24304717; }
+.cf-ocr-orbit-callout small { color:#4c5b6d; font-size:11px; font-weight:700; white-space:nowrap; }
+.cf-ocr-orbit figcaption { margin:-3px auto 16px; color:#778498; font-size:11px; line-height:1.5; text-align:center; }
+.cf-ocr-orbit-mobile { display:none; }
+
+@media (max-width:760px) {
+  .cf-ocr-orbit-desktop { display:none; }
+  .cf-ocr-orbit-mobile { display:flex; flex-direction:column; align-items:center; gap:20px; padding:14px 0 18px; }
+  .cf-ocr-orbit-mobile-ring { display:grid; place-items:center; width:190px; height:190px; border-radius:50%; }
+  .cf-ocr-orbit-mobile-ring > span { display:flex; flex-direction:column; align-items:center; justify-content:center; width:134px; height:134px; border-radius:50%; background:#fff; }
+  .cf-ocr-orbit-mobile-ring strong { font-size:35px; line-height:1; letter-spacing:-.06em; }
+  .cf-ocr-orbit-mobile-ring small { margin-top:5px; color:#778498; font-size:12px; }
+  .cf-ocr-orbit-mobile ul { display:grid; gap:7px; width:min(100%,340px); margin:0; padding:0; list-style:none; }
+  .cf-ocr-orbit-mobile li { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:10px; padding:7px 10px; border:1px solid #e8e5e0; border-radius:9px; background:#fff; font-size:12px; font-weight:650; }
+  .cf-ocr-orbit-mobile li strong { color:var(--orbit-color); font-size:17px; font-variant-numeric:tabular-nums; }
+  .cf-ocr-orbit-mobile-icon { display:grid; place-items:center; width:28px; height:28px; border-radius:8px; color:var(--orbit-color); background:#f7f8f8; }
+  .cf-ocr-orbit figcaption { margin:0 auto 16px; }
+}

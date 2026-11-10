@@ -1,0 +1,7 @@
+preset = "default"
+project-includes = ["app", "scripts", "tests"]
+project-excludes = ["**/__pycache__", "**/.venv/**", "uploads/**"]
+search-path = ["."]
+python-version = "3.12"
+infer-with-first-use = false
+use-ignore-files = true

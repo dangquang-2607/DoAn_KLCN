@@ -1,0 +1,97 @@
+.page {
+  min-height: 100vh;
+  min-height: 100svh;
+}
+
+.card {
+  min-width: 0;
+  contain: paint;
+  --panel-slide-duration: 720ms;
+  --panel-slide-easing: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.showcase,
+.formPanel {
+  min-width: 0;
+  flex-shrink: 0;
+  transform: translate3d(0, 0, 0);
+}
+
+.formPanel {
+  padding: 24px 20px;
+}
+
+.formPanel :is(button, a, input[type="checkbox"]):not(:disabled) {
+  cursor: pointer;
+}
+
+.formPanel :is(button, input):disabled {
+  cursor: not-allowed;
+}
+
+.formPanel input:not([type="checkbox"]) {
+  min-width: 0;
+  min-height: 44px;
+  padding-top: 9px;
+  padding-bottom: 9px;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.formPanel button[type="submit"] {
+  min-height: 44px;
+  padding: 10px 20px;
+  font-size: 15px;
+  line-height: 24px;
+}
+
+@media (min-width: 640px) {
+  .formPanel {
+    padding: 24px;
+  }
+
+  .formPanel input:not([type="checkbox"]) {
+    font-size: 14px;
+  }
+}
+
+/* Hai cột trượt nhịp nhàng (kích thước cũ 5/12 và 7/12), gia tốc mượt mà 720ms */
+@media (min-width: 1024px) {
+  .showcase,
+  .formPanel {
+    will-change: transform;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transform: translate3d(0, 0, 0);
+    transition-property: transform;
+    transition-duration: var(--panel-slide-duration);
+    transition-timing-function: var(--panel-slide-easing);
+  }
+
+  .register .showcase {
+    transform: translate3d(140%, 0, 0);
+  }
+
+  .register .formPanel {
+    transform: translate3d(-71.428571%, 0, 0);
+  }
+}
+
+@media (max-width: 1023px) {
+  .page {
+    align-items: flex-start;
+    padding-top: max(24px, env(safe-area-inset-top));
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+  }
+
+  .card {
+    transform: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .showcase,
+  .formPanel {
+    transition: none !important;
+  }
+}

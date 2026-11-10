@@ -1,0 +1,42 @@
+.dialog { composes: dialog from "./WalletDialog.module.css"; max-width: 680px; }
+.fields { composes: fields from "./WalletDialog.module.css"; gap: 20px; }
+.actions { composes: actions from "./WalletDialog.module.css"; }
+.summary { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 24px; padding-bottom: 16px; border-bottom: 1px solid var(--cf-line); }
+.walletState { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; color: var(--cf-muted); font-size: 13px; line-height: 20px; }
+.balance { display: grid; gap: 2px; text-align: right; min-width: 0; overflow-wrap: anywhere; }
+.balance > span { color: var(--cf-muted); font-size: 13px; line-height: 20px; }
+.balance > strong { font-size: 20px; line-height: 28px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.groups { display: grid; gap: 20px; min-width: 0; }
+.day { min-width: 0; }
+.dayTitle { margin: 0 0 4px; color: var(--cf-muted); font-size: 13px; line-height: 20px; font-weight: 600; }
+.entries { list-style: none; padding: 0; margin: 0; }
+.entry { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 12px; padding-block: 14px; border-bottom: 1px solid var(--cf-line); }
+.entry:last-child { padding-bottom: 0; border-bottom: 0; }
+.icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 8px; }
+.icon.incoming { background: color-mix(in srgb, var(--cf-success) 10%, white); }
+.icon.outgoing { background: color-mix(in srgb, var(--cf-danger) 10%, white); }
+.icon.neutral { background: var(--cf-soft); }
+.incoming { color: var(--cf-success); }
+.outgoing { color: var(--cf-danger); }
+.neutral { color: var(--cf-muted); }
+.entryContent { min-width: 0; }
+.entryHeading { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 4px 16px; }
+.identity { display: grid; gap: 2px; min-width: 0; }
+.identity h4 { margin: 0; font-size: 14px; line-height: 20px; font-weight: 600; overflow-wrap: anywhere; }
+.identity time { color: var(--cf-muted); font-size: 13px; line-height: 20px; font-variant-numeric: tabular-nums; }
+.amount { display: grid; gap: 2px; min-width: 0; text-align: right; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.amount > strong { font-size: 15px; line-height: 20px; font-weight: 650; }
+.amount > span { color: var(--cf-muted); font-size: 13px; line-height: 20px; }
+.merchant { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 8px; margin: 6px 0 0; font-size: 13px; line-height: 20px; overflow-wrap: anywhere; }
+.merchant > span { color: var(--cf-muted); font-size: 13px; }
+.note { margin: 2px 0 0; color: var(--cf-muted); font-size: 13px; line-height: 20px; white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 540px) {
+  .fields { gap: 16px; }
+  .summary { align-items: flex-start; gap: 8px; }
+  .walletState { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .balance > strong { font-size: 18px; line-height: 26px; }
+  .entry { gap: 10px; padding-block: 12px; }
+  .entryHeading { display: grid; gap: 4px; }
+  .identity { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+  .amount { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 8px; text-align: left; }
+}

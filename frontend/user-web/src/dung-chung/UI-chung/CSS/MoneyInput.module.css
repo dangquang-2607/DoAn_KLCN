@@ -1,0 +1,22 @@
+.wrapper {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.input {
+  width: 100%;
+  padding-right: 3.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.currency {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--cf-ink, #333044);
+  font-weight: 600;
+}

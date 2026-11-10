@@ -1,0 +1,173 @@
+"""
+Dịch vụ Gemini Vision trích xuất dữ liệu hóa đơn bằng Google Gemini AI.
+Chỉ gọi từ phía máy chủ. KHÔNG bao giờ để lộ khóa API ra phía người dùng.
+
+Tích hợp:
+  - Tự động Fallback: Ưu tiên model chính, nếu quá tải tự động chuyển sang model dự phòng.
+  - Hỗ trợ API key tiêu chuẩn và authorization key qua header x-goog-api-key.
+  - Xử lý JSON an toàn, dọn dẹp markdown code fence và encoding UTF-8.
+"""
+import base64
+import json
+import re
+import logging
+from time import perf_counter
+import httpx
+
+from app.dung_chung.config import settings
+from app.dung_chung.text.unicode import normalize_unicode_tree
+
+logger = logging.getLogger(__name__)
+
+# ─── Prompt chuẩn hóa cho hóa đơn Việt Nam ──────────────────────────────────
+_OCR_PROMPT = """Bạn là chuyên gia kế toán đọc hóa đơn VAT và hóa đơn bán lẻ Việt Nam.
+Hãy phân tích hình ảnh/tài liệu đính kèm và trả về DUY NHẤT một đối tượng JSON hợp lệ theo đúng cấu trúc bên dưới.
+Chỉ trả về JSON thuần (không markdown, không giải thích, không bọc ```json).
+Nếu không đọc được trường nào, hãy để chuỗi rỗng "" hoặc null.
+
+{
+  "so_hoa_don": "số hóa đơn (VD: 0012489)",
+  "mau_so_ky_hieu": "mẫu số / ký hiệu hóa đơn (VD: 1C24TKK)",
+  "ngay_lap": "dd/MM/yyyy (VD: 24/10/2023)",
+  "gio_lap": "HH:mm:ss nếu in trên hóa đơn; không có thì null",
+  "ma_so_thue": "mã số thuế người bán (chỉ gồm số và dấu gạch nếu có)",
+  "ten_nguoi_ban": "tên công ty / cửa hàng người bán",
+  "dia_chi_nguoi_ban": "địa chỉ người bán",
+  "ten_nguoi_mua": "tên người mua hoặc công ty người mua",
+  "doanh_so_chua_thue": "số tiền chưa có thuế (giữ nguyên phần thập phân, VD: 1500000)",
+  "thue_suat_gtgt": "thuế suất % (VD: 8 hoặc 10)",
+  "tien_thue_gtgt": "tiền thuế GTGT (giữ nguyên phần thập phân, VD: 120000)",
+  "tong_thanh_toan": "tổng tiền thanh toán (giữ nguyên phần thập phân, VD: 1620000)",
+  "hinh_thuc_thanh_toan": "tiền mặt / chuyển khoản / thẻ",
+  "tien_te": "Mã tiền tệ thực tế trên hóa đơn (VND, USD, EUR...); không xác định được thì null",
+  "do_tin_cay": 0.95,
+  "items": [
+    {
+      "line_no": 1,
+      "ten_hang": "tên hàng hóa / dịch vụ",
+      "ma_hang": "mã hàng hóa (nếu có)",
+      "don_vi": "đơn vị tính (cái, hộp, ram, kg, lít...)",
+      "so_luong": "số lượng (giữ nguyên phần thập phân)",
+      "don_gia": "đơn giá (giữ nguyên phần thập phân)",
+      "giam_gia": "số tiền giảm giá (giữ nguyên phần thập phân hoặc null)",
+      "thue": "tiền thuế dòng này (giữ nguyên phần thập phân hoặc null)",
+      "thanh_tien": "thành tiền (giữ nguyên phần thập phân)",
+      "do_tin_cay": 0.95,
+      "raw_text": "văn bản gốc của dòng này"
+    }
+  ]
+}
+
+Lưu ý quan trọng:
+- Đọc đúng đơn vị tiền tệ từ chứng từ; không mặc định VND, không tự quy đổi số tiền.
+- Các số tiền không có dấu phân cách hàng nghìn, không kèm ký hiệu tiền tệ. Giữ nguyên phần thập phân bằng dấu chấm, ví dụ "1234.56"; không làm tròn hay bỏ phần lẻ. Với số nguyên, không thêm phần .000.
+- Số lượng phải giữ đúng phần thập phân và dùng dấu chấm, ví dụ 0.215 kg phải trả về "0.215", tuyệt đối không trả thành 215.
+- Tách riêng tên hàng và đơn vị tính; không bỏ mất đơn vị in trong ngoặc cạnh tên hàng.
+- Nếu không có bảng chi tiết từng món hàng, trả về items là mảng rỗng [].
+- do_tin_cay là số thực từ 0.0 đến 1.0 phản ánh độ chính xác bóc tách.
+"""
+
+
+def _build_auth_headers(api_key: str) -> dict:
+    """Both standard and AQ authorization keys are API keys, not OAuth tokens.
+
+    https://ai.google.dev/gemini-api/docs/api-key
+    """
+    return {"x-goog-api-key": api_key}
+
+
+async def _call_gemini_model(model_name: str, file_bytes: bytes, mime_type: str) -> dict:
+    """Gọi một model Gemini cụ thể."""
+    encoded = base64.b64encode(file_bytes).decode()
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
+
+    payload = {
+        "contents": [
+            {
+                "parts": [
+                    {"text": _OCR_PROMPT},
+                    {"inline_data": {"mime_type": mime_type, "data": encoded}},
+                ]
+            }
+        ],
+        "generationConfig": {
+            "temperature": 0.1,
+            "responseMimeType": "application/json",
+            "maxOutputTokens": 8192,
+        },
+    }
+
+    headers = _build_auth_headers(settings.google_ai_api_key)
+    headers["Content-Type"] = "application/json"
+
+    started = perf_counter()
+    status = None
+    outcome = "cancelled"
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(
+                url, headers=headers, json=payload
+            )
+            status = resp.status_code
+            resp.raise_for_status()
+            data = resp.json()
+        outcome = "received"
+    except Exception as exc:
+        outcome = type(exc).__name__
+        raise
+    finally:
+        # No URL, key, exception message or receipt content in diagnostic logs.
+        logger.log(
+            logging.INFO if outcome == "received" else logging.WARNING,
+            "ocr_provider_http status=%s outcome=%s elapsed_ms=%d bytes=%d",
+            status, outcome, int((perf_counter() - started) * 1000), len(file_bytes),
+        )
+
+    raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
+    raw_text = re.sub(r"```(?:json)?", "", raw_text).strip().rstrip("```").strip()
+
+    start = raw_text.find("{")
+    end = raw_text.rfind("}")
+    if start >= 0 and end > start:
+        raw_text = raw_text[start : end + 1]
+
+    result = normalize_unicode_tree(json.loads(raw_text))
+    if "items" not in result or not isinstance(result["items"], list):
+        result["items"] = []
+
+    return result
+
+
+async def run_gemini_ocr(file_bytes: bytes, mime_type: str) -> dict:
+    """
+    Gửi hóa đơn sang Google Gemini Vision với cơ chế tự động Fallback:
+    1. Ưu tiên model chính từ settings.google_ai_model
+    2. Nếu gặp sự cố, tự động fallback sang các model dự phòng
+    """
+    if not settings.google_ai_api_key:
+        raise ValueError("GOOGLE_AI_API_KEY chưa được cấu hình trong file .env")
+
+    primary_model = settings.google_ai_model or "gemini-2.0-flash"
+    fallback_models = ["gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite"]
+
+    try:
+        return await _call_gemini_model(primary_model, file_bytes, mime_type)
+    except Exception as primary_err:
+        logger.warning(
+            "Primary OCR model '%s' failed (%s): %s",
+            primary_model, type(primary_err).__name__, str(primary_err)[:200]
+        )
+
+    for fallback_model in fallback_models:
+        if fallback_model == primary_model:
+            continue
+        try:
+            logger.info("Thử fallback model: %s", fallback_model)
+            return await _call_gemini_model(fallback_model, file_bytes, mime_type)
+        except Exception as fallback_err:
+            logger.warning(
+                "Fallback OCR model '%s' failed (%s): %s",
+                fallback_model, type(fallback_err).__name__, str(fallback_err)[:200]
+            )
+
+    raise RuntimeError("Dịch vụ OCR tạm thời không khả dụng. Vui lòng thử lại sau.")

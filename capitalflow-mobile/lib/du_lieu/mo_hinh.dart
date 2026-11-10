@@ -1,0 +1,1242 @@
+import '../dung_chung/tien_ich/dinh_dang.dart';
+
+/// Các kiểu dữ liệu ánh xạ 1-1 với hợp đồng REST API của CapitalFlow
+/// (cùng API mà hai cổng web đang dùng nên dữ liệu luôn đồng bộ).
+
+typedef Json = Map<String, dynamic>;
+
+List<Json> asJsonList(dynamic value) {
+  if (value is! List) return <Json>[];
+  final result = <Json>[];
+  for (final item in value) {
+    if (item is Map) result.add(Map<String, dynamic>.from(item));
+  }
+  return result;
+}
+
+// ── Người dùng ──────────────────────────────────────────────────────────────
+
+class UserProfile {
+  UserProfile({
+    required this.id,
+    required this.email,
+    required this.fullName,
+    required this.role,
+    required this.isActive,
+    required this.mustChangePassword,
+    this.createdAt,
+    this.lastLoginAt,
+  });
+
+  final String id;
+  final String email;
+  final String fullName;
+  final String role;
+  final bool isActive;
+  final bool mustChangePassword;
+  final DateTime? createdAt;
+  final DateTime? lastLoginAt;
+
+  bool get isAdmin => role.toLowerCase() == 'admin';
+
+  String get displayName => fullName.trim().isEmpty ? email : fullName.trim();
+
+  String get initials {
+    final parts = displayName
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+    return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
+        .toUpperCase();
+  }
+
+  factory UserProfile.fromJson(Json json) {
+    return UserProfile(
+      id: json['id'].toString(),
+      email: (json['email'] ?? '').toString(),
+      fullName: (json['full_name'] ?? '').toString(),
+      role: (json['role'] ?? 'user').toString(),
+      isActive: json['is_active'] != false,
+      mustChangePassword: json['must_change_password'] == true,
+      createdAt: parseApiDateTime(json['created_at']),
+      lastLoginAt: parseApiDateTime(json['last_login_at']),
+    );
+  }
+}
+
+class LoginSession {
+  LoginSession(
+      {required this.id,
+      this.deviceName,
+      this.ipAddress,
+      this.createdAt,
+      this.lastUsedAt,
+      this.expiresAt,
+      this.isCurrent = false});
+
+  final String id;
+  final String? deviceName;
+  final String? ipAddress;
+  final DateTime? createdAt;
+  final DateTime? lastUsedAt;
+  final DateTime? expiresAt;
+  final bool isCurrent;
+
+  factory LoginSession.fromJson(Json json) {
+    return LoginSession(
+      id: json['id'].toString(),
+      isCurrent: json['is_current'] == true,
+      expiresAt: parseApiDateTime(json['expires_at']),
+      deviceName: asText(json['device_name']),
+      ipAddress: asText(json['ip_address']),
+      createdAt: parseApiDateTime(json['created_at']),
+      lastUsedAt: parseApiDateTime(json['last_used_at']),
+    );
+  }
+}
+
+// ── Ví & danh mục ───────────────────────────────────────────────────────────
+
+/// Ví mô phỏng độc lập (`/wallets`) — số dư chỉ thay đổi khi nạp, rút, chuyển
+/// hoặc thanh toán; tách biệt hoàn toàn với sổ thu chi.
+class Wallet {
+  Wallet({
+    required this.id,
+    required this.name,
+    required this.balance,
+    this.accountType = 'WALLET',
+    this.currency = 'VND',
+    this.institutionName,
+    this.isActive = true,
+    this.isDefault = false,
+    this.receiveCode,
+  });
+
+  final String id;
+  final String name;
+  final String accountType;
+  final double balance;
+  final String currency;
+  final String? institutionName;
+  final bool isActive;
+
+  /// Ví mặc định nhận tiền qua email, không thể đóng.
+  final bool isDefault;
+
+  /// Email (ví mặc định) hoặc mã `CF-xxxxxxxx` (ví phụ) để người khác chuyển tiền tới.
+  final String? receiveCode;
+
+  factory Wallet.fromJson(Json json) {
+    return Wallet(
+      id: json['id'].toString(),
+      name: (json['name'] ?? '').toString(),
+      accountType: (json['account_type'] ?? 'WALLET').toString(),
+      balance: asDouble(json['balance']),
+      currency: (json['currency'] ?? 'VND').toString(),
+      institutionName: asText(json['institution_name']),
+      isActive: json['is_active'] != false,
+      isDefault: json['is_default'] == true,
+      receiveCode: asText(json['receive_code']),
+    );
+  }
+}
+
+/// Ngân hàng mô phỏng hỗ trợ liên kết (`/wallets/providers`).
+class BankProvider {
+  BankProvider({
+    required this.code,
+    required this.name,
+    required this.demoNumber,
+    required this.label,
+    required this.hint,
+  });
+
+  final String code;
+  final String name;
+
+  /// Số tài khoản demo được cấp riêng cho người dùng.
+  final String demoNumber;
+  final String label;
+  final String hint;
+
+  factory BankProvider.fromJson(String code, Json json) {
+    return BankProvider(
+      code: code,
+      name: (json['name'] ?? code).toString(),
+      demoNumber: (json['demo_number'] ?? '').toString(),
+      label: (json['label'] ?? 'Số tài khoản').toString(),
+      hint: (json['hint'] ?? '').toString(),
+    );
+  }
+}
+
+/// Liên kết ngân hàng dùng chung cho mọi ví (`/wallets/banks`).
+class BankLink {
+  BankLink({
+    required this.id,
+    required this.provider,
+    required this.maskedNumber,
+    required this.status,
+    this.expiresAt,
+  });
+
+  final String id;
+  final String provider;
+  final String maskedNumber;
+
+  /// `CONNECTED`, `EXPIRED` hoặc `DISCONNECTED`.
+  final String status;
+  final DateTime? expiresAt;
+
+  bool get connected => status == 'CONNECTED';
+
+  String get statusLabel => switch (status) {
+        'CONNECTED' => 'Đã liên kết',
+        'EXPIRED' => 'Hết hạn',
+        _ => 'Đã ngắt',
+      };
+
+  factory BankLink.fromJson(Json json) {
+    return BankLink(
+      id: json['id'].toString(),
+      provider: (json['provider'] ?? '').toString(),
+      maskedNumber: (json['account_number_masked'] ?? '').toString(),
+      status: (json['status'] ?? 'DISCONNECTED').toString(),
+      expiresAt: parseApiDateTime(json['expires_at']),
+    );
+  }
+}
+
+/// Một dòng biến động tiền trong lịch sử ví.
+class WalletEntry {
+  WalletEntry({
+    this.raw = const {},
+    required this.id,
+    required this.operationId,
+    required this.kind,
+    required this.amount,
+    required this.balanceAfter,
+    this.createdAt,
+    this.merchantName,
+    this.billReference,
+    this.bookkeepingId,
+    this.recordedAmount,
+    this.includeInReports,
+    this.categoryId,
+    this.categoryName,
+  });
+
+  final String id;
+  final String operationId;
+
+  /// `TOPUP`, `WITHDRAW`, `TRANSFER_IN`, `TRANSFER_OUT` hoặc `PAYMENT`.
+  final String kind;
+
+  /// Số tiền có dấu: tiền vào dương, tiền ra âm.
+  final double amount;
+  final double balanceAfter;
+  final DateTime? createdAt;
+  final String? merchantName;
+  final String? billReference;
+
+  /// Khoản ghi sổ gắn với thanh toán (chỉ có ở `PAYMENT`).
+  final String? bookkeepingId;
+  final double? recordedAmount;
+  final bool? includeInReports;
+  final String? categoryId;
+  final String? categoryName;
+
+  bool get isIncoming => kind == 'TOPUP' || kind == 'TRANSFER_IN';
+  bool get isPayment => kind == 'PAYMENT';
+
+  String get label => switch (kind) {
+        'TOPUP' => 'Nạp từ ngân hàng',
+        'WITHDRAW' => 'Rút về ngân hàng',
+        'TRANSFER_IN' => 'Nhận chuyển tiền',
+        'TRANSFER_OUT' => 'Chuyển tiền',
+        'PAYMENT' => 'Thanh toán hóa đơn',
+        _ => kind,
+      };
+
+  final Json raw;
+
+  factory WalletEntry.fromJson(Json json) {
+    final recorded = json['recorded_amount'];
+    return WalletEntry(
+      raw: Map<String, dynamic>.from(json),
+      id: json['id'].toString(),
+      operationId: (json['operation_id'] ?? '').toString(),
+      kind: (json['kind'] ?? '').toString(),
+      amount: asDouble(json['amount']),
+      balanceAfter: asDouble(json['balance_after']),
+      // Backend lưu giờ UTC không kèm múi giờ.
+      createdAt: parseApiDateTime(json['created_at']),
+      merchantName: asText(json['merchant_name']),
+      billReference: asText(json['bill_reference']),
+      bookkeepingId: asText(json['bookkeeping_id']),
+      recordedAmount: recorded == null ? null : asDouble(recorded),
+      includeInReports: json['include_in_reports'] is bool
+          ? json['include_in_reports'] as bool
+          : null,
+      categoryId: asText(json['category_id']),
+      categoryName: asText(json['category_name']),
+    );
+  }
+}
+
+class WalletHistoryPage {
+  WalletHistoryPage({required this.items, required this.total});
+
+  final List<WalletEntry> items;
+  final int total;
+
+  factory WalletHistoryPage.fromJson(Json json) {
+    return WalletHistoryPage(
+      items: asJsonList(json['items']).map(WalletEntry.fromJson).toList(),
+      total: asInt(json['total']),
+    );
+  }
+}
+
+/// Thông tin nhận tiền của một ví (mã nhận và nội dung QR).
+class ReceiveInfo {
+  ReceiveInfo({
+    required this.walletId,
+    required this.walletName,
+    required this.recipientName,
+    required this.receiveCode,
+    required this.qrPayload,
+  });
+
+  final String walletId;
+  final String walletName;
+  final String recipientName;
+  final String receiveCode;
+  final String qrPayload;
+
+  factory ReceiveInfo.fromJson(Json json) {
+    return ReceiveInfo(
+      walletId: (json['wallet_id'] ?? '').toString(),
+      walletName: (json['wallet_name'] ?? '').toString(),
+      recipientName: (json['recipient_name'] ?? '').toString(),
+      receiveCode: (json['receive_code'] ?? '').toString(),
+      qrPayload: (json['qr_payload'] ?? '').toString(),
+    );
+  }
+}
+
+/// Ví nhận đã được backend xác minh trước khi chuyển tiền.
+class Recipient {
+  Recipient({
+    required this.walletId,
+    required this.walletName,
+    required this.recipientName,
+    required this.isOwn,
+    this.receiveCode,
+  });
+
+  final String walletId;
+  final String walletName;
+  final String recipientName;
+  final bool isOwn;
+  final String? receiveCode;
+
+  factory Recipient.fromJson(Json json) {
+    return Recipient(
+      walletId: json['id'].toString(),
+      walletName: (json['name'] ?? '').toString(),
+      recipientName:
+          (json['recipient_name'] ?? 'Người dùng CapitalFlow').toString(),
+      isOwn: json['is_own'] == true,
+      receiveCode: asText(json['receive_code']),
+    );
+  }
+}
+
+/// Khoản thanh toán ví có thể trùng với khoản đang ghi sổ (lỗi 409
+/// `PAYMENT_RECORD_REVIEW_REQUIRED`).
+class PaymentCandidate {
+  PaymentCandidate({
+    required this.walletEntryId,
+    required this.merchantName,
+    required this.billReference,
+    required this.paidAmount,
+    this.createdAt,
+  });
+
+  final String walletEntryId;
+  final String merchantName;
+  final String billReference;
+  final double paidAmount;
+  final DateTime? createdAt;
+
+  factory PaymentCandidate.fromJson(Json json) {
+    return PaymentCandidate(
+      walletEntryId: json['wallet_entry_id'].toString(),
+      merchantName: (json['merchant_name'] ?? '').toString(),
+      billReference: (json['bill_reference'] ?? '').toString(),
+      paidAmount: asDouble(json['paid_amount']),
+      createdAt: parseApiDateTime(json['created_at']),
+    );
+  }
+}
+
+class FinanceCategory {
+  FinanceCategory({
+    required this.id,
+    required this.name,
+    required this.type,
+    required this.sortOrder,
+    this.icon,
+    this.color,
+    this.keywords,
+    this.ownerUserId,
+    this.isActive = true,
+    this.canPermanentlyDelete = false,
+  });
+
+  final String id;
+  final String name;
+
+  /// `INCOME` hoặc `EXPENSE`.
+  final String type;
+  final int sortOrder;
+  final String? icon;
+  final String? color;
+  final String? keywords;
+  final String? ownerUserId;
+  final bool isActive;
+  final bool canPermanentlyDelete;
+
+  /// Danh mục hệ thống do quản trị viên tạo, người dùng không sửa được.
+  bool get isSystem => ownerUserId == null;
+  bool get isIncome => type == 'INCOME';
+
+  factory FinanceCategory.fromJson(Json json) {
+    return FinanceCategory(
+      id: json['id'].toString(),
+      name: (json['name'] ?? '').toString(),
+      type: (json['type'] ?? 'EXPENSE').toString(),
+      sortOrder: asInt(json['sort_order']),
+      icon: asText(json['icon']),
+      color: asText(json['color']),
+      keywords: asText(json['keywords']),
+      ownerUserId: asText(json['owner_user_id']),
+      isActive: json['is_active'] != false,
+      canPermanentlyDelete: json['can_permanently_delete'] == true,
+    );
+  }
+}
+
+class CategorySuggestion {
+  CategorySuggestion({
+    required this.confidence,
+    required this.source,
+    required this.autoApply,
+    required this.reason,
+    this.categoryId,
+    this.categoryName,
+  });
+
+  final String? categoryId;
+  final String? categoryName;
+  final double confidence;
+  final String source;
+  final bool autoApply;
+  final String reason;
+
+  factory CategorySuggestion.fromJson(Json json) {
+    return CategorySuggestion(
+      categoryId: asText(json['category_id']),
+      categoryName: asText(json['category_name']),
+      confidence: asDouble(json['confidence']),
+      source: (json['source'] ?? 'NONE').toString(),
+      autoApply: json['auto_apply'] == true,
+      reason: (json['reason'] ?? '').toString(),
+    );
+  }
+}
+
+// ── Giao dịch ───────────────────────────────────────────────────────────────
+
+/// Một khoản trong sổ thu chi (`/bookkeeping`). Sổ thu chi không gắn với ví:
+/// ghi sổ không làm thay đổi số dư ví.
+class Txn {
+  Txn({
+    this.raw = const {},
+    required this.id,
+    required this.amount,
+    required this.type,
+    required this.source,
+    required this.kind,
+    required this.date,
+    required this.description,
+    this.accountId,
+    this.categoryId,
+    this.invoiceId,
+    this.note,
+    this.categoryWasAuto = false,
+    this.categorySource,
+    this.createdAt,
+    this.walletEntryId,
+    this.includeInReports = true,
+  });
+
+  final String id;
+
+  /// Ví liên quan (chỉ còn ở dữ liệu cũ); sổ thu chi mới để trống.
+  final String? accountId;
+  final String? categoryId;
+  final String? invoiceId;
+
+  /// Khoản ghi nhận của một lần thanh toán ví — giữ để đối chiếu, không xóa được.
+  final String? walletEntryId;
+
+  /// Có tính vào báo cáo thu chi và ngân sách hay không.
+  final bool includeInReports;
+
+  bool get fromWalletPayment => walletEntryId != null;
+
+  /// Số tiền có dấu như trong CSDL: thu dương, chi âm.
+  final double amount;
+
+  /// `INCOME` hoặc `EXPENSE`.
+  final String type;
+
+  /// `MANUAL`, `OCR`, `WALLET`, `IMPORT` hoặc `SYSTEM`.
+  final String source;
+
+  String get sourceLabel => switch (source) {
+        'WALLET' => 'Thanh toán ví',
+        'OCR' => 'Hóa đơn AI',
+        'XML' => 'Hóa đơn điện tử',
+        'MANUAL' => 'Nhập tay',
+        _ => source,
+      };
+
+  /// `NORMAL`, `TRANSFER` hoặc `ADJUSTMENT`.
+  final String kind;
+  final DateTime date;
+  final String description;
+  final String? note;
+  final bool categoryWasAuto;
+  final String? categorySource;
+  final DateTime? createdAt;
+
+  bool get isIncome => type == 'INCOME';
+  double get absAmount => amount.abs();
+
+  /// Giao dịch chuyển tiền/điều chỉnh số dư do hệ thống sinh ra không được sửa xóa riêng.
+  bool get editable => kind == 'NORMAL' && source != 'SYSTEM';
+
+  String get title {
+    final text = description.trim();
+    if (text.isNotEmpty) return text;
+    if (kind == 'TRANSFER') {
+      return isIncome ? 'Nhận chuyển tiền' : 'Chuyển tiền đi';
+    }
+    if (kind == 'ADJUSTMENT') return 'Điều chỉnh số dư';
+    return isIncome ? 'Khoản thu' : 'Khoản chi';
+  }
+
+  final Json raw;
+
+  factory Txn.fromJson(Json json) {
+    return Txn(
+      raw: Map<String, dynamic>.from(json),
+      id: json['id'].toString(),
+      accountId: asText(json['account_id']),
+      categoryId: asText(json['category_id']),
+      invoiceId: asText(json['invoice_id']),
+      walletEntryId: asText(json['wallet_entry_id']),
+      includeInReports: json['include_in_reports'] != false,
+      amount: asDouble(json['amount']),
+      type: (json['type'] ?? 'EXPENSE').toString(),
+      source: (json['source'] ?? 'MANUAL').toString(),
+      kind: (json['kind'] ?? 'NORMAL').toString(),
+      date: parseApiDate(json['transaction_date']) ?? DateTime.now(),
+      description: (json['description'] ?? '').toString(),
+      note: asText(json['note']),
+      categoryWasAuto: json['category_was_auto'] == true,
+      categorySource: asText(json['category_source']),
+      createdAt: parseApiDateTime(json['created_at']),
+    );
+  }
+}
+
+class TxnPage {
+  TxnPage(
+      {required this.items,
+      required this.total,
+      required this.page,
+      required this.pageSize});
+
+  final List<Txn> items;
+  final int total;
+  final int page;
+  final int pageSize;
+
+  factory TxnPage.fromJson(Json json) {
+    return TxnPage(
+      items: asJsonList(json['items']).map(Txn.fromJson).toList(),
+      total: asInt(json['total']),
+      page: asInt(json['page']),
+      pageSize: asInt(json['page_size']),
+    );
+  }
+}
+
+// ── Ngân sách ───────────────────────────────────────────────────────────────
+
+class BudgetProgress {
+  BudgetProgress({
+    this.raw = const {},
+    required this.id,
+    required this.name,
+    required this.amountLimit,
+    required this.periodType,
+    required this.startDate,
+    required this.endDate,
+    required this.warningPercent,
+    required this.isActive,
+    required this.spent,
+    required this.remaining,
+    required this.usagePercent,
+    required this.status,
+    this.categoryId,
+    this.isRecurring = false,
+    this.periodState,
+    this.appliesFrom,
+    this.recurrenceEndDate,
+    this.configuredName,
+    this.configuredAmountLimit,
+    this.configuredWarningPercent,
+    this.configuredIsActive,
+    this.nextEffectiveDate,
+    this.nextStateDate,
+  });
+
+  final bool isRecurring;
+  final String? periodState;
+  final DateTime? appliesFrom,
+      recurrenceEndDate,
+      nextEffectiveDate,
+      nextStateDate;
+  final String? configuredName;
+  final double? configuredAmountLimit, configuredWarningPercent;
+  final bool? configuredIsActive;
+  String get recordKey =>
+      '$id:${startDate.toIso8601String()}:${endDate.toIso8601String()}';
+  bool get isCompleted => periodState == 'COMPLETED';
+  bool get autoRenews => isRecurring && recurrenceEndDate != endDate;
+  final String id;
+  final String? categoryId;
+  final String name;
+  final double amountLimit;
+  final String periodType;
+  final DateTime startDate;
+  final DateTime endDate;
+  final double warningPercent;
+  final bool isActive;
+  final double spent;
+  final double remaining;
+  final double usagePercent;
+
+  /// `SAFE`, `WARNING` hoặc `EXCEEDED`.
+  final String status;
+
+  bool get isExceeded => status == 'EXCEEDED';
+  bool get isWarning => status == 'WARNING';
+
+  /// Ngân sách có đang trong kỳ áp dụng tính theo ngày hôm nay hay không.
+  bool get isCurrent {
+    if (periodState != null) return periodState == 'CURRENT';
+    if (!isActive) return false;
+    final now = DateTime.now().toUtc().add(const Duration(hours: 7));
+    final today = DateTime(now.year, now.month, now.day);
+    return !today.isBefore(startDate) && !today.isAfter(endDate);
+  }
+
+  final Json raw;
+
+  factory BudgetProgress.fromJson(Json json) {
+    final now = DateTime.now();
+    return BudgetProgress(
+      raw: Map<String, dynamic>.from(json),
+      id: (json['budget_id'] ?? json['id']).toString(),
+      isRecurring: json['is_recurring'] == true,
+      periodState: asText(json['period_state']),
+      appliesFrom: parseApiDate(json['applies_from'] ?? json['start_date']),
+      recurrenceEndDate: parseApiDate(json['recurrence_end_date']),
+      configuredName: asText(json['configured_name']),
+      configuredAmountLimit: json['configured_amount_limit'] == null
+          ? null
+          : asDouble(json['configured_amount_limit']),
+      configuredWarningPercent: json['configured_warning_percent'] == null
+          ? null
+          : asDouble(json['configured_warning_percent']),
+      configuredIsActive: json['configured_is_active'] as bool?,
+      nextEffectiveDate: parseApiDate(json['next_effective_date']),
+      nextStateDate: parseApiDate(json['next_state_date']),
+      categoryId: asText(json['category_id']),
+      name: (json['budget_name'] ?? json['name'] ?? '').toString(),
+      amountLimit: asDouble(json['amount_limit']),
+      periodType: (json['period_type'] ?? 'MONTHLY').toString(),
+      startDate: parseApiDate(json['start_date']) ?? now,
+      endDate: parseApiDate(json['end_date']) ?? now,
+      warningPercent: asDouble(json['warning_percent'] ?? 80),
+      isActive: json['is_active'] != false,
+      spent: asDouble(json['spent_amount']),
+      remaining: asDouble(json['remaining_amount']),
+      usagePercent: asDouble(json['usage_percent']),
+      status: (json['progress_status'] ?? 'SAFE').toString(),
+    );
+  }
+}
+
+// ── Tổng quan & báo cáo ─────────────────────────────────────────────────────
+
+class RecentTxn {
+  RecentTxn({
+    required this.id,
+    required this.description,
+    required this.amount,
+    required this.type,
+    required this.date,
+  });
+
+  final String id;
+  final String description;
+  final double amount;
+  final String type;
+  final DateTime? date;
+
+  bool get isIncome => type == 'INCOME';
+
+  factory RecentTxn.fromJson(Json json) {
+    return RecentTxn(
+      id: json['id'].toString(),
+      description: (json['description'] ?? '').toString(),
+      amount: asDouble(json['amount']),
+      type: (json['type'] ?? 'EXPENSE').toString(),
+      date: parseApiDate(json['transaction_date']),
+    );
+  }
+}
+
+class DashboardData {
+  DashboardData({
+    required this.netWorth,
+    required this.incomeThisMonth,
+    required this.expenseThisMonth,
+    required this.netCashFlow,
+    required this.month,
+    required this.year,
+    required this.recent,
+  });
+
+  final double netWorth;
+  final double incomeThisMonth;
+  final double expenseThisMonth;
+  final double netCashFlow;
+  final int month;
+  final int year;
+  final List<RecentTxn> recent;
+
+  factory DashboardData.fromJson(Json json) {
+    final period = json['period'] is Map
+        ? Map<String, dynamic>.from(json['period'] as Map)
+        : <String, dynamic>{};
+    final now = DateTime.now();
+    return DashboardData(
+      netWorth: asDouble(json['net_worth']),
+      incomeThisMonth: asDouble(json['income_this_month']),
+      expenseThisMonth: asDouble(json['expense_this_month']),
+      netCashFlow: asDouble(json['net_cash_flow']),
+      month: period['month'] == null ? now.month : asInt(period['month']),
+      year: period['year'] == null ? now.year : asInt(period['year']),
+      recent: asJsonList(json['recent_transactions'])
+          .map(RecentTxn.fromJson)
+          .toList(),
+    );
+  }
+}
+
+class CategoryAmount {
+  CategoryAmount(this.name, this.amount);
+
+  final String name;
+  final double amount;
+}
+
+class AnalyticsData {
+  AnalyticsData({
+    this.previousPeriodAvailable = true,
+    this.incomeCategories = const {},
+    this.expenseCategories = const [],
+    required this.start,
+    required this.end,
+    required this.income,
+    required this.expense,
+    required this.net,
+    required this.previousIncome,
+    required this.previousExpense,
+    required this.byCategory,
+    this.previousByCategory = const <String, double>{},
+  });
+
+  final Map<String, double> incomeCategories;
+  final List<Json> expenseCategories;
+  final DateTime? start;
+  final DateTime? end;
+  final double income;
+  final double expense;
+  final double net;
+  final double previousIncome;
+  final double previousExpense;
+  final bool previousPeriodAvailable;
+
+  /// Chi tiêu theo danh mục, sắp xếp giảm dần.
+  final List<CategoryAmount> byCategory;
+
+  /// Chi tiêu theo tên danh mục của kỳ trước, để so sánh từng danh mục.
+  final Map<String, double> previousByCategory;
+
+  factory AnalyticsData.fromJson(Json json) {
+    Json section(String key) {
+      final value = json[key];
+      return value is Map
+          ? Map<String, dynamic>.from(value)
+          : <String, dynamic>{};
+    }
+
+    final period = section('period');
+    final current = section('summary');
+    final previous = section('previous_summary');
+
+    final categories = <CategoryAmount>[];
+    section('expense_by_category').forEach((name, amount) {
+      final value = asDouble(amount);
+      if (value > 0) categories.add(CategoryAmount(name, value));
+    });
+    categories.sort((a, b) => b.amount.compareTo(a.amount));
+
+    return AnalyticsData(
+      previousPeriodAvailable: json['previous_period_available'] != false,
+      incomeCategories:
+          section('income_by_category').map((k, v) => MapEntry(k, asDouble(v))),
+      expenseCategories: asJsonList(json['expense_categories']),
+      start: parseApiDate(period['start_date']),
+      end: parseApiDate(period['end_date']),
+      income: asDouble(current['income']),
+      expense: asDouble(current['expense']),
+      net: asDouble(current['net']),
+      previousIncome: asDouble(previous['income']),
+      previousExpense: asDouble(previous['expense']),
+      byCategory: categories,
+      previousByCategory: {
+        for (final item in section('previous_expense_by_category').entries)
+          item.key: asDouble(item.value),
+      },
+    );
+  }
+}
+
+/// Một khoản thu/chi trong kỳ báo cáo (`/analytics/export-data`), đã áp dụng đúng bộ lọc
+/// của báo cáo nên cộng lại khớp với số tổng.
+class ReportEntry {
+  ReportEntry({
+    this.raw = const {},
+    required this.date,
+    required this.type,
+    required this.categoryName,
+    this.categoryId,
+    required this.amount,
+    required this.description,
+    required this.source,
+  });
+
+  static const String uncategorized = 'Không phân loại';
+  static const String uncategorizedId = 'uncategorized';
+
+  final DateTime? date;
+  final String type;
+  final String categoryName;
+  final String? categoryId;
+
+  /// Giá trị tuyệt đối; loại thu/chi xem ở [type].
+  final double amount;
+  final String description;
+  final String source;
+  final Json raw;
+
+  bool get isIncome => type == 'INCOME';
+
+  String? get sourceLabel {
+    switch (source) {
+      case 'MANUAL':
+        return 'Nhập tay';
+      case 'OCR':
+        return 'Quét hóa đơn';
+      case 'WALLET':
+        return 'Thanh toán ví';
+      default:
+        return null;
+    }
+  }
+
+  factory ReportEntry.fromJson(Json json) {
+    final category = (json['category_name'] ?? '').toString().trim();
+    return ReportEntry(
+      raw: Map<String, dynamic>.from(json),
+      date: parseApiDate(json['transaction_date']),
+      type: (json['type'] ?? '').toString(),
+      categoryName: category.isEmpty ? uncategorized : category,
+      categoryId: json.containsKey('category_id')
+          ? asText(json['category_id']) ?? uncategorizedId
+          : null,
+      amount: asDouble(json['amount']).abs(),
+      description: (json['description'] ?? '').toString().trim(),
+      source: (json['source'] ?? '').toString(),
+    );
+  }
+}
+
+// ── Hóa đơn & OCR ───────────────────────────────────────────────────────────
+
+class InvoiceLine {
+  InvoiceLine({
+    this.raw = const {},
+    required this.name,
+    this.unit,
+    this.quantity,
+    this.unitPrice,
+    this.taxAmount,
+    this.lineTotal,
+  });
+
+  String name;
+  String? unit;
+  double? quantity;
+  double? unitPrice;
+  double? taxAmount;
+  double? lineTotal;
+
+  final Json raw;
+
+  factory InvoiceLine.fromJson(Json json) {
+    double? optional(dynamic value) => value == null ? null : asDouble(value);
+    return InvoiceLine(
+      raw: Map<String, dynamic>.from(json),
+      name: (json['name'] ?? '').toString(),
+      unit: asText(json['unit']),
+      quantity: optional(json['quantity']),
+      unitPrice: optional(json['unit_price']),
+      taxAmount: optional(json['tax_amount']),
+      lineTotal: optional(json['line_total']),
+    );
+  }
+
+  /// Dữ liệu gửi lên khi người dùng đã kiểm tra/chỉnh sửa dòng hàng.
+  Json toJson() {
+    final json = <String, dynamic>{'name': name.trim()};
+    final unitText = unit?.trim() ?? '';
+    if (unitText.isNotEmpty) json['unit'] = unitText;
+    if (quantity != null) json['quantity'] = _decimal(quantity!, 4);
+    if (unitPrice != null) json['unit_price'] = _decimal(unitPrice!, 2);
+    if (taxAmount != null) json['tax_amount'] = _decimal(taxAmount!, 2);
+    if (lineTotal != null) json['line_total'] = _decimal(lineTotal!, 2);
+    return json;
+  }
+
+  static String _decimal(double value, int digits) {
+    final safe = value.isFinite && value >= 0 ? value : 0.0;
+    return safe.toStringAsFixed(digits);
+  }
+}
+
+class InvoiceSummary {
+  InvoiceSummary({
+    this.raw = const {},
+    required this.id,
+    required this.status,
+    required this.source,
+    this.merchantName,
+    this.invoiceDate,
+    this.totalAmount,
+    this.originalFilename,
+    this.mimeType,
+    this.ocrConfidence,
+    this.createdAt,
+    this.confirmedAt,
+    this.revision = 1,
+    this.deletedAt,
+    this.outcome,
+    this.duplicateLevel = 'NONE',
+    this.duplicateOfInvoiceId,
+    this.transactionId,
+  });
+
+  final String id;
+
+  /// `UPLOADED`, `PROCESSING`, `REVIEW_REQUIRED`, `CONFIRMED` hoặc `FAILED`.
+  final String status;
+  final String source;
+  final String? merchantName;
+  final DateTime? invoiceDate;
+  final double? totalAmount;
+  final String? originalFilename;
+  final String? mimeType;
+  final double? ocrConfidence;
+  final DateTime? createdAt;
+  final DateTime? confirmedAt;
+  final int revision;
+  final DateTime? deletedAt;
+  final String? outcome;
+  final String duplicateLevel;
+  final String? duplicateOfInvoiceId;
+  final String? transactionId;
+  bool get hidden => deletedAt != null;
+
+  bool get isImage => (mimeType ?? '').startsWith('image/');
+  bool get isXml => mimeType == 'application/xml';
+
+  String get displayName {
+    final merchant = (merchantName ?? '').trim();
+    if (merchant.isNotEmpty) return merchant;
+    final file = (originalFilename ?? '').trim();
+    return file.isNotEmpty ? file : 'Hóa đơn';
+  }
+
+  final Json raw;
+
+  factory InvoiceSummary.fromJson(Json json) {
+    return InvoiceSummary(
+      raw: Map<String, dynamic>.from(json),
+      id: json['id'].toString(),
+      status: (json['status'] ?? 'UPLOADED').toString(),
+      source: (json['source'] ?? 'UPLOAD').toString(),
+      merchantName: asText(json['merchant_name']),
+      invoiceDate: parseApiDate(json['invoice_date']),
+      totalAmount:
+          json['total_amount'] == null ? null : asDouble(json['total_amount']),
+      originalFilename: asText(json['original_filename'] ?? json['filename']),
+      mimeType: asText(json['mime_type']),
+      ocrConfidence: json['ocr_confidence'] == null
+          ? null
+          : asDouble(json['ocr_confidence']),
+      createdAt: parseApiDateTime(json['created_at']),
+      confirmedAt: parseApiDateTime(json['confirmed_at']),
+      revision: asInt(json['revision'] ?? 1),
+      deletedAt: parseApiDateTime(json['deleted_at']),
+      outcome: asText(json['outcome']),
+      duplicateLevel: asText(json['duplicate_level']) ?? 'NONE',
+      duplicateOfInvoiceId: asText(json['duplicate_of_invoice_id']),
+      transactionId: asText(json['transaction_id']),
+    );
+  }
+}
+
+class InvoiceDetail {
+  InvoiceDetail({
+    this.raw = const {},
+    required this.summary,
+    required this.items,
+    required this.isDuplicate,
+    this.accountId,
+    this.categoryId,
+    this.merchantAddress,
+    this.merchantTaxCode,
+    this.invoiceNumber,
+    this.invoiceSymbol,
+    this.invoiceTime,
+    this.vatRate,
+    this.paymentMethod,
+    this.subtotalAmount,
+    this.taxAmount,
+    this.note,
+    this.duplicateReason,
+  });
+
+  final InvoiceSummary summary;
+  final List<InvoiceLine> items;
+  final bool isDuplicate;
+  final String? duplicateReason;
+  final String? accountId;
+  final String? categoryId;
+  final String? merchantAddress;
+  final String? merchantTaxCode;
+  final String? invoiceNumber;
+  final String? invoiceSymbol;
+  final String? invoiceTime;
+  final String? vatRate;
+  final String? paymentMethod;
+  final double? subtotalAmount;
+  final double? taxAmount;
+  final String? note;
+
+  final Json raw;
+
+  factory InvoiceDetail.fromJson(Json json) {
+    return InvoiceDetail(
+      raw: Map<String, dynamic>.from(json),
+      summary: InvoiceSummary.fromJson(json),
+      items: asJsonList(json['items']).map(InvoiceLine.fromJson).toList(),
+      isDuplicate: json['is_duplicate'] == true,
+      duplicateReason: asText(json['duplicate_reason']),
+      accountId: asText(json['account_id']),
+      categoryId: asText(json['category_id']),
+      merchantAddress: asText(json['merchant_address']),
+      merchantTaxCode: asText(json['merchant_tax_code']),
+      invoiceNumber: asText(json['invoice_number']),
+      invoiceSymbol: asText(json['invoice_symbol']),
+      invoiceTime: asText(json['invoice_time']),
+      vatRate: asText(json['vat_rate']),
+      paymentMethod: asText(json['payment_method']),
+      subtotalAmount: json['subtotal_amount'] == null
+          ? null
+          : asDouble(json['subtotal_amount']),
+      taxAmount:
+          json['tax_amount'] == null ? null : asDouble(json['tax_amount']),
+      note: asText(json['note']),
+    );
+  }
+}
+
+// ── Thông báo ───────────────────────────────────────────────────────────────
+
+class AppNotification {
+  AppNotification({
+    required this.id,
+    required this.type,
+    required this.severity,
+    required this.title,
+    required this.body,
+    required this.origin,
+    required this.isRead,
+    this.entityType,
+    this.entityId,
+    this.createdAt,
+  });
+
+  final String id;
+
+  /// Mã sự kiện, ví dụ `TRANSACTION_CREATED`, `BUDGET_WARNING`.
+  final String type;
+
+  /// `INFO`, `SUCCESS`, `WARNING` hoặc `DANGER`.
+  final String severity;
+  final String title;
+  final String body;
+
+  /// Nơi phát sinh thao tác: `WEB`, `MOBILE` hoặc `SYSTEM`.
+  final String origin;
+  bool isRead;
+  final String? entityType;
+  final String? entityId;
+  final DateTime? createdAt;
+
+  bool get fromThisApp => origin == 'MOBILE';
+  bool get isAlert => severity == 'WARNING' || severity == 'DANGER';
+
+  factory AppNotification.fromJson(Json json) {
+    return AppNotification(
+      id: json['id'].toString(),
+      type: (json['kind'] ?? json['type'] ?? 'INFO').toString(),
+      severity: (json['severity'] ?? 'INFO').toString(),
+      title: (json['title'] ?? 'Thông báo').toString(),
+      body: (json['message'] ?? json['body'] ?? '').toString(),
+      origin: (json['origin'] ?? 'SYSTEM').toString(),
+      isRead: json['read_at'] != null || json['is_read'] == true,
+      entityType:
+          asText(json['source_type'] ?? json['entity_type'])?.toLowerCase(),
+      entityId: asText(json['source_id'] ?? json['entity_id']),
+      createdAt: parseApiDateTime(json['created_at']),
+    );
+  }
+}
+
+// ── Quản trị ────────────────────────────────────────────────────────────────
+
+class AdminOverview {
+  AdminOverview({
+    required this.usersTotal,
+    required this.usersActive,
+    required this.usersBanned,
+    required this.invoicesTotal,
+    required this.invoicesCompleted,
+    required this.ocrSuccessRate,
+    required this.totalTransactions,
+  });
+
+  final int usersTotal;
+  final int usersActive;
+  final int usersBanned;
+  final int invoicesTotal;
+  final int invoicesCompleted;
+  final double ocrSuccessRate;
+  final int totalTransactions;
+
+  factory AdminOverview.fromJson(Json json) {
+    Json section(String key) {
+      final value = json[key];
+      return value is Map
+          ? Map<String, dynamic>.from(value)
+          : <String, dynamic>{};
+    }
+
+    final users = section('users');
+    final invoices = section('invoices');
+    return AdminOverview(
+      usersTotal: asInt(users['total']),
+      usersActive: asInt(users['active']),
+      usersBanned: asInt(users['banned']),
+      invoicesTotal: asInt(invoices['total']),
+      invoicesCompleted: asInt(invoices['completed']),
+      ocrSuccessRate: asDouble(invoices['ocr_success_rate']),
+      totalTransactions: asInt(json['total_transactions']),
+    );
+  }
+}
+
+class AdminUser {
+  AdminUser({
+    required this.id,
+    required this.email,
+    required this.fullName,
+    required this.role,
+    required this.isActive,
+    required this.isDeleted,
+    required this.isSystemAccount,
+    this.createdAt,
+    this.lastLoginAt,
+  });
+
+  final String id;
+  final String email;
+  final String fullName;
+  final String role;
+  final bool isActive;
+  final bool isDeleted;
+  final bool isSystemAccount;
+  final DateTime? createdAt;
+  final DateTime? lastLoginAt;
+
+  bool get isAdmin => role.toUpperCase() == 'ADMIN';
+
+  factory AdminUser.fromJson(Json json) {
+    return AdminUser(
+      id: json['id'].toString(),
+      email: (json['email'] ?? '').toString(),
+      fullName: (json['full_name'] ?? '').toString(),
+      role: (json['role'] ?? 'USER').toString(),
+      isActive: json['is_active'] != false,
+      isDeleted: json['is_deleted'] == true,
+      isSystemAccount: json['is_system_account'] == true,
+      createdAt: parseApiDateTime(json['created_at']),
+      lastLoginAt: parseApiDateTime(json['last_login_at']),
+    );
+  }
+}

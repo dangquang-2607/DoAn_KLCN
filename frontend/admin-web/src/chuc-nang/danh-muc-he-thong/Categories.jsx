@@ -1,0 +1,344 @@
+import density from "../../dung-chung/CSS/management.module.css";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, Tags, Search, Pencil, PauseCircle, PlayCircle, ArrowDown, ArrowUp } from "lucide-react";
+import { useState, useMemo, useRef } from "react";
+import CategoryList from "./thanh-phan/CategoryList";
+import CategoryModal from "./thanh-phan/CategoryModal";
+import { Alert, ErrorState, Loading } from "../../dung-chung/UI-chung/ui";
+import PageHead from "../../dung-chung/UI-chung/WorkspaceHead";
+import api from "../../dung-chung/connect-api/api";
+import Inspector from "../../dung-chung/UI-chung/Inspector";
+import { CategoryIcon } from "../../dung-chung/UI-chung/CategoryIcon";
+import { errorMessage } from "../../dung-chung/tien-ich/format";
+
+function CategoryOrderControls({ name, index, total, busy, onMove }) {
+  return (
+    <div role="group" aria-label={`Sắp xếp ${name}`}>
+      <button className="cf-icon-btn" disabled={busy || index === 0} onClick={() => onMove(-1)} aria-label={`Đưa ${name} lên`}>
+        <ArrowUp size={16} />
+      </button>
+      <button className="cf-icon-btn" disabled={busy || index === total - 1} onClick={() => onMove(1)} aria-label={`Đưa ${name} xuống`}>
+        <ArrowDown size={16} />
+      </button>
+    </div>
+  );
+}
+
+export default function Categories() {
+  const cache = useQueryClient();
+  const pending = useRef(false);
+  const [type, setType] = useState("EXPENSE");
+  const [selectedId, setSelectedId] = useState(undefined);
+  const [status, setStatus] = useState("ALL");
+  const [search, setSearch] = useState("");
+  const [show, setShow] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [name, setName] = useState("");
+  const [icon, setIcon] = useState("package");
+  const [color, setColor] = useState("cobalt");
+  const [keywords, setKeywords] = useState("");
+  const [isActive, setIsActive] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  const query = useQuery({
+    queryKey: ["admin-categories"],
+    queryFn: async () => (await api.get("/admin/categories", { params: { include_inactive: true } })).data,
+  });
+
+  const allForType = useMemo(() => {
+    return (query.data || [])
+      .filter((category) => category.type === type)
+      .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name, "vi"));
+  }, [query.data, type]);
+
+  const list = useMemo(() => {
+    const searchLower = search.trim().toLocaleLowerCase("vi");
+    return allForType.filter((category) => {
+      const matchStatus = status === "ALL" || (status === "ACTIVE") === category.is_active;
+      const matchSearch = !searchLower || category.name.toLocaleLowerCase("vi").includes(searchLower);
+      return matchStatus && matchSearch;
+    });
+  }, [allForType, status, search]);
+
+  const selectedCategory = selectedId === undefined ? list[0] : list.find((item) => item.id === selectedId);
+  const position = allForType.findIndex((item) => item.id === selectedCategory?.id);
+
+  const openCreate = () => {
+    if (pending.current) return;
+    setEditing(null);
+    setName("");
+    setIcon("package");
+    setColor("cobalt");
+    setKeywords("");
+    setIsActive(true);
+    setError("");
+    setShow(true);
+  };
+
+  const openEdit = (category) => {
+    if (pending.current) return;
+    setEditing(category);
+    setName(category.name);
+    setIcon(category.icon || "package");
+    setColor(category.color || "cobalt");
+    setKeywords(category.keywords || "");
+    setIsActive(category.is_active);
+    setError("");
+    setShow(true);
+  };
+
+  const save = async (event) => {
+    event.preventDefault();
+    if (pending.current) return;
+    if (!name.trim()) { setError("Nhập tên danh mục, không chỉ gồm khoảng trắng."); return; }
+    pending.current = true;
+    setBusy(true);
+    setError("");
+    const payload = {
+      name: name.trim(),
+      type,
+      icon,
+      color,
+      keywords: keywords.trim() || null,
+      is_active: isActive,
+    };
+    try {
+      if (editing) await api.patch(`/admin/categories/${editing.id}`, payload);
+      else await api.post("/admin/categories", payload);
+      await cache.invalidateQueries({ queryKey: ["admin-categories"] });
+      setShow(false);
+      setNotice(editing ? "Đã cập nhật danh mục hệ thống." : "Đã tạo danh mục hệ thống.");
+    } catch (caught) {
+      setError(errorMessage(caught));
+    } finally {
+      pending.current = false;
+      setBusy(false);
+    }
+  };
+
+  const toggle = async (category) => {
+    if (pending.current) return;
+    pending.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      await api.patch(`/admin/categories/${category.id}`, { is_active: !category.is_active });
+      await cache.invalidateQueries({ queryKey: ["admin-categories"] });
+      setNotice(category.is_active ? "Đã ngừng sử dụng danh mục." : "Đã kích hoạt lại danh mục.");
+    } catch (caught) {
+      setError(errorMessage(caught));
+    } finally {
+      pending.current = false;
+      setBusy(false);
+    }
+  };
+
+  const move = async (category, delta) => {
+    if (pending.current) return;
+    const index = allForType.findIndex((item) => item.id === category.id);
+    const target = index + delta;
+    if (index < 0 || target < 0 || target >= allForType.length) return;
+    pending.current = true;
+    const next = [...allForType];
+    [next[index], next[target]] = [next[target], next[index]];
+    setBusy(true);
+    setError("");
+    try {
+      await api.put("/admin/categories/reorder", { type, ordered_ids: next.map((item) => item.id) });
+      setSelectedId(category.id);
+      await cache.invalidateQueries({ queryKey: ["admin-categories"] });
+      setNotice("Đã cập nhật thứ tự danh mục.");
+    } catch (caught) {
+      setError(errorMessage(caught));
+    } finally {
+      pending.current = false;
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className={`adm-surface adm-live adm-rest adm-categories ${density.page}`}>
+      <PageHead
+        eyebrow="DANH MỤC DÙNG CHUNG"
+        title="Danh mục hệ thống"
+        description="Chuẩn hóa tên, biểu tượng, từ khóa và thứ tự trước khi phân phối cho người dùng."
+      />
+      {notice && <Alert kind="success" onDismiss={() => setNotice("")}>{notice}</Alert>}
+      {error && !show && <Alert onDismiss={() => setError("")}>{error}</Alert>}
+
+      <div className="adm-category-top">
+        <div>
+          <p className="adm-eyebrow">THƯ VIỆN DANH MỤC</p>
+          <h2>Quản lý theo loại giao dịch</h2>
+          <p>Ngừng sử dụng vẫn giữ liên kết của giao dịch cũ.</p>
+        </div>
+        <div className="adm-category-top-actions">
+          <div className="adm-category-switch" role="group" aria-label="Loại danh mục">
+            {[["EXPENSE", "Chi tiêu"], ["INCOME", "Thu nhập"]].map(([value, label]) => (
+              <button
+                type="button"
+                key={value}
+                disabled={busy}
+                className={type === value ? "is-active" : ""}
+                aria-pressed={type === value}
+                onClick={() => {
+                  setType(value);
+                  setSelectedId(undefined);
+                }}
+              >
+                {label}
+                <span>{query.data?.filter((item) => item.type === value).length ?? "—"}</span>
+              </button>
+            ))}
+          </div>
+          <button type="button" className="adm-rest-dark-button" disabled={busy} onClick={openCreate}>
+            <Plus size={16} />
+            Thêm danh mục
+          </button>
+        </div>
+      </div>
+
+      {query.isPending ? (
+        <Loading />
+      ) : query.isError ? (
+        <ErrorState retry={() => query.refetch()} />
+      ) : (
+        <div className="adm-category-layout">
+          <section className="adm-card adm-category-library">
+            <div className="adm-category-filters">
+              <label className="adm-rest-search">
+                <Search size={17} />
+                <span className="adm-visually-hidden">Tìm danh mục</span>
+                <input
+                  placeholder="Tìm danh mục"
+                  value={search}
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    setSelectedId(undefined);
+                  }}
+                />
+              </label>
+              <label>
+                <span className="adm-visually-hidden">Lọc trạng thái</span>
+                <select
+                  value={status}
+                  onChange={(event) => {
+                    setStatus(event.target.value);
+                    setSelectedId(undefined);
+                  }}
+                >
+                  <option value="ALL">Mọi trạng thái</option>
+                  <option value="ACTIVE">Đang dùng</option>
+                  <option value="INACTIVE">Ngừng dùng</option>
+                </select>
+              </label>
+            </div>
+            <div className="adm-category-count">
+              {list.length} danh mục đang hiển thị
+              <span>· Chọn dòng để xem cấu hình</span>
+            </div>
+            <CategoryList
+              list={list}
+              onCreate={openCreate}
+              selectedId={selectedCategory?.id}
+              onSelect={setSelectedId}
+            />
+          </section>
+
+          <Inspector
+            selectedId={selectedCategory?.id}
+            title={selectedCategory?.name || "Chọn danh mục"}
+            eyebrow="CẤU HÌNH DANH MỤC"
+            className="adm-category-inspector"
+            icon={Tags}
+            header={selectedCategory && <CategoryIcon icon={selectedCategory.icon} color={selectedCategory.color} size={54} />}
+            onClose={() => setSelectedId(null)}
+          >
+            {selectedCategory && (
+              <>
+                <span className={`adm-rest-pill adm-rest-pill--${selectedCategory.is_active ? "active" : "banned"}`}>
+                  {selectedCategory.is_active ? "Đang dùng" : "Ngừng dùng"}
+                </span>
+                <dl className="adm-rest-dl">
+                  <div>
+                    <dt>Loại giao dịch</dt>
+                    <dd>{selectedCategory.type === "INCOME" ? "Thu nhập" : "Chi tiêu"}</dd>
+                  </div>
+                  <div>
+                    <dt>Thứ tự hiển thị</dt>
+                    <dd>{position + 1} / {allForType.length}</dd>
+                  </div>
+                  <div>
+                    <dt>Mã danh mục</dt>
+                    <dd>{selectedCategory.id}</dd>
+                  </div>
+                </dl>
+                <div className="adm-category-keywords">
+                  <span>TỪ KHÓA NHẬN DIỆN</span>
+                  <p>
+                    {selectedCategory.keywords ? (
+                      selectedCategory.keywords.split(",").map((word, index) => (
+                        <small key={index}>{word.trim()}</small>
+                      ))
+                    ) : (
+                      <small>Chưa thiết lập</small>
+                    )}
+                  </p>
+                </div>
+                <div className="adm-category-order">
+                  <span>THỨ TỰ HIỂN THỊ</span>
+                  <CategoryOrderControls
+                    name={selectedCategory.name}
+                    index={position}
+                    total={allForType.length}
+                    busy={busy}
+                    onMove={(delta) => move(selectedCategory, delta)}
+                  />
+                </div>
+                <div className="adm-live-category-actions">
+                  <button className="adm-rest-outline-button" disabled={busy} onClick={() => openEdit(selectedCategory)}>
+                    <Pencil size={16} />
+                    Chỉnh sửa danh mục
+                  </button>
+                  <button className="cf-btn" disabled={busy} onClick={() => toggle(selectedCategory)}>
+                    {selectedCategory.is_active ? <PauseCircle size={16} /> : <PlayCircle size={16} />}
+                    {selectedCategory.is_active ? "Ngừng sử dụng" : "Kích hoạt lại"}
+                  </button>
+                </div>
+                <div className="adm-rest-guidance">
+                  <PauseCircle size={17} />
+                  Ngừng sử dụng thay cho xóa vĩnh viễn để giữ liên kết giao dịch.
+                </div>
+              </>
+            )}
+          </Inspector>
+        </div>
+      )}
+
+      {show && (
+        <CategoryModal
+          editing={editing}
+          type={type}
+          name={name}
+          icon={icon}
+          color={color}
+          keywords={keywords}
+          isActive={isActive}
+          busy={busy}
+          error={error}
+          onTypeChange={setType}
+          onNameChange={setName}
+          onIconChange={setIcon}
+          onColorChange={setColor}
+          onKeywordsChange={setKeywords}
+          onActiveChange={setIsActive}
+          onDismissError={() => setError("")}
+          onClose={() => { if (!pending.current) setShow(false); }}
+          onSubmit={save}
+        />
+      )}
+    </div>
+  );
+}

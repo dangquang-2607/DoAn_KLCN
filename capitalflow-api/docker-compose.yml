@@ -1,0 +1,40 @@
+services:
+  capitalflow-api:
+    build: .
+    container_name: capitalflow-api
+    restart: unless-stopped
+    env_file:
+      - ${CAPITALFLOW_ENV_FILE:-.env}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=15)"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 20s
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persistent volume: đảm bảo file ảnh hóa đơn không bị mất khi restart/redeploy container
+      - capitalflow_uploads:/app/uploads
+
+  capitalflow-worker:
+    build: .
+    restart: unless-stopped
+    command: ["python", "-m", "app.dung_chung.tac_vu_nen.trinh_chay", "--kinds", "EMAIL,BUDGET,FILE_DELETE,BILLING,PUSH"]
+    env_file:
+      - ${CAPITALFLOW_ENV_FILE:-.env}
+    volumes:
+      - capitalflow_uploads:/app/uploads
+
+  capitalflow-ocr-worker:
+    build: .
+    restart: unless-stopped
+    command: ["python", "-m", "app.dung_chung.tac_vu_nen.trinh_chay", "--kinds", "OCR"]
+    env_file:
+      - ${CAPITALFLOW_ENV_FILE:-.env}
+    volumes:
+      - capitalflow_uploads:/app/uploads
+
+volumes:
+  # Volume lưu trữ tệp hóa đơn dùng chung giữa API và worker.
+  capitalflow_uploads:

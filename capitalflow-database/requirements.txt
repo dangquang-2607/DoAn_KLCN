@@ -1,0 +1,6 @@
+# Công cụ database tái sử dụng model và service của API khi seed/verify.
+-r ../capitalflow-api/requirements.txt
+
+# Migration được chạy riêng từ project database; API/worker không tự chạy migration.
+alembic==1.19.1
+

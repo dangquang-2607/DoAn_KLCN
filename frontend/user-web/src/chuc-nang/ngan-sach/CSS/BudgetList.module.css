@@ -1,0 +1,37 @@
+/* Bộ lọc lịch sử */
+.toolbar { font-family: var(--budget-font); display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; width: fit-content; max-width: 100%; padding: 5px; border: 1px solid var(--cf-line); border-radius: 12px; background: #fffefa; }
+.yearNav { display: flex; align-items: center; gap: 2px; }
+.yearNav strong { min-width: 58px; text-align: center; font-size: 14px; color: #30283d; font-variant-numeric: tabular-nums; }
+.iconButton { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: #5d4c70; cursor: pointer; }
+.iconButton:hover:not(:disabled) { background: #f2eaf7; color: #6f3da4; }
+.iconButton:focus-visible { outline: 2px solid #9b6ac9; outline-offset: -2px; }
+.iconButton:disabled { color: #c9c3ce; cursor: not-allowed; }
+.divider { width: 1px; height: 22px; background: #e7e0e8; }
+.monthField { display: flex; align-items: center; gap: 7px; min-height: 40px; padding: 0 9px; border-radius: 8px; background: #f5f0f8; color: #754a99; cursor: pointer; }
+.monthField:focus-within { outline: 2px solid #9b6ac9; outline-offset: -2px; }
+.monthField select { min-width: 112px; height: 40px; padding: 0; appearance: none; border: 0; outline: 0; background: transparent; color: #593b79; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.monthField svg:last-child { pointer-events: none; }
+.visuallyHidden { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.resultNote { margin: -7px 0 0; color: #77727b; font-size: 13px; }
+@media (max-width: 360px) { .toolbar { width: 100%; } .monthField { flex: 1; } .monthField select { min-width: 0; width: 100%; } }
+
+/* Danh sách ngân sách */
+.groups { display: grid; gap: 16px; padding: 0 20px 20px; }
+.group { min-width: 0; }
+.group h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; color: var(--cf-muted); font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.group h3 span { display: inline-grid; place-items: center; min-width: 20px; min-height: 20px; border-radius: 5px; background: #f1f4f7; letter-spacing: 0; }
+.list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.list li { min-width: 0; }
+.description { display: grid; gap: 3px; }
+.description > span:last-child { font-size: 13px; line-height: 20px; }
+.summary { display: grid; gap: 6px; max-width: 160px; text-align: right; overflow-wrap: anywhere; }
+.summary strong { font-size: 14px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.summary > span { color: var(--cf-muted); font-size: 13px; line-height: 20px; }
+.summary > span[data-status="EXCEEDED"] { color: var(--cf-danger); }
+.summary > span[data-status="WARNING"] { color: #946400; }
+@media (max-width: 520px) { .groups { padding: 0 12px 12px; } .summary { max-width: none; text-align: left; gap: 3px; } }
+
+.list button[data-record-key] { padding: 12px; min-height: 76px; font-family: var(--budget-font); }
+.list button[data-record-key] > span:nth-child(2) > span { font-size: 13px; line-height: 20px; }
+
+/* Menu thao tác */

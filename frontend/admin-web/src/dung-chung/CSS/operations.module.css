@@ -1,0 +1,126 @@
+/* Audit, email and settings content only. Heading typography stays unchanged. */
+.page:global(.adm-live) { gap: 16px; }
+.page :global(.cf-btn) { min-height: var(--cf-control-height); padding: var(--cf-control-padding-y) var(--cf-button-padding-x); border-radius: var(--cf-control-radius); font: 600 var(--cf-control-font-size)/var(--cf-control-line-height) var(--cf-font); }
+.page :global(.cf-btn) > svg { width: 18px; height: 18px; flex-shrink: 0; }
+.page :global(.cf-icon-btn), .page :global(.adm-audit-table) td:last-child button { width: 32px; height: 32px; min-height: 32px; padding: 6px; }
+.page:global(.adm-live) :global(.cf-inspector) { padding: 20px; border-radius: 6px; }
+.page :global(.adm-rest-detail-sub) { font: 400 14px/20px var(--cf-font); overflow-wrap: anywhere; }
+.page :global(.cf-data-note), .page :global(.adm-rest-guidance) { font: 400 13px/20px var(--cf-font); }
+.page :global(.adm-rest-guidance) { margin-top: 12px; padding: 12px; }
+.page :global(.cf-label) { padding: 2px 8px; font: 600 13px/20px var(--cf-font); }
+.page :global(.cf-pagination) { gap: 8px; padding: 12px 16px; font: 400 13px/20px var(--cf-font); }
+.page :global(.cf-state) { padding: 28px 20px; }
+.page :global(.cf-state) p { font: 400 14px/20px var(--cf-font); }
+.page :global(.cf-alert) { padding: 10px 12px; font: 400 14px/20px var(--cf-font); overflow-wrap: anywhere; }
+.page :global(.cf-alert) svg { flex-shrink: 0; }
+
+.auditToolbar {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 12px 20px;
+  padding: 16px 20px;
+  overflow: visible;
+}
+.page :global(.adm-audit-filter-bar) {
+  display: grid;
+  grid-template-columns: minmax(136px, 184px) minmax(128px, 1fr) minmax(150px, 1.15fr) repeat(2, minmax(160px, 0.92fr));
+}
+.page :global(.adm-audit-filter-item) { height: var(--cf-control-height); min-width: 0; }
+.page :global(.adm-audit-search-item) input, .page :global(.adm-audit-select-item) select { min-width: 0; height: calc(var(--cf-control-height) - 2px); font: 400 14px/20px var(--cf-font); }
+.page :global(.adm-audit-select-item) select { width: 100%; text-overflow: ellipsis; }
+.page :global(.adm-audit-date-item) :global(.cf-date-input) { flex: 1; width: auto; min-width: 0; }
+.page :global(.adm-audit-date-item) :global(.cf-date-input-field) { height: calc(var(--cf-control-height) - 2px); min-height: calc(var(--cf-control-height) - 2px); padding: 9px 34px 9px 4px; font: 400 var(--cf-control-font-size)/var(--cf-control-line-height) var(--cf-font); }
+.page :global(.adm-audit-date-item) :global(.cf-date-input-calendar) { width: 32px; height: 32px; top: 3px; right: 0; }
+.page :global(.adm-audit-inline-label), .page :global(.cf-date-input-error) { font: 400 13px/20px var(--cf-font); }
+.page :global(.adm-audit-clear-btn) { width: 28px; height: 28px; }
+.auditReset { margin-top: 8px; }
+.auditReset :global(.adm-audit-reset-btn) { height: 32px; margin: 0; padding: 5px 10px; font: 600 13px/20px var(--cf-font); }
+.page :global(.adm-audit-layout) { gap: 16px; }
+.page :global(.adm-audit-table) :is(th, td) { padding: 12px; font: 400 14px/20px var(--cf-font); }
+.page :global(.adm-audit-table) th { font-weight: 600; }
+.page :global(.adm-audit-table) time { white-space: normal; }
+.page :global(.adm-audit-action) { font: 600 14px/20px var(--cf-font); white-space: normal; }
+.page :global(.adm-audit-table) code, .page :global(.adm-audit-context) code { font-size: 13px; line-height: 20px; overflow-wrap: anywhere; }
+.page :global(.adm-audit-table) td:nth-child(3) code { font-family: var(--cf-font); }
+.page :global(.adm-audit-mobile-list) button { padding: 12px 16px; gap: 6px 8px; }
+.page :global(.adm-audit-mobile-list) small { font: 400 13px/20px var(--cf-font); overflow-wrap: anywhere; }
+.page :global(.adm-audit-context) { margin-top: 12px; padding: 12px; border-radius: 6px; }
+.page :global(.adm-audit-context) dl > div { gap: 12px; padding: 6px 0; font: 400 14px/20px var(--cf-font); }
+.page :global(.adm-audit-context) dd { min-width: 0; overflow-wrap: anywhere; }
+.page :global(.adm-http-method) { font-size: 13px; line-height: 20px; }
+.page :global(.adm-audit-change) { padding: 12px; margin-top: 12px; }
+.page :global(.adm-audit-change) > span { font: 600 13px/20px var(--cf-font); letter-spacing: 0; }
+.page :global(.adm-audit-change) p { font: 400 13px/20px var(--cf-font); }
+.page :global(.cf-json-detail) { margin-top: 8px; padding: 10px 12px; }
+.page :global(.cf-json-detail) summary { font: 600 14px/20px var(--cf-font); cursor: pointer; }
+.page :global(.cf-json-detail) p { font: 400 13px/20px var(--cf-font); }
+.page :global(.cf-json-detail) pre { font-size: 13px; line-height: 20px; padding: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.page :global(.adm-email-top) { padding: 16px 20px; gap: 16px; }
+.page :global(.adm-email-metrics) span { font: 500 14px/20px var(--cf-font); }
+.page :global(.adm-email-metrics) small { font: 400 13px/20px var(--cf-font); }
+.page :global(.adm-email-metrics) strong { font: 700 28px/1.2 var(--cf-font); }
+.page :global(.adm-email-tabs) button { padding: 10px 12px; min-height: 40px; font-family: var(--cf-font); font-size: 14px !important; line-height: 20px; }
+.page :global(.adm-rest-search) { width: 240px; min-width: 0; height: 40px; border-radius: 6px; }
+.page :global(.adm-rest-search) input { font-family: var(--cf-font); font-size: var(--cf-control-font-size) !important; line-height: var(--cf-control-line-height); }
+.page :global(.adm-rest-controls) select { max-width: 100%; min-height: var(--cf-control-height); height: var(--cf-control-height); padding: 9px 32px 9px 12px; border-radius: var(--cf-control-radius); font-family: var(--cf-font); font-size: var(--cf-control-font-size) !important; line-height: var(--cf-control-line-height); }
+.page :global(.adm-email-layout), .page :global(.adm-email-settings) { gap: 16px; }
+.page :global(.adm-email-row) { padding: 12px 16px; gap: 12px; }
+.page :global(.adm-email-row-main) strong { font: 600 14px/20px var(--cf-font); }
+.page :global(.adm-email-row-main) small, .page :global(.adm-email-row-meta) small { font: 400 13px/20px var(--cf-font); }
+.page :global(.adm-email-row-main) :is(strong, small) { white-space: normal; overflow-wrap: anywhere; }
+.page :global(.adm-rest-dl) { margin: 16px 0; }
+.page :global(.adm-rest-dl) > div { padding: 10px 0; font: 400 14px/20px var(--cf-font); }
+.page :global(.adm-rest-dl) dd { font-weight: 600; }
+.page :global(.adm-email-config) :global(.cf-form) { gap: 16px; }
+.page :global(.adm-email-config-grid) { gap: 16px; padding: 0 20px; }
+.smtpNotice { padding: 0 20px; }
+.page :global(.adm-email-security) { margin: 0 20px; padding: 12px; }
+.page :global(.adm-email-security) :global(.cf-field) { width: 220px; max-width: 100%; }
+.page :global(.adm-email-security) small { font: 400 13px/20px var(--cf-font); }
+.page :global(.adm-email-config-foot) { padding: 12px 20px; gap: 8px; }
+.page :global(.adm-email-config-foot) button { min-height: var(--cf-control-height); padding: var(--cf-control-padding-y) var(--cf-button-padding-x); font-family: var(--cf-font); font-size: var(--cf-control-font-size) !important; line-height: var(--cf-control-line-height);  font-weight: 600; }
+.page :global(.adm-email-mode) { padding: 20px; border-radius: 6px; }
+.page :global(.adm-email-mode) > p:not(:global(.adm-eyebrow)) { font: 400 13px/20px var(--cf-font); }
+.page:global(.adm-live) :global(.cf-field) { gap: 6px; min-width: 0; align-content: start; }
+.page:global(.adm-live) :global(.cf-field) > label { font: 600 14px/20px var(--cf-font); }
+.page:global(.adm-live) :global(.cf-field) > small { font: 400 13px/20px var(--cf-font); }
+.page:global(.adm-live) :global(.cf-input) { min-width: 0; height: var(--cf-control-height); min-height: var(--cf-control-height); padding: var(--cf-control-padding-y) var(--cf-input-padding-x); border-radius: var(--cf-control-radius); font-family: var(--cf-font); font-size: var(--cf-control-font-size) !important; line-height: var(--cf-control-line-height); }
+/* Date controls own their border through the enclosing filter item. */
+.page:global(.adm-live) :global(.adm-audit-date-item) :global(.cf-date-input-field) { height: calc(var(--cf-control-height) - 2px); min-height: calc(var(--cf-control-height) - 2px); padding: 9px 34px 9px 4px; }
+
+.page:global(.adm-live) :global(.adm-settings-form) { gap: 16px; }
+.page:global(.adm-live) :global(.adm-settings-form) input { height: var(--cf-control-height); min-height: var(--cf-control-height); font-size: var(--cf-control-font-size) !important; line-height: var(--cf-control-line-height); }
+.page:global(.adm-live) :global(.cf-password) input { padding-right: 44px; }
+.page:global(.adm-live) :global(.cf-password) button { width: 32px; height: 32px; top: 4px; right: 4px; bottom: auto; }
+.page:global(.adm-live) :global(.adm-settings-form-foot) { padding: 12px 20px; }
+.page:global(.adm-live) :global(.adm-settings-form-foot) button { min-height: var(--cf-control-height); padding: var(--cf-control-padding-y) var(--cf-button-padding-x); font-family: var(--cf-font); font-size: var(--cf-control-font-size) !important; line-height: var(--cf-control-line-height);  font-weight: 600; }
+.page:global(.adm-live) :global(.adm-settings-session) { padding: 12px 20px; }
+.page :global(.adm-settings-session) strong { font: 600 14px/20px var(--cf-font); }
+.page :global(.adm-settings-session) :is(small, summary, dt), .page :global(.adm-settings-session-footer) { font: 400 13px/20px var(--cf-font); }
+.page :global(.adm-settings-session) dd { font: 400 14px/20px var(--cf-font); }
+.page :global(.adm-settings-session) summary { min-height: 28px; align-content: center; }
+.page :global(.adm-settings-session-footer) { padding: 12px 20px; }
+.page:global(.adm-live) :global(.adm-settings-link-card) p { font: 400 14px/20px var(--cf-font); }
+.page :global(.adm-settings-link-card) a { min-height: 32px; font: 600 14px/20px var(--cf-font); }
+.page:global(.adm-live) :global(.adm-settings-format) > span, .page:global(.adm-live) :global(.adm-settings-format) small { font: 400 13px/20px var(--cf-font); }
+@container (max-width: 1120px) {
+  .auditToolbar { grid-template-columns: minmax(0, 1fr); }
+}
+@container (max-width: 820px) {
+  .page :global(.adm-audit-filter-bar) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .page :global(.adm-audit-search-item) { grid-column: 1 / -1; }
+}
+@container (max-width: 550px) {
+  .auditToolbar { padding: 14px 16px; }
+  .page :global(.adm-audit-filter-bar) { grid-template-columns: minmax(0, 1fr); }
+  .page :global(.adm-email-metrics) span { min-height: 40px; }
+  .page:global(.adm-live) :global(.cf-inspector), .page :global(.adm-email-mode) { padding: 16px; }
+  .page :global(.adm-rest-search) { width: 100%; }
+  .page :global(.adm-email-row-meta) { flex-wrap: wrap; }
+  .page :global(.adm-email-config-grid), .smtpNotice { padding: 0 16px; }
+  .page :global(.adm-email-security) { margin: 0 16px; }
+  .page :global(.adm-email-config-foot), .page:global(.adm-live) :global(.adm-settings-form-foot), .page:global(.adm-live) :global(.adm-settings-session), .page :global(.adm-settings-session-footer) { padding: 12px 16px; }
+}
+.fieldset { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 16px; }

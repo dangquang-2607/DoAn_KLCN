@@ -1,0 +1,33 @@
+.workspace { --workspace-font: var(--font-inter, var(--cf-font)); }
+.content { display: grid; gap: 16px; min-width: 0; }
+.content :global(.cf-icon-btn) { width: 32px; height: 32px; min-width: 32px; min-height: 32px; }
+.content :global(.cf-search) :global(.cf-input) { padding-left: 36px; }
+.content :global(.cf-password) :global(.cf-input) { padding-right: 44px; }
+.content :global(.cf-password) button { width: 32px; height: 32px; right: 4px; top: 4px; bottom: auto; }
+.content :global(.cf-field), .fields :global(.cf-field) { gap: 6px; min-width: 0; }
+.content :global(.cf-field) > label, .fields :global(.cf-field) > label { font-family: var(--workspace-font, var(--font-inter, var(--cf-font))); font-size: 14px; line-height: 20px; font-weight: 600; }
+.content :global(.cf-field) small, .fields :global(.cf-field) small { font-family: var(--workspace-font, var(--font-inter, var(--cf-font))); font-size: 13px; line-height: 20px; }
+.content :global(.cf-tabs) button { min-height: 36px; padding: 8px 12px; font-family: var(--workspace-font); font-size: 14px; line-height: 20px; }
+.content :global(.cf-tabs) { max-width: 100%; }
+.content :global(.cf-badge) { font-family: var(--workspace-font); font-size: 13px; line-height: 20px; padding: 2px 8px; }
+.content :global(.cf-state) { padding: 28px 20px; }
+.content :global(.cf-state) p { font-family: var(--workspace-font); font-size: 14px; line-height: 20px; }
+.content :global(.cf-alert), .dialog :global(.cf-alert) { font-family: var(--workspace-font, var(--font-inter, var(--cf-font))); font-size: 14px; line-height: 20px; padding: 10px 12px; }
+.content :global(.cf-alert) > svg, .dialog :global(.cf-alert) > svg { flex-shrink: 0; }
+.dialog { display: flex; flex-direction: column; max-height: min(90dvh, calc(100dvh - 32px)); overflow: hidden; }
+.dialog > :global(.cf-dialog-head) { flex-shrink: 0; }
+.dialog > :global(.cf-dialog-body) { display: flex; flex-direction: column; padding: 0; overflow: hidden; min-height: 0; }
+.form { display: flex; flex-direction: column; margin: 0; overflow: hidden; min-height: 0; }
+.fields { display: grid; gap: var(--cf-field-gap); padding: var(--cf-dialog-padding); overflow-y: auto; min-height: 0; scrollbar-width: thin; overscroll-behavior: contain; font-family: var(--workspace-font, var(--font-inter, var(--cf-font))); font-size: 14px; line-height: 20px; }
+.fields > * { min-width: 0; }
+.fields p { margin: 0; overflow-wrap: anywhere; }
+.fields textarea:global(.cf-input) { height: auto; min-height: 80px; resize: vertical; }
+.fields :global(.cf-icon-picker) { grid-template-columns: repeat(auto-fill, 36px); justify-content: space-between; gap: 8px; padding: 8px; max-height: 184px; }
+.fields :global(.cf-icon-picker) button { min-width: 36px; width: 36px; height: 36px; }
+.fields :global(.cf-color-picker) { gap: 12px; padding: 4px; }
+.fields :global(.cf-color-picker) button { width: 32px; height: 32px; }
+.footer { display: flex; justify-content: flex-end; flex-wrap: wrap; flex-shrink: 0; gap: 8px; padding: var(--cf-dialog-footer-padding); background: #fff; border-top: 1px solid var(--cf-line); }
+.compact { max-width: 480px; }
+@media (max-width: 540px) {
+ .footer > :global(.cf-btn):last-child { flex: 1; }
+}

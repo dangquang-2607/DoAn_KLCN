@@ -1,0 +1,25 @@
+.env
+.env.*
+.venv
+__pycache__
+*.pyc
+.pytest_cache/
+logs/
+uploads
+email_previews
+.git
+
+# Script phát triển và mã sinh tự động không cần trong runtime.
+scripts/
+docs/
+artifacts/
+
+# Cấu hình IDE/editor.
+.vscode/
+.idea/
+pyrightconfig.json
+
+# Tài liệu và bản tổng kết.
+*.md
+index_summary.md
+technical_manifest.md

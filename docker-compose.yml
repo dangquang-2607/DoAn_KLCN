@@ -1,0 +1,17 @@
+services:
+  admin-web:
+    build: ./frontend/admin-web
+    ports:
+      - "4000:80"
+    networks:
+      - capitalflow-net
+
+  user-web:
+    build: ./frontend/user-web
+    ports:
+      - "3010:3010"
+    networks:
+      - capitalflow-net
+
+networks:
+  capitalflow-net:

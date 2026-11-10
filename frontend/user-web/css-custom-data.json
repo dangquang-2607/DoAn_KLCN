@@ -1,0 +1,15 @@
+{
+  "version": 1.1,
+  "properties": [
+    {
+      "name": "composes",
+      "description": "CSS Modules: compose local class names from another class or stylesheet. Resolved by the CSS Modules bundler."
+    }
+  ],
+  "atDirectives": [
+    {
+      "name": "@theme",
+      "description": "Tailwind CSS v4: declare theme variables used to generate utility classes. Supports the inline modifier."
+    }
+  ]
+}
