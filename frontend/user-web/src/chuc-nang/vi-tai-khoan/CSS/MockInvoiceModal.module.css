@@ -142,38 +142,6 @@
   line-height: 16px;
 }
 
-/* Khối Nội Dung Mã QR (Payload box) */
-.qrPayloadContainer {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.qrPayloadHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.qrPayloadTitle {
-  font-size: 13px;
-  font-weight: 600;
-  color: #334155;
-}
-
-.qrPayloadContainer textarea {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 12px;
-  line-height: 18px;
-  resize: vertical;
-  background: #ffffff;
-  border-radius: 6px;
-}
-
 @media (max-width: 520px) {
   .body { padding: 16px; }
   .itemRow { grid-template-columns: 1fr; gap: 8px; }

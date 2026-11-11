@@ -14,9 +14,6 @@ import 'chuc_nang/xac_thuc/dang_nhap.dart';
 import 'ung_dung/khung_chinh.dart';
 import 'chuc_nang/thong_bao/danh_sach.dart';
 import 'du_lieu/trang_thai.dart';
-import 'chuc_nang/hoa_don/hang_doi/dieu_phoi.dart';
-import 'chuc_nang/hoa_don/hang_doi/luu_anh.dart';
-import 'chuc_nang/hoa_don/hang_doi/tac_vu_nen.dart';
 import 'chuc_nang/thong_bao/tuy_chon.dart';
 import 'chuc_nang/xac_thuc/phien_dang_nhap.dart';
 import 'chuc_nang/thong_bao/push_android.dart';
@@ -44,14 +41,7 @@ Future<void> main() async {
   final auth = AuthController(api: api, tokens: tokens);
   final businessPush =
       BusinessPush(api, auth, settings, (id) => notifier.onTap?.call(id));
-  final queue = InvoiceQueue(await InvoiceQueueStore.open(), api,
-      onUploaded: data.markChanged);
-  queue.observe();
-  try {
-    await initializeInvoiceBackground();
-  } catch (_) {/* Foreground retry remains available. */}
   auth.onSigningOut = () {
-    unawaited(queue.deactivate());
     unawaited(businessPush.deactivate());
   };
   final center = NotificationCenter(
@@ -68,7 +58,6 @@ Future<void> main() async {
   api.onSessionExpired = auth.handleSessionExpired;
 
   auth.onSignedIn = () {
-    unawaited(queue.activate());
     data.refreshLookups().catchError((Object _) {});
     center.start();
     unawaited(businessPush.openFromNotification());
@@ -90,7 +79,6 @@ Future<void> main() async {
 
   auth.onSignedOut = () {
     unawaited(businessPush.deactivate());
-    unawaited(queue.deactivate());
     center.stop();
     data.clear();
     notifier.cancelDailyReminder();
@@ -114,7 +102,6 @@ Future<void> main() async {
         ChangeNotifierProvider<AppSettings>.value(value: settings),
         ChangeNotifierProvider<AuthController>.value(value: auth),
         ChangeNotifierProvider<AppData>.value(value: data),
-        ChangeNotifierProvider<InvoiceQueue>.value(value: queue),
         ChangeNotifierProvider<NotificationCenter>.value(value: center),
         Provider<ApiClient>.value(value: api),
         Provider<LocalNotifier>.value(value: notifier),

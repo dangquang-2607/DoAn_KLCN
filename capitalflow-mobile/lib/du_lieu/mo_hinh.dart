@@ -106,18 +106,21 @@ class Wallet {
     required this.id,
     required this.name,
     required this.balance,
+    String? balanceDecimal,
     this.accountType = 'WALLET',
     this.currency = 'VND',
     this.institutionName,
     this.isActive = true,
     this.isDefault = false,
     this.receiveCode,
-  });
+  }) : _balanceDecimal = balanceDecimal;
 
   final String id;
   final String name;
   final String accountType;
   final double balance;
+  final String? _balanceDecimal;
+  String get balanceDecimal => _balanceDecimal ?? balance.toStringAsFixed(2);
   final String currency;
   final String? institutionName;
   final bool isActive;
@@ -134,6 +137,7 @@ class Wallet {
       name: (json['name'] ?? '').toString(),
       accountType: (json['account_type'] ?? 'WALLET').toString(),
       balance: asDouble(json['balance']),
+      balanceDecimal: json['balance']?.toString(),
       currency: (json['currency'] ?? 'VND').toString(),
       institutionName: asText(json['institution_name']),
       isActive: json['is_active'] != false,

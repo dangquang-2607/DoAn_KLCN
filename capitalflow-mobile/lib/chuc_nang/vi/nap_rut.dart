@@ -25,6 +25,8 @@ class BankMoneyScreen extends StatefulWidget {
 }
 
 class _BankMoneyScreenState extends State<BankMoneyScreen> {
+  static const _presets = [50000, 100000, 200000, 500000];
+  static const _topupLimit = 50000000;
   final TextEditingController _amount = TextEditingController();
 
   late bool _topup;
@@ -101,11 +103,57 @@ class _BankMoneyScreenState extends State<BankMoneyScreen> {
     if (mounted) await _loadLinks();
   }
 
+  void _fillAmount(String text) {
+    _amount.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
+
+  Widget _amountChoices(Wallet? wallet) {
+    final balance = _topup ? null : (wallet?.balanceDecimal ?? '0');
+    final available = balance == null ? null : moneyCents(balance);
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: _amount,
+      builder: (context, value, _) {
+        final current = editMoney(moneyInput(value.text));
+        return Wrap(
+          spacing: Space.xs,
+          runSpacing: Space.xs,
+          children: [
+            for (final preset in _presets)
+              ChoiceChip(
+                label: Text(formatMoney(preset)),
+                showCheckmark: false,
+                selected: current == editMoney(preset),
+                materialTapTargetSize: MaterialTapTargetSize.padded,
+                onSelected: !_saving &&
+                        (available == null ||
+                            BigInt.from(preset * 100) <= available)
+                    ? (_) => _fillAmount(editMoney(preset))
+                    : null,
+              ),
+            if (available != null && available > BigInt.zero)
+              ActionChip(
+                label: const Text('Tất cả số dư'),
+                backgroundColor: AppColors.soft,
+                labelStyle: const TextStyle(color: AppColors.blue),
+                materialTapTargetSize: MaterialTapTargetSize.padded,
+                onPressed:
+                    _saving ? null : () => _fillAmount(editMoney(balance)),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _submit() async {
     final appData = context.read<AppData>();
     final wallet = appData.walletById(_walletId);
-    final amount = parseAmountInput(_amount.text);
+    final amount = moneyInput(_amount.text);
     final linkId = _linkId;
+    final topup = _topup;
     if (wallet == null) {
       showSnack('Vui lòng chọn ví.', error: true);
       return;
@@ -114,11 +162,16 @@ class _BankMoneyScreenState extends State<BankMoneyScreen> {
       showSnack('Cần liên kết ngân hàng còn hiệu lực.', error: true);
       return;
     }
-    if (amount <= 0) {
+    final cents = moneyCents(amount ?? '0');
+    if (amount == null || cents <= BigInt.zero) {
       showSnack('Vui lòng nhập số tiền lớn hơn 0.', error: true);
       return;
     }
-    if (!_topup && amount > wallet.balance) {
+    if (topup && cents > BigInt.from(_topupLimit * 100)) {
+      showSnack('Mỗi lần nạp tối đa ${formatMoney(_topupLimit)}.', error: true);
+      return;
+    }
+    if (!topup && cents > moneyCents(wallet.balanceDecimal)) {
       showSnack('Số dư ví không đủ để rút.', error: true);
       return;
     }
@@ -127,14 +180,12 @@ class _BankMoneyScreenState extends State<BankMoneyScreen> {
     setState(() => _saving = true);
     try {
       await appData.finance.bankMoney(
-          walletId: wallet.id,
-          topup: _topup,
-          linkId: linkId,
-          amount: moneyInput(_amount.text)!);
+          walletId: wallet.id, topup: topup, linkId: linkId, amount: amount);
       await appData.markChanged();
-      showSnack(_topup
-          ? 'Đã nạp ${formatMoney(amount)} vào "${wallet.name}".'
-          : 'Đã rút ${formatMoney(amount)} từ "${wallet.name}".');
+      final formatted = '${editMoney(amount)} ₫';
+      showSnack(topup
+          ? 'Đã nạp $formatted vào "${wallet.name}".'
+          : 'Đã rút $formatted từ "${wallet.name}".');
       navigator.pop(true);
     } catch (error) {
       showSnack(errorText(error), error: true);
@@ -146,6 +197,9 @@ class _BankMoneyScreenState extends State<BankMoneyScreen> {
   Widget build(BuildContext context) {
     final appData = context.watch<AppData>();
     final wallet = appData.walletById(_walletId);
+    final hintStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: AppColors.muted,
+        );
     BankLink? link;
     for (final item in _links) {
       if (item.id == _linkId) link = item;
@@ -153,7 +207,8 @@ class _BankMoneyScreenState extends State<BankMoneyScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: appBar(context, _topup ? 'Nạp tiền vào ví' : 'Rút tiền về ngân hàng'),
+      appBar:
+          appBar(context, _topup ? 'Nạp tiền vào ví' : 'Rút tiền về ngân hàng'),
       body: SafeArea(
         child: Column(
           children: [
@@ -221,6 +276,7 @@ class _BankMoneyScreenState extends State<BankMoneyScreen> {
                     const SizedBox(height: 4),
                     TextField(
                       controller: _amount,
+                      enabled: !_saving,
                       keyboardType:
                           const TextInputType.numberWithOptions(decimal: true),
                       inputFormatters: [ThousandsInputFormatter()],
@@ -230,14 +286,29 @@ class _BankMoneyScreenState extends State<BankMoneyScreen> {
                         _topup ? 'Số tiền nạp (₫)' : 'Số tiền rút (₫)',
                         icon: Icons.payments_outlined,
                         helper: !_topup && wallet != null
-                            ? 'Số dư khả dụng: ${formatMoney(wallet.balance)}'
+                            ? 'Số dư khả dụng: ${editMoney(wallet.balanceDecimal)} ₫'
                             : null,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    AmountChips(
-                        controller: _amount,
-                        max: _topup ? null : wallet?.balance),
+                    _amountChoices(wallet),
+                    const SizedBox(height: Space.xs),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.check,
+                            size: 16, color: AppColors.muted),
+                        const SizedBox(width: Space.xxs),
+                        Expanded(
+                          child: Text(
+                            _topup
+                                ? 'Miễn phí nạp tiền · Tối đa ${formatMoney(_topupLimit)}/lần'
+                                : 'Tiền được ghi nhận vào tài khoản ngân hàng sau khi rút thành công.',
+                            style: hintStyle,
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                   const SizedBox(height: 14),
                   const Text(

@@ -17,14 +17,6 @@ let refreshTask: { epoch: number; promise: Promise<string> } | null = null;
 export function clearSession(clearRemembered = true, keepPending = false) {
   sessionEpoch += 1;
   refreshTask = null;
-  if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
-    const identity = tokenIdentity(sessionStorage.getItem("user_access_token"));
-    if (identity?.sid) navigator.serviceWorker?.controller?.postMessage({
-      type: "capitalflow-session-revoked", sessionId: identity.sid,
-      queueScope: new URL("/api/v1", window.location.origin).href + "|" + identity.sub,
-    });
-    window.dispatchEvent(new Event("capitalflow-session-changed"));
-  }
   if (!keepPending) {
     for (const key of Object.keys(sessionStorage)) {
       if (key.startsWith("cf-pending-invoice:") || key.startsWith("cf-pending-money:")) sessionStorage.removeItem(key);
@@ -86,10 +78,6 @@ export function sessionOwner(): string {
     window.location.replace("/login?reason=invalid-session");
   }
   throw new Error("Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.");
-}
-
-export function sessionFamily(): string | undefined {
-  return tokenIdentity(sessionStorage.getItem("user_access_token"))?.sid;
 }
 
 export function syncRememberedSession() {

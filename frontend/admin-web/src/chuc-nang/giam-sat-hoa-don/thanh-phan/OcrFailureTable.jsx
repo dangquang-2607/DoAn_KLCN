@@ -2,7 +2,7 @@ import { CheckCircle2, RotateCw } from "lucide-react";
 import { timestamp } from "../../../dung-chung/tien-ich/format";
 
 const invoiceStatuses = {
-  UPLOADED: "Chưa quét", PROCESSING: "Đang xử lý", REVIEW_REQUIRED: "Chờ xác nhận",
+  UPLOADED: "Hóa đơn từ luồng cũ", PROCESSING: "Đang xử lý", REVIEW_REQUIRED: "Chờ xác nhận",
   CONFIRMED: "Đã xác nhận", FAILED: "Thất bại",
 };
 const errorLabels = {

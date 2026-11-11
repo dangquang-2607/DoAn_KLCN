@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy import select, func, delete
 from sqlalchemy.orm import Session
 
-from app.dung_chung.http.phu_thuoc import get_current_user, get_db, get_invoice_upload_user
+from app.dung_chung.http.phu_thuoc import get_current_user, get_db
 from app.dung_chung.config import settings
 from app.dung_chung.http.gioi_han_tan_suat import limiter
 from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.invoice import Invoice
@@ -56,14 +56,6 @@ MAX_FILE_SIZE = 2 * 1024 * 1024
 
 # ─── Upload và danh sách ──────────────────────────────────────────────────────
 
-@router.post("/background-grant")
-def background_upload_grant(request: Request, response: Response, user: User = Depends(get_current_user)):
-    from app.dung_chung.security.tokens import create_invoice_upload_grant
-    family = str(request.state.session_family_id)
-    grant, expires_at = create_invoice_upload_grant(str(user.id), user.token_version, family)
-    response.headers["Cache-Control"] = "no-store"
-    return {"grant": grant, "expires_at": expires_at, "session_id": family}
-
 @router.post(
     "",
     status_code=201,
@@ -74,7 +66,7 @@ def upload_invoice(
     response: Response,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    user: User = Depends(get_invoice_upload_user),
+    user: User = Depends(get_current_user),
     source: Annotated[Literal["UPLOAD", "CAMERA"], Form()] = "UPLOAD",
     upload_ticket: Annotated[str | None, Form(max_length=2000000)] = None,
     accept_distinct: Annotated[bool, Form()] = False,

@@ -9,7 +9,7 @@ import 'package:crypto/crypto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'cau_hinh.dart';
-import '../chuc_nang/hoa_don/hang_doi/ma_bam.dart';
+import 'ma_bam.dart';
 import 'luu_phien.dart';
 
 /// Lỗi đã được chuẩn hóa thành thông báo tiếng Việt để hiển thị cho người dùng.
@@ -117,7 +117,6 @@ class ApiClient {
     required String filename,
     String field = 'file',
     String source = 'UPLOAD',
-    String? requestKey,
     String? uploadTicket,
     bool acceptDistinct = false,
     Future<void> Function()? beforeSend,
@@ -126,9 +125,7 @@ class ApiClient {
     final uploadRoot = config.apiRoot;
     final uploadOwner = tokens.ownerId;
     final frozen = Uint8List.fromList(bytes);
-    // The durable queue already supplies its persisted idempotency key.
-    // Only callers without that key need a content signature here.
-    final signature = requestKey == null ? await fileDigest(frozen) : '';
+    final signature = await fileDigest(frozen);
     if (uploadEpoch != tokens.epoch ||
         uploadRoot != config.apiRoot ||
         uploadOwner != tokens.ownerId) {
@@ -157,7 +154,7 @@ class ApiClient {
           timeout: _uploadTimeout,
           checkSession: checkSession,
           beforeSend: beforeSend);
-    }, requestKey: requestKey);
+    });
   }
 
   /// Giữ khóa và nội dung cho lần thử lại khi chưa biết máy chủ đã ghi sổ hay chưa.
@@ -194,8 +191,7 @@ class ApiClient {
 
   Future<dynamic> _replayableMutation(String path, String signature,
       Future<dynamic> Function(String, void Function()) send,
-      {String? requestKey,
-      String storagePrefix = 'cf_pending_invoice_'}) async {
+      {String storagePrefix = 'cf_pending_invoice_'}) async {
     final owner = _owner;
     final root = config.apiRoot;
     final epoch = tokens.epoch;
@@ -210,11 +206,6 @@ class ApiClient {
     }
 
     checkSession();
-    if (requestKey != null) {
-      final result = await send(requestKey, checkSession);
-      checkSession();
-      return result;
-    }
     final prefs = await SharedPreferences.getInstance();
     checkSession();
     final slot =

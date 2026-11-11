@@ -13,7 +13,7 @@ import {
   RotateCw,
   ExternalLink,
 } from "lucide-react";
-import api from "@/dung-chung/connect-api/api";
+import api, { sessionOwner } from "@/dung-chung/connect-api/api";
 import {
   PageHead,
   Panel,
@@ -24,20 +24,21 @@ import {
   Empty,
 } from "@/dung-chung/UI-chung/ui";
 import { errorMessage } from "@/dung-chung/tien-ich/finance";
+import Toast from "@/dung-chung/UI-chung/Toast";
 import InvoiceStatusBadge from "./thanh-phan/InvoiceStatusBadge";
 import InvoiceDetailForm from "./thanh-phan/InvoiceRecordForm";
 import InvoiceQueueList from "./thanh-phan/InvoiceQueueList";
 import InvoiceTrashNotice from "./thanh-phan/InvoiceTrashNotice";
 import InvoiceUploadZone from "./thanh-phan/InvoiceUploadZone";
-import InvoicePendingUploads from "./thanh-phan/InvoicePendingUploads";
+import InvoiceIntakeFeedback from "./thanh-phan/InvoiceIntakeFeedback";
 import InvoicePdfPreview from "./thanh-phan/InvoicePdfPreview";
-import type { Invoice } from "./xu-ly/InvoiceTypes";
-import { invoiceMutation, invoiceError } from "./xu-ly/invoiceApi";
-import { useInvoiceUploadQueue } from "./xu-ly/InvoiceUploadQueue";
+import type { Invoice, UploadEntry } from "./xu-ly/InvoiceTypes";
+import { uploadInvoice, invoiceMutation, invoiceError } from "./xu-ly/invoiceApi";
+import { invoiceUploadError, prepareInvoiceImage } from "./xu-ly/invoiceUpload";
 export default function Ocr() {
   const cache = useQueryClient(),
     uploadInput = useRef<HTMLInputElement>(null);
-  const uploadQueue = useInvoiceUploadQueue();
+  const detailHeading = useRef<HTMLHeadingElement>(null);
   const [page, setPage] = useState(1),
     [status, setStatus] = useState(""),
     [selectedId, setSelectedId] = useState<string | null>(null),
@@ -53,13 +54,12 @@ export default function Ocr() {
     [previewVersion, setPreviewVersion] = useState(0),
     [zoom, setZoom] = useState(1),
     [rotation, setRotation] = useState(0);
+  const [uploadResults, setUploadResults] = useState<UploadEntry[]>([]);
+  const [duplicateNotice, setDuplicateNotice] = useState<{ created: number; reused: number } | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<{ name: string; index: number; total: number } | null>(null);
   const uploadPending = useRef(false);
   const [permanentDelete, setPermanentDelete] = useState(false);
   const [missingFile, setMissingFile] = useState(false);
-  const completedUploads = uploadQueue.jobs.filter(job => job.state === "done").map(job => job.id).join(",");
-  useEffect(() => {
-    if (completedUploads) queueMicrotask(() => setPreviewVersion(value => value + 1));
-  }, [completedUploads]);
   const query = useQuery<{ items: Invoice[]; total: number }>({
     queryKey: ["invoices", page, status],
     queryFn: async () =>
@@ -126,23 +126,64 @@ export default function Ocr() {
       ].map((key) => cache.invalidateQueries({ queryKey: [key] })),
     );
   };
-  const upload = async (files: FileList | null) => {
+  // Validate the entire selection before starting one OCR request per image.
+  const upload = async (files: FileList | File[] | null, ticket?: string) => {
     if (!files?.length || busy || uploadPending.current) return;
+    const valid = Array.from(files);
+    const selectionError = invoiceUploadError(valid);
+    if (selectionError) {
+      if (uploadInput.current) uploadInput.current.value = "";
+      setError(selectionError);
+      setNotice("");
+      setDuplicateNotice(null);
+      return;
+    }
     uploadPending.current = true;
-    setBusy("prepare");
+    const owner = sessionOwner();
+    setBusy("upload");
     setError("");
     setNotice("");
+    setDuplicateNotice(null);
+    const results: UploadEntry[] = uploadResults.filter(r => r.error && !valid.some(file =>
+      file.name === r.file.name && file.size === r.file.size &&
+      file.type === r.file.type && file.lastModified === r.file.lastModified,
+    ));
     try {
-      const count = await uploadQueue.enqueue(Array.from(files));
-      setNotice(count
-        ? `Đã lưu ${count} ảnh trên thiết bị để gửi khi có mạng.`
-        : "Các ảnh này đã có trong hàng đợi.");
+      for (const [index, file] of valid.entries()) {
+        if (sessionOwner() !== owner) {
+          setError("Phiên đăng nhập đã thay đổi. Hãy đăng nhập và chọn lại các ảnh chưa tải.");
+          break;
+        }
+        setUploadProgress({ name: file.name, index: index + 1, total: valid.length });
+        try {
+          const prepared = await prepareInvoiceImage(file);
+          if (sessionOwner() !== owner) throw new Error("Phiên đăng nhập đã thay đổi. Hãy đăng nhập và chọn lại ảnh.");
+          const result = await uploadInvoice(prepared, ticket);
+          results.push({ file, result }); setSelectedId(result.id);
+        } catch (e) { const issue = invoiceError(e); results.push({ file, error: issue.message, issue }); }
+        setUploadResults([...results]);
+      }
+      setStatus("");
+      setPage(1);
+      setChecked([]);
+      const created = results.filter(r => r.result?.outcome === "CREATED").length;
+      const reused = results.filter(r => r.result && r.result.outcome !== "CREATED").length;
+      const incomplete = results.filter(r => r.error).length;
+      const summary = `${created} hóa đơn mới · ${reused} ảnh khớp hóa đơn đã có · ${incomplete} ảnh chưa hoàn tất.`;
+      if (incomplete) setError(summary);
+      else if (reused) setDuplicateNotice({ created, reused });
+      else setNotice(summary);
     } catch (e) {
       setError(invoiceError(e).message);
     } finally {
-      uploadPending.current = false;
-      setBusy("");
-      if (uploadInput.current) uploadInput.current.value = "";
+      try {
+        await invalidate(); setPreviewVersion(v => v + 1);
+      } finally {
+        uploadPending.current = false;
+        setUploadProgress(null);
+        setBusy("");
+        if (uploadInput.current) uploadInput.current.value = "";
+      }
     }
   };
   // Giới hạn tối đa năm hóa đơn mỗi lô và bỏ qua tài liệu đang xử lý/đã xác nhận.
@@ -236,6 +277,19 @@ export default function Ocr() {
       setBusy("");
     }
   };
+  const openIntakeInvoice = (id: string) => {
+    setSelectedId(id);
+    setVersion(v => v + 1);
+  };
+  const openDuplicate = (id: string) => {
+    openIntakeInvoice(id);
+    setDuplicateNotice(null);
+    setUploadResults(rows => rows.filter(row => !row.result || row.result.outcome === "CREATED"));
+    requestAnimationFrame(() => {
+      detailHeading.current?.scrollIntoView({ block: "center", behavior: "instant" });
+      detailHeading.current?.focus({ preventScroll: true });
+    });
+  };
   const eligible = checked.filter((id) =>
     list.some(
       (i) => i.id === id && !i.deleted_at && i.mime_type !== "application/xml" && !["CONFIRMED", "PROCESSING"].includes(i.status),
@@ -250,11 +304,15 @@ export default function Ocr() {
         description="01 Tải lên · 02 Quét và kiểm tra · 03 Xác nhận giao dịch"
       />
       <div className={density.content}>
+        {duplicateNotice && <Toast kind="info" title="Phát hiện hóa đơn trùng" className={density.duplicateToast} duration={6000} onDismiss={() => setDuplicateNotice(null)}>
+          {duplicateNotice.created ? `Đã thêm ${duplicateNotice.created} hóa đơn mới; ${duplicateNotice.reused} ảnh trùng được giữ nguyên bản cũ.` : `${duplicateNotice.reused} ảnh đã có trong hệ thống. Không tạo thêm hóa đơn.`}
+        </Toast>}
         {error && !deleting && <Alert onDismiss={() => setError("")}>{error}</Alert>}
         {notice && <Alert kind="success" onDismiss={() => setNotice("")}>{notice}</Alert>}
         <InvoiceUploadZone inputRef={uploadInput} busy={!!busy} onUpload={upload} />
-        {busy === "prepare" && <p role="status">Đang tối ưu và lưu ảnh trên thiết bị…</p>}
-        <InvoicePendingUploads onOpen={id => { setSelectedId(id); setVersion(v => v + 1); }} />
+        <InvoiceIntakeFeedback entries={uploadResults} progress={uploadProgress} busy={!!busy} checking={busy === "upload"}
+          onRetry={(file, token) => upload([file], token)} onOpen={openIntakeInvoice} onOpenDuplicate={openDuplicate}
+          onRemove={file => setUploadResults(rows => rows.filter(r => r.file !== file))} />
         <div className="cf-ocr-grid">
           <InvoiceQueueList
             query={query}
@@ -284,6 +342,7 @@ export default function Ocr() {
           />
           <Panel
             title="Kiểm tra thông tin"
+            headingRef={detailHeading}
             action={inv && <InvoiceStatusBadge value={inv.status} />}
           >
             {!activeSelectedId ? (

@@ -35,13 +35,17 @@ Future<String?> reviewInvoiceDuplicates(BuildContext context, Json check,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (upload != null) ...[
-                  const Text('Ảnh đang chờ tải lên'),
+                  const Text('Ảnh vừa chọn'),
                   Image.memory(upload, height: 180, fit: BoxFit.contain),
                   const Divider()
                 ],
                 Text(suspected
-                    ? 'Đối chiếu với hóa đơn dưới đây trước khi ghi thêm khoản chi.'
-                    : 'Không thể ghi thêm khoản chi từ hóa đơn trùng. Hãy mở bản gốc.'),
+                    ? upload != null
+                        ? 'Đối chiếu với hóa đơn có sẵn trước khi tải ảnh lên.'
+                        : 'Đối chiếu với hóa đơn dưới đây trước khi ghi thêm khoản chi.'
+                    : upload != null
+                        ? 'Ảnh này khớp với hóa đơn đã có. Hãy mở bản gốc.'
+                        : 'Không thể ghi thêm khoản chi từ hóa đơn trùng. Hãy mở bản gốc.'),
                 for (final candidate in asJsonList(check['candidates'])) ...[
                   const Divider(height: 24),
                   Text(asText(candidate['merchant_name']) ?? 'Hóa đơn',
@@ -54,11 +58,16 @@ Future<String?> reviewInvoiceDuplicates(BuildContext context, Json check,
                   if (candidate['deleted_at'] != null)
                     const Text('Đang ẩn; khoản chi vẫn được giữ'),
                   Text(reasons[candidate['reason']] ?? 'Thông tin tương đồng'),
-                  TextButton(
-                      onPressed: () => Navigator.pop(
-                          context, 'open:${candidate['invoice_id']}'),
-                      child: const Text('Mở hóa đơn gốc')),
-                  if (suspected && upload == null)
+                  if (candidate['purged'] == true)
+                    const Text('Bản gốc đã bị xóa vĩnh viễn.')
+                  else
+                    TextButton(
+                        onPressed: () => Navigator.pop(
+                            context, 'open:${candidate['invoice_id']}'),
+                        child: const Text('Mở hóa đơn gốc')),
+                  if (suspected &&
+                      upload == null &&
+                      candidate['purged'] != true)
                     TextButton(
                         onPressed: () => Navigator.pop(
                             context, 'same:${candidate['invoice_id']}'),
@@ -76,7 +85,9 @@ Future<String?> reviewInvoiceDuplicates(BuildContext context, Json check,
         if (suspected)
           FilledButton(
               onPressed: () => Navigator.pop(context, 'distinct'),
-              child: const Text('Đây là khoản chi khác, tiếp tục')),
+              child: Text(upload != null
+                  ? 'Đây là hóa đơn khác, tải lên'
+                  : 'Đây là khoản chi khác, tiếp tục')),
       ],
     ),
   );

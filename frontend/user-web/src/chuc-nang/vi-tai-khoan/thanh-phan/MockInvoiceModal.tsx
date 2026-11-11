@@ -6,8 +6,6 @@ import {
   QrCode,
   ArrowLeft,
   Download,
-  Copy,
-  Check,
 } from "lucide-react";
 import api from "@/dung-chung/connect-api/api";
 import { Alert, Field, Modal } from "@/dung-chung/UI-chung/ui";
@@ -31,20 +29,12 @@ export default function MockInvoiceModal({ onClose }: MockInvoiceModalProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [createdAt, setCreatedAt] = useState("");
-  const [copied, setCopied] = useState(false);
 
   const total = billTotal(items);
 
   const edit = (index: number, field: keyof BillItem, value: string | number) => {
     setItems((current) => current.map((item, at) => (at === index ? { ...item, [field]: value } : item)));
     setBill(null);
-  };
-
-  const handleCopyPayload = () => {
-    if (!bill?.qr_payload) return;
-    void navigator.clipboard.writeText(bill.qr_payload);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   };
 
   const submit = async (event: FormEvent) => {
@@ -230,29 +220,6 @@ export default function MockInvoiceModal({ onClose }: MockInvoiceModalProps) {
               </footer>
             </BillReceipt>
 
-            {/* Khối Nội Dung Mã QR (Chuỗi Payload để người dùng xem và sao chép dễ dàng) */}
-            <div className={styles.qrPayloadContainer}>
-              <div className={styles.qrPayloadHeader}>
-                <span className={styles.qrPayloadTitle}>Nội dung mã QR (Payload)</span>
-                <button
-                  type="button"
-                  className="cf-btn cf-btn-sm"
-                  style={{ height: 30, padding: "0 10px", fontSize: 13 }}
-                  title="Sao chép nội dung mã QR để dán vào quét QR"
-                  onClick={handleCopyPayload}
-                >
-                  {copied ? <Check size={14} style={{ color: "#16a34a" }} /> : <Copy size={14} />}
-                  <span>{copied ? "Đã sao chép" : "Sao chép"}</span>
-                </button>
-              </div>
-              <textarea
-                className="cf-input"
-                aria-label="Nội dung mã QR"
-                readOnly
-                rows={3}
-                value={bill.qr_payload}
-              />
-            </div>
           </div>
 
           {/* Các nút hành động thao tác với hóa đơn: Chỉ còn Quay lại chỉnh sửa và Tải ảnh QR */}

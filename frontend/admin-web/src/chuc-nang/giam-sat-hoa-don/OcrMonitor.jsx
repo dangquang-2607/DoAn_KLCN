@@ -7,12 +7,19 @@ import OcrWorkspace from "./thanh-phan/OcrWorkspace";
 import api from "../../dung-chung/connect-api/api";
 import { errorMessage } from "../../dung-chung/tien-ich/format";
 
+const refreshInterval = 5000;
+
 export default function OcrMonitor() {
   const [retrying, setRetrying] = useState("");
   const [retryError, setRetryError] = useState("");
   const [notice, setNotice] = useState("");
   const pending = useRef(false);
-  const query = useQuery({ queryKey: ["admin-ocr"], queryFn: async ({ signal }) => (await api.get("/admin/system/ocr-monitor", { signal })).data, refetchInterval: 15000 });
+  const query = useQuery({
+    queryKey: ["admin-ocr"],
+    queryFn: async ({ signal }) => (await api.get("/admin/system/ocr-monitor", { signal })).data,
+    staleTime: 0,
+    refetchInterval: refreshInterval,
+  });
 
   // Sau khi backend chấp nhận retry, tải lại monitor để đồng bộ trạng thái mới nhất.
   const retry = async (jobId) => {
@@ -38,7 +45,9 @@ export default function OcrMonitor() {
       {query.isPending ? <Loading /> : query.isError && !query.data ? <ErrorState retry={() => query.refetch()} /> : (
         <>
           <OcrWorkspace data={query.data} retrying={retrying} onRetry={retry} />
-          <p className={`cf-muted ${density.note}`}>Tự làm mới sau 15 giây · “Đã xác nhận” là hóa đơn được người dùng ghi nhận vào giao dịch.</p>
+          <p className={`cf-muted ${density.note}`}>
+            Cập nhật lúc {new Date(query.dataUpdatedAt).toLocaleTimeString("vi-VN")} · Tự làm mới mỗi {refreshInterval / 1000} giây khi mở trang.
+          </p>
           {query.isRefetchError && <Alert persistent>Lần cập nhật gần nhất thất bại. Số liệu trên thuộc lần tải trước.</Alert>}
         </>
       )}

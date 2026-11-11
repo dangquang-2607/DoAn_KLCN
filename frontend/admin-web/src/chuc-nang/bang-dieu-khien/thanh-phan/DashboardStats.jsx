@@ -12,7 +12,7 @@ export default function DashboardStats({ data, monitor }) {
   const invoices = monitor?.invoices;
   const cards = [
     ["teal", ArrowUpRight, "Giao dịch tháng này", data?.transactions_this_month, "Từ đầu tháng đến hôm nay · theo ngày giao dịch"],
-    ["violet", FileScan, "Chờ đưa vào OCR", invoices?.uploaded, "Hóa đơn chưa quét · cần theo dõi"],
+    ["violet", FileScan, "OCR đang chạy", monitor?.ocr_jobs?.processing, "Lượt nhận dạng khi tải ảnh hoặc quét lại"],
     ["amber", CircleAlert, "Hóa đơn OCR lỗi", invoices?.failed, "Trạng thái hóa đơn · không phải số lượt OCR lỗi"],
   ];
   return <div><div className="adm-kpi-heading"><p className="adm-eyebrow">CHỈ SỐ NHANH</p><span>Tài khoản, giao dịch và khối lượng hóa đơn tại thời điểm xem.</span></div><section className="adm-dashboard-kpis" aria-label="Chỉ số tổng quan">

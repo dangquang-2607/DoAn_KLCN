@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-/// Freeze optimized bytes before queueing; every retry hashes/sends those bytes.
+/// Chuẩn bị ảnh theo giới hạn API để lần thử lại dùng đúng nội dung đã gửi.
 Future<Uint8List> prepareInvoiceImage(Uint8List bytes) async {
   if (bytes.isEmpty || bytes.length > 20 * 1024 * 1024) {
     throw StateError('Chọn ảnh từ 1 byte đến 20 MB.');

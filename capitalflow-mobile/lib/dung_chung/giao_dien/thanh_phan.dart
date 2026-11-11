@@ -26,16 +26,22 @@ void _dismissToast() {
 
 /// Hiện thông báo ngắn ở đầu màn hình. Nằm trên Overlay của Navigator nên không bị
 /// bảng chọn, hộp thoại hay bàn phím che như SnackBar của Scaffold bên dưới.
-void showSnack(String message, {bool error = false}) {
+void showSnack(String message,
+    {bool error = false, String? title, bool warning = false}) {
   final overlay = appNavigatorKey.currentState?.overlay;
   if (overlay != null) {
     _dismissToast();
     final entry = OverlayEntry(
-        builder: (_) =>
-            _Toast(message: message, error: error, onDismiss: _dismissToast));
+        builder: (_) => _Toast(
+            message: message,
+            title: title,
+            warning: warning,
+            error: error,
+            onDismiss: _dismissToast));
     _toastEntry = entry;
     overlay.insert(entry);
-    _toastTimer = Timer(Duration(seconds: error ? 5 : 3), _dismissToast);
+    _toastTimer =
+        Timer(Duration(seconds: error || warning ? 5 : 3), _dismissToast);
     return;
   }
   final messenger = appMessengerKey.currentState;
@@ -44,7 +50,7 @@ void showSnack(String message, {bool error = false}) {
     ..hideCurrentSnackBar()
     ..showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Text(title == null ? message : '$title\n$message'),
         backgroundColor: error ? AppColors.danger : AppColors.ink,
         duration: Duration(seconds: error ? 5 : 3),
       ),
@@ -53,9 +59,15 @@ void showSnack(String message, {bool error = false}) {
 
 class _Toast extends StatelessWidget {
   const _Toast(
-      {required this.message, required this.error, required this.onDismiss});
+      {required this.message,
+      required this.title,
+      required this.warning,
+      required this.error,
+      required this.onDismiss});
 
   final String message;
+  final String? title;
+  final bool warning;
   final bool error;
   final VoidCallback onDismiss;
 
@@ -77,7 +89,11 @@ class _Toast extends StatelessWidget {
         child: Semantics(
           liveRegion: true,
           child: Material(
-            color: error ? AppColors.danger : AppColors.ink,
+            color: warning
+                ? AppColors.surface
+                : error
+                    ? AppColors.danger
+                    : AppColors.ink,
             elevation: 6,
             borderRadius: BorderRadius.circular(Radii.sm),
             clipBehavior: Clip.antiAlias,
@@ -89,20 +105,46 @@ class _Toast extends StatelessWidget {
                 child: Row(
                   children: [
                     Icon(
-                      error ? Icons.error_outline : Icons.check_circle_outline,
+                      warning
+                          ? Icons.info_outline
+                          : error
+                              ? Icons.error_outline
+                              : Icons.check_circle_outline,
                       size: 20,
-                      color: Colors.white,
+                      color: warning ? AppColors.warning : Colors.white,
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: Text(
-                        message,
-                        maxLines: 4,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 14, height: 1.35, color: Colors.white),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (title != null) ...[
+                            Text(
+                              title!,
+                              style: AppText.cardTitle.copyWith(
+                                color: warning ? AppColors.ink : Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: Space.xxs),
+                          ],
+                          Text(
+                            message,
+                            maxLines: 4,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 14,
+                              height: 1.35,
+                              color: warning ? AppColors.muted : Colors.white,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
+                    if (warning) ...[
+                      const SizedBox(width: Space.xs),
+                      const Icon(Icons.close, size: 16, color: AppColors.muted),
+                    ],
                   ],
                 ),
               ),
@@ -810,6 +852,7 @@ class PrimaryButton extends StatefulWidget {
     this.loading = false,
     this.icon,
     this.danger = false,
+    this.wrapLabel = false,
   });
 
   final String label;
@@ -817,6 +860,7 @@ class PrimaryButton extends StatefulWidget {
   final bool loading;
   final IconData? icon;
   final bool danger;
+  final bool wrapLabel;
 
   @override
   State<PrimaryButton> createState() => _PrimaryButtonState();
@@ -845,7 +889,9 @@ class _PrimaryButtonState extends State<PrimaryButton> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           width: double.infinity,
-          height: 56,
+          height: widget.wrapLabel ? null : 56,
+          constraints:
+              widget.wrapLabel ? const BoxConstraints(minHeight: 56) : null,
           decoration: BoxDecoration(
             borderRadius: radius,
             boxShadow: enabled
@@ -864,6 +910,10 @@ class _PrimaryButtonState extends State<PrimaryButton> {
               backgroundColor: color,
               disabledBackgroundColor:
                   widget.loading ? color : color.withValues(alpha: 0.38),
+              padding: widget.wrapLabel
+                  ? const EdgeInsets.symmetric(
+                      horizontal: Space.md, vertical: Space.sm)
+                  : null,
               shape: RoundedRectangleBorder(borderRadius: radius),
               textStyle: const TextStyle(
                   fontSize: 16,
@@ -890,8 +940,14 @@ class _PrimaryButtonState extends State<PrimaryButton> {
                           const SizedBox(width: 8)
                         ],
                         Flexible(
-                            child: Text(widget.label,
-                                overflow: TextOverflow.ellipsis)),
+                          child: Text(
+                            widget.label,
+                            textAlign: TextAlign.center,
+                            overflow: widget.wrapLabel
+                                ? TextOverflow.visible
+                                : TextOverflow.ellipsis,
+                          ),
+                        ),
                       ],
                     ),
             ),

@@ -1,9 +1,8 @@
-import { BadgeCheck, CircleAlert, FileClock, ScanLine, UserRoundCheck } from "lucide-react";
+import { BadgeCheck, CircleAlert, ScanLine, UserRoundCheck } from "lucide-react";
 import { decimal as percentage } from "../../../dung-chung/tien-ich/format";
 import "../CSS/status-donut.css";
 
 const palette = {
-  slate: "#8295a5",
   blue: "#5788c2",
   amber: "#dfa847",
   teal: "#258b80",
@@ -11,7 +10,6 @@ const palette = {
 };
 
 const callouts = {
-  uploaded: { Icon: FileClock },
   processing: { Icon: ScanLine },
   reviewRequired: { Icon: UserRoundCheck },
   confirmed: { Icon: BadgeCheck },
@@ -38,7 +36,6 @@ export default function OcrStatusDonut({ segments, centerLabel }) {
     return [...items, { ...segment, fraction, start, anchor, ...callouts[segment.key] }];
   }, []);
   // Sort anchors on each side, keeping connectors in the same vertical order.
-  // Fixed positions from the mockup cross when all five statuses are non-zero.
   for (const right of [false, true]) {
     const side = active.filter((item) => (item.anchor.x >= center.x) === right).sort((a, b) => a.anchor.y - b.anchor.y);
     side.forEach((item, index) => {

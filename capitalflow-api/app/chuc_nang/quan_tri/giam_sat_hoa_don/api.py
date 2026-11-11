@@ -90,10 +90,12 @@ def ocr_monitor(
 
     ocr_success_rate = round(completed / total_invoices * 100, 1) if total_invoices else 0.0
 
-    total_jobs, failed_jobs, average_processing_ms, measured_jobs = db.execute(
+    total_jobs, failed_jobs, queued_jobs, processing_jobs, average_processing_ms, measured_jobs = db.execute(
         select(
             func.count(OcrJob.id),
             func.sum(case((OcrJob.status == "FAILED", 1), else_=0)),
+            func.sum(case((OcrJob.status == "QUEUED", 1), else_=0)),
+            func.sum(case((OcrJob.status == "PROCESSING", 1), else_=0)),
             func.avg(cast(OcrJob.processing_ms, Float)),
             func.count(OcrJob.processing_ms),
         )
@@ -145,6 +147,8 @@ def ocr_monitor(
         "ocr_jobs": {
             "total": total_jobs,
             "failed": failed_jobs,
+            "queued": int(queued_jobs or 0),
+            "processing": int(processing_jobs or 0),
             "measured": int(measured_jobs or 0),
             "error_rate_pct": round(failed_jobs / total_jobs * 100, 1) if total_jobs else 0.0,
             "average_processing_ms": round(float(average_processing_ms), 0) if average_processing_ms is not None else None,

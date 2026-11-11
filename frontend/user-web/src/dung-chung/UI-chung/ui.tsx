@@ -7,6 +7,7 @@ import {
   useRef,
   cloneElement,
   isValidElement,
+  type Ref,
   type ReactElement,
   type ReactNode,
 } from "react";
@@ -50,12 +51,14 @@ export function PageHead({
 }
 export function Panel({
   title,
+  headingRef,
   description,
   action,
   children,
   className = "",
 }: {
   title?: string;
+  headingRef?: Ref<HTMLHeadingElement>;
   description?: string;
   action?: ReactNode;
   children: ReactNode;
@@ -66,7 +69,7 @@ export function Panel({
       {title && (
         <div className="cf-panel-head">
           <div>
-            <h2>{title}</h2>
+            <h2 ref={headingRef} tabIndex={headingRef ? -1 : undefined}>{title}</h2>
             {description && <p>{description}</p>}
           </div>
           {action}

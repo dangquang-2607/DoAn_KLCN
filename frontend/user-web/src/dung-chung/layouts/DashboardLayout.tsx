@@ -43,7 +43,6 @@ import { Loading, ErrorState } from "@/dung-chung/UI-chung/ui";
 import SecuritySettings from "@/dung-chung/xac-thuc/SecuritySettings";
 import type { Profile } from "@/dung-chung/nghiep-vu/finance";
 import NotificationCenter from "../thong-bao/NotificationCenter";
-import InvoiceUploadQueue from "@/chuc-nang/hoa-don-ai/xu-ly/InvoiceUploadQueue";
 import styles from "./DashboardLayout.module.css";
 
 const settingsLinks = [
@@ -325,7 +324,6 @@ export default function DashboardLayout({
     "CapitalFlow";
 
   return (
-    <InvoiceUploadQueue key={user.id} owner={user.id} enabled={!user.must_change_password}>
     <div className="cf-app">
       <a href="#main-content" className="cf-skip">
         Chuyển đến nội dung
@@ -594,6 +592,5 @@ export default function DashboardLayout({
         </main>
       </div>
     </div>
-    </InvoiceUploadQueue>
   );
 }

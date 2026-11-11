@@ -20,9 +20,10 @@ function LocalPreview({ file }: { file: File }) {
 /**
  * Hộp phản hồi trạng thái tiếp nhận và xử lý hóa đơn tải lên.
  */
-export default function InvoiceIntakeFeedback({ entries, progress, busy, checking, onRetry, onOpen, onRemove }: {
+export default function InvoiceIntakeFeedback({ entries, progress, busy, checking, onRetry, onOpen, onOpenDuplicate, onRemove }: {
   entries: UploadEntry[]; progress: { name: string; index: number; total: number } | null; busy: boolean; checking: boolean;
   onRetry: (file: File, ticket?: string) => void; onOpen: (id: string) => void;
+  onOpenDuplicate: (id: string) => void;
   onRemove: (file: File) => void;
 }) {
   const duplicates = entries.flatMap(entry => entry.result && entry.result.outcome !== "CREATED" ? [{ file: entry.file, result: entry.result }] : []);
@@ -64,7 +65,10 @@ export default function InvoiceIntakeFeedback({ entries, progress, busy, checkin
           {file.name} · {result.outcome === "RESTORE_REQUIRED" ? "Trong Thùng rác" : result.outcome === "ALREADY_CONFIRMED" ? "Đã ghi sổ" : result.match_kind === "DATA" ? "Khớp dữ liệu hóa đơn đã có" : "Đã tải lên trước đó"}
         </option>)}
       </select>
-      <button type="button" className="cf-btn cf-btn-sm" disabled={busy} onClick={() => onOpen(selectedDuplicate.result.id)}>Mở hóa đơn</button>
+      <button type="button" className="cf-btn cf-btn-sm" disabled={busy} onClick={() => {
+        setDuplicateIndex(0);
+        onOpenDuplicate(selectedDuplicate.result.id);
+      }}>Mở hóa đơn</button>
     </section>}
   </>;
 }

@@ -42,20 +42,8 @@ def get_current_user(
     db: Session = Depends(get_db),
 ) -> User:
     """Giải mã JWT, trả về user hiện tại và gắn user_id cho middleware kiểm toán."""
-    return _authenticated_user(request, credentials.credentials, db, ("access",))
-
-
-def get_invoice_upload_user(
-    request: Request,
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db),
-) -> User:
-    return _authenticated_user(request, credentials.credentials, db, ("access", "invoice_upload"))
-
-
-def _authenticated_user(request: Request, token: str, db: Session, allowed_types: tuple[str, ...]) -> User:
     try:
-        payload = decode_token(token, allowed_types=allowed_types)
+        payload = decode_token(credentials.credentials)
         user_id = uuid.UUID(payload["sub"])
     except Exception:
         raise HTTPException(status_code=401, detail="Token không hợp lệ hoặc đã hết hạn")
@@ -90,11 +78,6 @@ def _authenticated_user(request: Request, token: str, db: Session, allowed_types
 
     # Gán user_id vào request.state để AuditMiddleware ghi nhật ký chính xác
     request.state.user_id = user.id
-
-    if payload["type"] == "invoice_upload":
-        # An upload grant must not refresh, extend or count as interactive use.
-        request.state.background_upload = True
-        return user
 
     now = datetime.now(timezone.utc)
     db.execute(update(RefreshToken).where(RefreshToken.id == active_session.id,

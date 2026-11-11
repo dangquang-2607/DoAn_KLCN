@@ -84,21 +84,30 @@ class FinanceRepository {
         money: true, body: {'link_id': linkId, 'amount': amount});
   }
 
-  /// Thanh toán hóa đơn mô phỏng: trừ tiền ví và tạo (hoặc gắn) khoản chi trong sổ.
+  /// Thanh toán hóa đơn mô phỏng và tự ghi khoản chi vào sổ.
   Future<Json> payBill({
     required String walletId,
     required String qrPayload,
-    String? bookkeepingId,
-    String? categoryId,
   }) async {
     final data =
         await api.replayablePost('/wallets/$walletId/payments/create', {
       'qr_payload': qrPayload,
-      if (bookkeepingId == null && categoryId != null)
-        'category_id': categoryId,
-      'bookkeeping_id': bookkeepingId,
+      // Giữ nguyên dữ liệu tạo khóa thử lại cho khoản đang chờ từ bản trước.
+      'bookkeeping_id': null,
     });
     return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// Trả biên nhận của hóa đơn đã thanh toán, hoặc null khi API chưa ghi nhận.
+  Future<Json?> findBillReceipt(String qrPayload) async {
+    final data = await api
+        .post('/wallets/bills/payment-status', body: {'qr_payload': qrPayload});
+    final status = Map<String, dynamic>.from(data as Map);
+    return switch (status['status']) {
+      'SUCCEEDED' => status,
+      'UNCONFIRMED' => null,
+      _ => throw ApiException('Chưa xác định được trạng thái thanh toán.'),
+    };
   }
 
   Future<List<BankProvider>> bankProviders() async {
@@ -468,14 +477,31 @@ class InvoiceRepository {
     return InvoiceDetail.fromJson(Map<String, dynamic>.from(data as Map));
   }
 
-  /// Tải ảnh hóa đơn lên; trả về id hóa đơn vừa tạo.
+  /// Gửi ảnh để API nhận dạng và đối chiếu trước khi tạo hóa đơn.
   Future<InvoiceSummary> upload(
       {required List<int> bytes,
       required String filename,
-      String source = 'UPLOAD'}) async {
+      String source = 'UPLOAD',
+      String? reviewTicket,
+      Future<void> Function()? beforeSend}) async {
     final data = await api.uploadFile('/invoices',
-        bytes: bytes, filename: filename, source: source);
-    return InvoiceSummary.fromJson(Map<String, dynamic>.from(data as Map));
+        bytes: bytes,
+        filename: filename,
+        source: source,
+        uploadTicket: reviewTicket,
+        acceptDistinct: reviewTicket != null,
+        beforeSend: beforeSend);
+    if (data is! Map ||
+        asText(data['id']) == null ||
+        !const {
+          'CREATED',
+          'REUSED_DRAFT',
+          'ALREADY_CONFIRMED',
+          'RESTORE_REQUIRED'
+        }.contains(data['outcome'])) {
+      throw ApiException('Chưa xác định được kết quả tải ảnh. Hãy thử lại.');
+    }
+    return InvoiceSummary.fromJson(Map<String, dynamic>.from(data));
   }
 
   /// Đưa hóa đơn vào hàng đợi nhận dạng OCR (worker nền xử lý bằng Gemini).

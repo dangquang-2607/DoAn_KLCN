@@ -645,12 +645,18 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
             rawConfidence <= 1
         ? rawConfidence
         : null;
+    const fieldGap = SizedBox(height: Space.sm);
 
     return Column(
       children: [
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            padding: const EdgeInsets.fromLTRB(
+              Space.md,
+              Space.sm,
+              Space.md,
+              Space.md,
+            ),
             children: [
               _statusPanel(detail),
               if (_error != null) ...[
@@ -755,6 +761,7 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
                   ),
                 ),
               ],
+              fieldGap,
               const SectionHeader('Thông tin hóa đơn'),
               if (_image == null && detail.summary.isImage) ...[
                 Text(
@@ -804,83 +811,69 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
                   icon: Icons.storefront_outlined,
                 ),
               ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: PickerField(
-                      label: 'Ngày hóa đơn',
-                      value: _invoiceDate == null
-                          ? null
-                          : formatDate(_invoiceDate),
-                      placeholder: 'Chọn ngày',
-                      onTap: readOnly
-                          ? null
-                          : () async {
-                              final picked = await pickDate(
-                                context,
-                                initial: _invoiceDate ?? DateTime.now(),
-                                last: DateTime.now().add(
-                                  const Duration(days: 1),
-                                ),
-                              );
-                              if (picked != null && mounted) {
-                                setState(() => _invoiceDate = picked);
-                              }
-                            },
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: TextField(
-                      controller: _number,
-                      enabled: !readOnly,
-                      maxLength: 100,
-                      decoration: fieldDecoration('Số hóa đơn'),
-                    ),
-                  ),
-                ],
+              fieldGap,
+              _fieldPair(
+                PickerField(
+                  label: 'Ngày hóa đơn',
+                  value: _invoiceDate == null ? null : formatDate(_invoiceDate),
+                  placeholder: 'Chọn ngày',
+                  onTap: readOnly
+                      ? null
+                      : () async {
+                          final picked = await pickDate(
+                            context,
+                            initial: _invoiceDate ?? DateTime.now(),
+                            last: DateTime.now().add(const Duration(days: 1)),
+                          );
+                          if (picked != null && mounted) {
+                            setState(() => _invoiceDate = picked);
+                          }
+                        },
+                ),
+                TextField(
+                  controller: _number,
+                  enabled: !readOnly,
+                  maxLength: 100,
+                  decoration: fieldDecoration('Số hóa đơn'),
+                ),
               ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _taxCode,
-                      enabled: !readOnly,
-                      maxLength: 100,
-                      decoration: fieldDecoration('Mã số thuế'),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: TextField(
-                      controller: _vatRate,
-                      enabled: !readOnly,
-                      maxLength: 50,
-                      decoration: fieldDecoration('Thuế suất VAT (%)'),
-                    ),
-                  ),
-                ],
+              fieldGap,
+              _fieldPair(
+                TextField(
+                  controller: _taxCode,
+                  enabled: !readOnly,
+                  maxLength: 100,
+                  decoration: fieldDecoration('Mã số thuế'),
+                ),
+                TextField(
+                  controller: _vatRate,
+                  enabled: !readOnly,
+                  maxLength: 50,
+                  decoration: fieldDecoration('Thuế suất VAT (%)'),
+                ),
               ),
+              fieldGap,
               TextField(
                 controller: _address,
                 enabled: !readOnly,
                 maxLength: 500,
                 decoration: fieldDecoration('Địa chỉ người bán'),
               ),
+              fieldGap,
               TextField(
                 controller: _symbol,
                 enabled: !readOnly,
                 maxLength: 100,
                 decoration: fieldDecoration('Ký hiệu hóa đơn'),
               ),
+              fieldGap,
               TextField(
                 controller: _time,
                 enabled: !readOnly,
                 maxLength: 8,
                 decoration: fieldDecoration('Giờ hóa đơn (HH:mm, nếu có)'),
               ),
+              const SizedBox(height: Space.lg),
               Padding(
                 padding: const EdgeInsets.only(bottom: Space.sm),
                 child: Row(
@@ -889,12 +882,14 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
                       child: Text('Danh sách sản phẩm (${_lines.length})',
                           style: AppText.section),
                     ),
-                    if (!readOnly)
+                    if (!readOnly) ...[
+                      const SizedBox(width: Space.xs),
                       PillAddButton(
                         label: 'Thêm dòng',
                         onPressed: () =>
                             setState(() => _lines.add(_LineEditor())),
                       ),
+                    ],
                   ],
                 ),
               ),
@@ -906,33 +901,27 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
                   ),
                 ),
               for (var i = 0; i < _lines.length; i++) _lineCard(i, readOnly),
+              const SizedBox(height: Space.xs),
               const SectionHeader('Tổng tiền & thuế'),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _subtotal,
-                      enabled: !readOnly,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: [ThousandsInputFormatter()],
-                      decoration: fieldDecoration('Tiền hàng (₫)'),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: TextField(
-                      controller: _tax,
-                      enabled: !readOnly,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: [ThousandsInputFormatter()],
-                      decoration: fieldDecoration('Tiền thuế VAT (₫)'),
-                    ),
-                  ),
-                ],
+              _fieldPair(
+                TextField(
+                  controller: _subtotal,
+                  enabled: !readOnly,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [ThousandsInputFormatter()],
+                  decoration: fieldDecoration('Tiền hàng (₫)'),
+                ),
+                TextField(
+                  controller: _tax,
+                  enabled: !readOnly,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [ThousandsInputFormatter()],
+                  decoration: fieldDecoration('Tiền thuế VAT (₫)'),
+                ),
               ),
-              const SizedBox(height: 10),
+              fieldGap,
               TextField(
                 controller: _total,
                 enabled: !readOnly,
@@ -1031,23 +1020,56 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
           ),
         ),
         if (!_confirmed && !_processing && !_hidden)
-          TextButton.icon(
-              onPressed: _locked || _versionConflict ? null : _saveItems,
-              icon: const Icon(Icons.save_outlined),
-              label: const Text('Lưu nháp dòng hàng')),
-        if (!_confirmed && !_processing && !_hidden)
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-            child: PrimaryButton(
-              label: _pendingConfirm != null
-                  ? 'Thử lại xác nhận'
-                  : 'Kiểm tra & ghi khoản chi',
-              loading: _busy,
-              onPressed: _versionConflict ? null : _confirm,
-              icon: Icons.task_alt,
+            padding: const EdgeInsets.fromLTRB(
+              Space.md,
+              Space.xxs,
+              Space.md,
+              Space.sm,
+            ),
+            child: Column(
+              spacing: Space.xs,
+              children: [
+                TextButton.icon(
+                  onPressed: _locked || _versionConflict ? null : _saveItems,
+                  icon: const Icon(Icons.save_outlined),
+                  label: const Text('Lưu nháp dòng hàng'),
+                ),
+                PrimaryButton(
+                  label: _pendingConfirm != null
+                      ? 'Thử lại xác nhận'
+                      : 'Kiểm tra & ghi khoản chi',
+                  loading: _busy,
+                  onPressed: _versionConflict ? null : _confirm,
+                  icon: Icons.task_alt,
+                  wrapLabel: true,
+                ),
+              ],
             ),
           ),
       ],
+    );
+  }
+
+  Widget _fieldPair(Widget first, Widget second) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final minFieldWidth =
+            Space.xxl + MediaQuery.textScalerOf(context).scale(15) * 8;
+        final halfWidth = (constraints.maxWidth - Space.xs) / 2;
+        final width =
+            halfWidth < minFieldWidth ? constraints.maxWidth : halfWidth;
+        return Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: Space.xs,
+          runSpacing: Space.sm,
+          children: [
+            SizedBox(width: width, child: first),
+            SizedBox(width: width, child: second),
+          ],
+        );
+      },
     );
   }
 
@@ -1158,10 +1180,11 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
   Widget _lineCard(int index, bool readOnly) {
     final line = _lines[index];
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: Space.sm),
       child: AppCard(
-        padding: const EdgeInsets.fromLTRB(12, 10, 6, 12),
+        padding: const EdgeInsets.all(Space.sm),
         child: Column(
+          spacing: Space.sm,
           children: [
             Row(
               children: [
@@ -1182,7 +1205,7 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: Space.xs),
                 Expanded(
                   child: TextField(
                     controller: line.name,
@@ -1214,50 +1237,64 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
                   ),
               ],
             ),
-            Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: TextField(
-                      controller: line.quantity,
-                      enabled: !readOnly,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      inputFormatters: [DecimalInputFormatter()],
-                      decoration: fieldDecoration('SL'),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                const gap = Space.xs;
+                final minFieldWidth =
+                    Space.md + MediaQuery.textScalerOf(context).scale(16) * 4.5;
+                final columns =
+                    ((constraints.maxWidth + gap) / (minFieldWidth + gap))
+                        .floor()
+                        .clamp(1, 3);
+                final fieldWidth =
+                    (constraints.maxWidth - gap * (columns - 1)) / columns;
+
+                return Wrap(
+                  spacing: gap,
+                  runSpacing: Space.sm,
+                  children: [
+                    SizedBox(
+                      width: fieldWidth,
+                      child: _lineNumberField('SL', line.quantity, readOnly,
+                          quantity: true),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    flex: 4,
-                    child: TextField(
-                      controller: line.unitPrice,
-                      enabled: !readOnly,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: [ThousandsInputFormatter()],
-                      decoration: fieldDecoration('Đơn giá'),
+                    SizedBox(
+                      width: fieldWidth,
+                      child:
+                          _lineNumberField('Đơn giá', line.unitPrice, readOnly),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    flex: 5,
-                    child: TextField(
-                      controller: line.lineTotal,
-                      enabled: !readOnly,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: [ThousandsInputFormatter()],
-                      decoration: fieldDecoration('Thành tiền'),
+                    SizedBox(
+                      width: columns == 3 ? fieldWidth : constraints.maxWidth,
+                      child: _lineNumberField(
+                          'Thành tiền', line.lineTotal, readOnly),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                );
+              },
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _lineNumberField(
+    String label,
+    TextEditingController controller,
+    bool readOnly, {
+    bool quantity = false,
+  }) {
+    return TextField(
+      controller: controller,
+      enabled: !readOnly,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      inputFormatters: [
+        quantity ? DecimalInputFormatter() : ThousandsInputFormatter(),
+      ],
+      decoration: fieldDecoration(label).copyWith(
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: Space.xs,
+          vertical: Space.md,
         ),
       ),
     );

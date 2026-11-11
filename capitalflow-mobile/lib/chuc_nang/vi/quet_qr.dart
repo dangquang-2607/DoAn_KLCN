@@ -19,10 +19,14 @@ bool isCapitalFlowQr(String value) =>
 /// Với [pickOnly] = true, màn hình chỉ trả nội dung QR về cho màn hình gọi.
 class QrScanScreen extends StatefulWidget {
   const QrScanScreen(
-      {super.key, this.pickOnly = false, this.transferOnly = false});
+      {super.key,
+      this.pickOnly = false,
+      this.transferOnly = false,
+      this.billOnly = false});
 
   final bool pickOnly;
   final bool transferOnly;
+  final bool billOnly;
 
   @override
   State<QrScanScreen> createState() => _QrScanScreenState();
@@ -55,10 +59,9 @@ class _QrScanScreenState extends State<QrScanScreen> {
   void _accept(String value) {
     if (_handled || !mounted) return;
     final bill = value.startsWith('capitalflow://bill?');
-    if (!isCapitalFlowQr(value) && (!bill || widget.transferOnly)) {
-      setState(() => _message = widget.transferOnly
-          ? 'Hãy quét mã QR nhận tiền CapitalFlow của người nhận.'
-          : 'Hãy dùng QR nhận tiền hoặc QR hóa đơn CapitalFlow.');
+    if (!(bill && !widget.transferOnly ||
+        isCapitalFlowQr(value) && !widget.billOnly)) {
+      setState(() => _message = 'Hãy dùng $_qrType.');
       return;
     }
     _handled = true;
@@ -72,6 +75,12 @@ class _QrScanScreenState extends State<QrScanScreen> {
         builder: (_) => bill
             ? BillPaymentScreen(initialPayload: value)
             : TransferScreen(initialTarget: value)));
+  }
+
+  String get _qrType {
+    if (widget.billOnly) return 'QR hóa đơn CapitalFlow';
+    if (widget.transferOnly) return 'QR nhận tiền CapitalFlow';
+    return 'QR nhận tiền hoặc QR hóa đơn CapitalFlow';
   }
 
   Future<void> _pickImage() async {
@@ -143,9 +152,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
                   const SizedBox(height: 12),
                 ],
                 Text(
-                  widget.transferOnly
-                      ? 'Đưa mã QR nhận tiền CapitalFlow vào khung.'
-                      : 'Đưa QR nhận tiền hoặc QR hóa đơn CapitalFlow vào khung.',
+                  'Đưa $_qrType vào khung.',
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: Colors.white, fontSize: 14),
                 ),

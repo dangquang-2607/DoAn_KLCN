@@ -1,26 +1,45 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
-import 'package:file_selector/file_selector.dart';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../dung_chung/tien_ich/dinh_dang.dart';
+import '../../dung_chung/giao_dien/bo_chon.dart';
 import '../../dung_chung/giao_dien/chu_de.dart';
 import '../../du_lieu/mo_hinh.dart';
 import '../../du_lieu/trang_thai.dart';
-import 'hang_doi/dieu_phoi.dart';
-import 'hang_doi/luu_anh.dart' show QueueSession;
-import 'hang_doi/danh_sach_cho.dart';
+import '../../ha_tang/api.dart';
+import 'toi_uu_anh.dart';
 import '../../dung_chung/giao_dien/tu_lam_moi.dart';
 import '../../dung_chung/giao_dien/thanh_phan.dart';
 import 'dung_chung.dart';
+import 'doi_chieu_anh.dart';
 import 'kiem_tra.dart';
 
 /// Cách bắt đầu khi mở màn hóa đơn từ nút tắt ở trang chủ.
 /// Hành động mở sẵn khi vào màn hình: chụp ngay, hoặc hiện bảng chọn nguồn hóa đơn.
 enum InvoiceStartAction { camera, chooseSource }
+
+typedef _UploadSession = ({String owner, String server, int epoch});
+
+class _UploadImage {
+  _UploadImage(this.file, this.source, this.session);
+
+  final XFile file;
+  final String source;
+  final _UploadSession session;
+  Uint8List? bytes;
+  String? filename;
+  String? acceptedTicket;
+  InvoiceSummary? result;
+  Object? error;
+}
 
 /// Hóa đơn AI: chụp hoặc tải hóa đơn lên, lưu trữ, tra cứu và theo dõi trạng thái nhận dạng OCR.
 class InvoicesScreen extends StatefulWidget {
@@ -44,9 +63,11 @@ class _InvoicesScreenState extends State<InvoicesScreen>
   static const _ocrLimit = 5;
   static const _selectionLimit = 100;
   static const _maxSourceBytes = 20 * 1024 * 1024;
+  static const _pickerIntentKey = 'cf_invoice_picker_intent';
 
   final ImagePicker _picker = ImagePicker();
   final _search = TextEditingController();
+  final _listScroll = ScrollController();
 
   List<InvoiceSummary> _invoices = <InvoiceSummary>[];
   String _filter = 'ALL';
@@ -54,6 +75,8 @@ class _InvoicesScreenState extends State<InvoicesScreen>
   bool _loading = true;
   bool _uploading = false;
   bool _picking = false;
+  String _uploadProgress = '';
+  final List<_UploadImage> _uploadResults = [];
   bool _more = false;
   int _page = 1, _total = 0;
   bool _selecting = false, _batchBusy = false;
@@ -68,9 +91,6 @@ class _InvoicesScreenState extends State<InvoicesScreen>
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      final queue = context.read<InvoiceQueue>();
-      await queue.ready;
-      if (!mounted) return;
       if (await _recoverPicker()) return;
       if (!mounted) return;
       if (widget.startAction == InvoiceStartAction.camera) {
@@ -83,31 +103,30 @@ class _InvoicesScreenState extends State<InvoicesScreen>
 
   Future<bool> _recoverPicker() async {
     if (!Platform.isAndroid || _picking) return false;
-    final queue = context.read<InvoiceQueue>();
-    final session = queue.session;
-    final intent = await queue.store.pickerIntent();
-    if (_picking ||
-        session == null ||
-        intent == null ||
-        intent['scope'] != session.scope ||
-        !_sameSession(queue, session)) {
-      return false;
-    }
+    final session = _uploadSession();
+    if (session == null) return false;
     _picking = true;
     var retake = false;
     try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!_sameSession(session)) return false;
+      final intent = prefs.getString(_pickerIntentKey);
+      final scope = _pickerScope(session);
+      if (intent != '$scope:CAMERA' && intent != '$scope:UPLOAD') return false;
+      await prefs.remove(_pickerIntentKey);
+      if (!_sameSession(session)) return false;
       final lost = await _picker.retrieveLostData();
-      if (!_sameSession(queue, session)) return false;
+      if (!_sameSession(session)) return false;
       final files = lost.files;
       if (files != null && files.isNotEmpty) {
-        if (intent['source'] == 'CAMERA') {
-          final decision = await _cameraDecision(files.first, queue, session);
+        if (intent == '$scope:CAMERA') {
+          final decision = await _cameraDecision(files.first, session);
           retake = decision == 'retake';
           if (decision == 'use') {
-            await _queueImages([files.first], queue, session, source: 'CAMERA');
+            await _uploadFiles([files.first], session, source: 'CAMERA');
           }
         } else {
-          await _queueImages(files, queue, session);
+          await _uploadFiles(files, session, source: 'UPLOAD');
         }
         return true;
       }
@@ -118,14 +137,13 @@ class _InvoicesScreenState extends State<InvoicesScreen>
         );
       }
     } catch (_) {
-      showSnack('Chưa khôi phục được ảnh vừa chọn. Hãy chọn lại.', error: true);
-    } finally {
-      try {
-        await queue.store.clearPicker(scope: session.scope);
-      } finally {
-        _picking = false;
+      if (_sameSession(session)) {
+        showSnack('Chưa khôi phục được ảnh vừa chọn. Hãy chọn lại.',
+            error: true);
       }
-      if (retake && _sameSession(queue, session)) unawaited(_pickCamera());
+    } finally {
+      _picking = false;
+      if (retake && _sameSession(session)) unawaited(_pickCamera());
     }
     return false;
   }
@@ -134,6 +152,7 @@ class _InvoicesScreenState extends State<InvoicesScreen>
   void dispose() {
     _pollTimer?.cancel();
     _search.dispose();
+    _listScroll.dispose();
     super.dispose();
   }
 
@@ -299,7 +318,7 @@ class _InvoicesScreenState extends State<InvoicesScreen>
     reload();
   }
 
-  // ── Chụp / chọn tệp và tải lên ────────────────────────────────────────────
+  // ── Chụp / chọn ảnh và tải lên ────────────────────────────────────────────
 
   void _openAddSheet() {
     if (_picking || _uploading || _selecting) return;
@@ -340,85 +359,80 @@ class _InvoicesScreenState extends State<InvoicesScreen>
             _pickImages();
           },
         ),
-        SheetOption(
-          title: 'Chọn tệp ảnh',
-          subtitle: 'Chọn tối đa 3 ảnh từ Tệp hoặc Tải xuống',
-          leading: const IconBadge(
-            icon: Icons.description_outlined,
-            color: AppColors.amber,
-            size: 40,
-          ),
-          onTap: () {
-            Navigator.of(sheetContext).pop();
-            _pickImages(fromFiles: true);
-          },
-        ),
       ],
     );
   }
 
-  Future<void> _pickCamera() => _runPicker((queue, session) async {
-        while (_sameSession(queue, session)) {
+  Future<void> _pickCamera() => _runPicker((session) async {
+        while (_sameSession(session)) {
           final file = await _picker.pickImage(source: ImageSource.camera);
-          if (file == null || !_sameSession(queue, session)) return;
-          final decision = await _cameraDecision(file, queue, session);
+          if (file == null || !_sameSession(session)) return;
+          final decision = await _cameraDecision(file, session);
           if (decision == 'retake') continue;
           if (decision == 'use') {
-            await _queueImages([file], queue, session, source: 'CAMERA');
+            await _uploadFiles([file], session, source: 'CAMERA');
           }
           return;
         }
       }, recoverySource: 'CAMERA');
 
-  Future<void> _pickImages({bool fromFiles = false}) => _runPicker(
-        (queue, session) async {
-          const group = XTypeGroup(
-            label: 'Ảnh hóa đơn',
-            extensions: ['jpg', 'jpeg', 'png', 'webp'],
-            mimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
-          );
-          final files = fromFiles
-              ? await openFiles(acceptedTypeGroups: [group])
-              : await _picker.pickMultiImage(limit: _uploadLimit);
-          await _queueImages(files, queue, session);
+  Future<void> _pickImages() => _runPicker(
+        (session) async {
+          final files = await _picker.pickMultiImage(limit: _uploadLimit);
+          await _uploadFiles(files, session, source: 'UPLOAD');
         },
-        recoverySource: fromFiles ? null : 'UPLOAD',
+        recoverySource: 'UPLOAD',
       );
 
   Future<void> _runPicker(
-    Future<void> Function(InvoiceQueue, QueueSession) pick, {
-    required String? recoverySource,
+    Future<void> Function(_UploadSession) pick, {
+    required String recoverySource,
   }) async {
     if (_picking || _uploading) return;
+    final session = _uploadSession();
+    if (session == null) return;
     _picking = true;
-    final queue = context.read<InvoiceQueue>();
     try {
-      await queue.ready;
-      final session = queue.session;
-      if (!mounted || session == null) return;
-      if (recoverySource != null) {
-        await queue.store.rememberPicker(session, recoverySource);
-      }
+      final prefs =
+          Platform.isAndroid ? await SharedPreferences.getInstance() : null;
+      if (!_sameSession(session)) return;
+      final intent = '${_pickerScope(session)}:$recoverySource';
+      await prefs?.setString(_pickerIntentKey, intent);
       try {
-        if (_sameSession(queue, session)) await pick(queue, session);
+        if (_sameSession(session)) await pick(session);
       } finally {
-        if (recoverySource != null) {
-          await queue.store.clearPicker(scope: session.scope);
+        if (prefs?.getString(_pickerIntentKey) == intent) {
+          await prefs?.remove(_pickerIntentKey);
         }
       }
-    } catch (_) {
-      if (mounted) {
-        showSnack('Không đọc được ảnh. Hãy chọn hoặc chụp lại.', error: true);
+    } catch (error) {
+      if (_sameSession(session)) {
+        showSnack(
+            error is StateError
+                ? error.message.toString()
+                : 'Không đọc được ảnh. Hãy chọn hoặc chụp lại.',
+            error: true);
       }
     } finally {
       _picking = false;
     }
   }
 
-  bool _sameSession(InvoiceQueue queue, QueueSession session) =>
-      mounted &&
-      queue.session?.scope == session.scope &&
-      queue.session?.generation == session.generation;
+  _UploadSession? _uploadSession() {
+    final api = context.read<AppData>().invoices.api;
+    final owner = api.tokens.ownerId;
+    return owner == null
+        ? null
+        : (owner: owner, server: api.config.apiRoot, epoch: api.tokens.epoch);
+  }
+
+  bool _sameSession(_UploadSession session) =>
+      mounted && _uploadSession() == session;
+
+  // Chỉ lưu nguồn chọn ảnh và mã phạm vi tài khoản để khôi phục bộ chọn Android.
+  String _pickerScope(_UploadSession session) => sha256
+      .convert(utf8.encode('${session.server}|${session.owner}'))
+      .toString();
 
   Future<void> _validateImage(XFile file) async {
     final length = await file.length();
@@ -437,12 +451,11 @@ class _InvoicesScreenState extends State<InvoicesScreen>
 
   Future<String?> _cameraDecision(
     XFile file,
-    InvoiceQueue queue,
-    QueueSession session,
+    _UploadSession session,
   ) async {
     await _validateImage(file);
     final bytes = await file.readAsBytes();
-    if (!_sameSession(queue, session)) return null;
+    if (!_sameSession(session)) return null;
     return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
@@ -487,59 +500,246 @@ class _InvoicesScreenState extends State<InvoicesScreen>
     );
   }
 
-  Future<void> _queueImages(
+  Future<void> _uploadFiles(
     List<XFile> files,
-    InvoiceQueue queue,
-    QueueSession session, {
-    String source = 'UPLOAD',
+    _UploadSession session, {
+    required String source,
   }) async {
-    if (files.isEmpty || !_sameSession(queue, session)) return;
+    if (files.isEmpty || !_sameSession(session)) return;
     if (files.length > _uploadLimit) {
       showSnack('Chọn tối đa $_uploadLimit ảnh mỗi lượt.', error: true);
       return;
     }
-    setState(() => _uploading = true);
+    await _sendUploads(
+      files.map((file) => _UploadImage(file, source, session)).toList(),
+      newBatch: true,
+    );
+  }
+
+  Future<void> _sendUploads(List<_UploadImage> images,
+      {bool newBatch = false}) async {
+    final session = images.first.session;
+    if (_uploading || !_sameSession(session)) return;
+    final repository = context.read<AppData>().invoices;
+    setState(() {
+      _uploading = true;
+      _uploadProgress = 'Đang kiểm tra ảnh hóa đơn…';
+    });
     try {
-      for (final file in files) {
-        await _validateImage(file);
-        if (!_sameSession(queue, session)) return;
+      if (newBatch) {
+        for (final image in images) {
+          await _validateImage(image.file);
+          if (!_sameSession(session)) return;
+        }
+        _uploadResults.removeWhere((entry) =>
+            entry.error == null ||
+            entry.session != session ||
+            images.any((image) => image.file.path == entry.file.path));
+        _uploadResults.addAll(images);
       }
 
-      var queued = 0;
-      String? firstError;
-      for (final file in files) {
-        if (!_sameSession(queue, session)) return;
+      for (final (index, image) in images.indexed) {
+        if (!_sameSession(session)) return;
+        setState(() => _uploadProgress =
+            'Đang nhận dạng và đối chiếu ảnh ${index + 1}/${images.length}');
         try {
-          final bytes = await file.readAsBytes();
-          if (!_sameSession(queue, session)) return;
-          await queue.enqueue(bytes, file.name, source);
-          queued++;
+          final bytes = image.bytes ??=
+              await prepareInvoiceImage(await image.file.readAsBytes());
+          final extension = detectInvoiceExtension(bytes, image.file.name);
+          if (extension == null) {
+            throw StateError('Không đọc được định dạng ảnh.');
+          }
+          final filename = invoiceUploadName(image.file.name, extension);
+          if (!_sameSession(session)) return;
+          image.result = await repository.upload(
+            bytes: bytes,
+            filename: filename,
+            source: image.source,
+            reviewTicket: image.acceptedTicket,
+            beforeSend: () async {
+              if (!_sameSession(session)) {
+                throw ApiException('Phiên đăng nhập đã thay đổi.',
+                    statusCode: 401);
+              }
+            },
+          );
+          image.error = null;
+          image.bytes = null;
+          image.acceptedTicket = null;
         } catch (error) {
-          firstError ??= error is StateError
-              ? error.message.toString()
-              : 'Chưa lưu được ${file.name}. Hãy chọn lại ảnh.';
+          if (!_sameSession(session)) return;
+          image.error = error;
+          if (error is ApiException &&
+              !error.uncertain &&
+              error.statusCode != 401) {
+            image.acceptedTicket = null;
+          }
         }
       }
-      if (!_sameSession(queue, session)) return;
-      if (queued > 0 && _filter != 'ALL') _setFilter('ALL');
+
+      if (!_sameSession(session)) return;
+      final created =
+          images.where((image) => image.result?.outcome == 'CREATED');
+      final duplicates = images.where(_isUploadMatch);
+      final failed = images.where((image) => image.error != null);
+      if (created.isNotEmpty || duplicates.isNotEmpty) {
+        if (_filter != 'ALL') {
+          _setFilter('ALL');
+        } else {
+          unawaited(reload());
+        }
+      }
       showSnack(
-        firstError == null
-            ? 'Đã thêm $queued ảnh. Hệ thống sẽ tự quét và đối chiếu khi tải lên.'
-            : 'Đã thêm $queued/${files.length} ảnh. $firstError',
-        error: firstError != null,
+        '${created.length} hóa đơn mới · ${duplicates.length} ảnh trùng · ${failed.length} ảnh chưa hoàn tất.',
+        error: failed.isNotEmpty,
+        warning: failed.isEmpty && duplicates.isNotEmpty,
       );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _listScroll.hasClients) _listScroll.jumpTo(0);
+      });
     } catch (error) {
-      if (_sameSession(queue, session)) {
+      if (_sameSession(session)) {
         showSnack(
-          error is StateError
-              ? error.message.toString()
-              : 'Không đọc được ảnh đã chọn.',
-          error: true,
-        );
+            error is StateError
+                ? error.message.toString()
+                : 'Không đọc được ảnh đã chọn.',
+            error: true);
       }
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
+  }
+
+  Future<void> _openInvoice(String id) async {
+    await pushScreen<bool>(context, InvoiceReviewScreen(invoiceId: id));
+    if (mounted) unawaited(reload());
+  }
+
+  bool _isUploadMatch(_UploadImage image) =>
+      image.result != null && image.result?.outcome != 'CREATED';
+
+  String _matchLabel(InvoiceSummary invoice) {
+    if (invoice.hidden || invoice.outcome == 'RESTORE_REQUIRED') {
+      return 'Trong Thùng rác';
+    }
+    if (invoice.outcome == 'ALREADY_CONFIRMED') return 'Đã ghi sổ';
+    if (invoice.raw['match_kind'] == 'DATA') {
+      return 'Khớp dữ liệu hóa đơn đã có';
+    }
+    return 'Đã tải lên trước đó';
+  }
+
+  Future<void> _openDuplicate(List<_UploadImage> matches) async {
+    final match = matches.length == 1
+        ? matches.single
+        : await pickOption<_UploadImage>(
+            context,
+            title: 'Ảnh trùng hóa đơn đã có',
+            options: [
+              for (final image in matches)
+                MapEntry(image,
+                    '${image.file.name} · ${_matchLabel(image.result!)}'),
+            ],
+          );
+    if (match == null || !_sameSession(match.session) || _uploading) return;
+    setState(() => _uploadResults.removeWhere(matches.contains));
+    await _openInvoice(match.result!.id);
+  }
+
+  Future<void> _reviewUpload(
+      _UploadImage image, Json review, String ticket) async {
+    final decision =
+        await reviewInvoiceDuplicates(context, review, upload: image.bytes);
+    if (decision == null || !_sameSession(image.session) || _uploading) return;
+    if (decision.startsWith('open:')) {
+      await _openInvoice(decision.substring('open:'.length));
+    } else if (decision == 'distinct') {
+      image.acceptedTicket = ticket;
+      await _sendUploads([image]);
+    }
+  }
+
+  Widget? _uploadFeedback(List<_UploadImage> results) {
+    final matches = results.where(_isUploadMatch).toList();
+    final created =
+        results.where((image) => image.result?.outcome == 'CREATED');
+    final failed = results.where((image) => image.error != null);
+    if (matches.isEmpty && created.length != 1 && failed.isEmpty) return null;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Space.xs),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (matches.isNotEmpty) ...[
+            InfoBanner(
+              message: '${matches.length} ảnh trùng. Không tạo thêm hóa đơn.',
+              icon: Icons.copy_all_outlined,
+              color: AppColors.warning,
+            ),
+            TextButton.icon(
+              icon: const Icon(Icons.open_in_new, size: 18),
+              label: const Text('Mở hóa đơn'),
+              onPressed: () => _openDuplicate(matches),
+            ),
+          ],
+          if (created.length == 1)
+            TextButton.icon(
+              icon: const Icon(Icons.receipt_long_outlined, size: 18),
+              label: const Text('Kiểm tra hóa đơn mới'),
+              onPressed: () => _openInvoice(created.single.result!.id),
+            ),
+          for (final image in failed) _uploadIssue(image),
+        ],
+      ),
+    );
+  }
+
+  Widget _uploadIssue(_UploadImage image) {
+    final error = image.error!;
+    final detail =
+        error is ApiException ? error.detail : const <String, dynamic>{};
+    final ticket = asText(detail['upload_ticket']);
+    final check = detail['duplicate_check'];
+    final blockers = asJsonList(detail['blockers']);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Space.xs),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InfoBanner(
+            message:
+                '${image.file.name}: ${error is StateError ? error.message : errorText(error)}',
+            icon: Icons.info_outline,
+            color: AppColors.warning,
+          ),
+          Wrap(
+            children: [
+              if (ticket != null && check is Map<String, dynamic>)
+                TextButton(
+                  onPressed: () => _reviewUpload(image, check, ticket),
+                  child: const Text('Đối chiếu hóa đơn nghi trùng'),
+                )
+              else
+                TextButton(
+                  onPressed: () => _sendUploads([image]),
+                  child: const Text('Thử lại ảnh này'),
+                ),
+              for (final blocker in blockers)
+                if (asText(blocker['id']) case final id?)
+                  TextButton(
+                    onPressed: () => _openInvoice(id),
+                    child: Text(
+                        asText(blocker['filename']) ?? 'Mở bản cần kiểm tra'),
+                  ),
+              TextButton(
+                onPressed: () => setState(() => _uploadResults.remove(image)),
+                child: const Text('Bỏ ảnh'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   // ── Giao diện ─────────────────────────────────────────────────────────────
@@ -659,6 +859,18 @@ class _InvoicesScreenState extends State<InvoicesScreen>
 
   @override
   Widget build(BuildContext context) {
+    final session = _uploadSession();
+    final results = _selecting || _uploading
+        ? const <_UploadImage>[]
+        : _uploadResults.where((image) => image.session == session).toList();
+    final feedback = _uploadFeedback(results);
+    final feedbackItems = [
+      if (feedback != null)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: Space.md),
+          child: feedback,
+        ),
+    ];
     final query = _query.trim().toLowerCase();
     final visible = query.isEmpty
         ? _invoices
@@ -674,18 +886,27 @@ class _InvoicesScreenState extends State<InvoicesScreen>
     Widget content;
     if (_loading && _invoices.isEmpty) {
       content = ListView(
-        children: const [SizedBox(height: 120), LoadingView()],
+        controller: _listScroll,
+        children: [
+          ...feedbackItems,
+          const SizedBox(height: 120),
+          const LoadingView(),
+        ],
       );
     } else if (_error != null && _invoices.isEmpty) {
       content = ListView(
+        controller: _listScroll,
         children: [
+          ...feedbackItems,
           const SizedBox(height: 60),
           ErrorView(message: _error!, onRetry: reload),
         ],
       );
     } else if (visible.isEmpty) {
       content = ListView(
+        controller: _listScroll,
         children: [
+          ...feedbackItems,
           const SizedBox(height: 30),
           EmptyView(
             icon: Icons.document_scanner_outlined,
@@ -700,11 +921,13 @@ class _InvoicesScreenState extends State<InvoicesScreen>
       );
     } else {
       content = ListView.builder(
+        controller: _listScroll,
         padding: EdgeInsets.fromLTRB(
             Space.md, Space.xxs, Space.md, _selecting ? Space.sm : Space.xl),
-        itemCount: visible.length,
+        itemCount: visible.length + feedbackItems.length,
         itemBuilder: (context, index) {
-          final invoice = visible[index];
+          if (index == 0 && feedback != null) return feedback;
+          final invoice = visible[index - feedbackItems.length];
           return Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: _InvoiceCard(
@@ -714,10 +937,7 @@ class _InvoicesScreenState extends State<InvoicesScreen>
                   ? _batchBusy || !_canSelect(invoice)
                       ? null
                       : () => _toggleSelection(invoice)
-                  : () => pushScreen<bool>(
-                        context,
-                        InvoiceReviewScreen(invoiceId: invoice.id),
-                      ),
+                  : () => _openInvoice(invoice.id),
             ),
           );
         },
@@ -772,11 +992,11 @@ class _InvoicesScreenState extends State<InvoicesScreen>
               ],
             ),
             if (_uploading)
-              const Positioned.fill(
+              Positioned.fill(
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    ModalBarrier(
+                    const ModalBarrier(
                       dismissible: false,
                       color: Color(0x99172033),
                     ),
@@ -785,10 +1005,14 @@ class _InvoicesScreenState extends State<InvoicesScreen>
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            CircularProgressIndicator(strokeWidth: 3),
-                            SizedBox(height: Space.sm),
-                            Text('Đang chuẩn bị ảnh…',
-                                style: AppText.cardTitle),
+                            const CircularProgressIndicator(strokeWidth: 3),
+                            const SizedBox(height: Space.sm),
+                            Semantics(
+                              liveRegion: true,
+                              child: Text(_uploadProgress,
+                                  textAlign: TextAlign.center,
+                                  style: AppText.cardTitle),
+                            ),
                           ],
                         ),
                       ),
@@ -822,6 +1046,7 @@ class _InvoicesScreenState extends State<InvoicesScreen>
             children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
+                  key: ValueKey(_filter),
                   initialValue: _filter,
                   isExpanded: true,
                   decoration: fieldDecoration('Trạng thái'),
@@ -855,24 +1080,6 @@ class _InvoicesScreenState extends State<InvoicesScreen>
           ),
         ),
         const SizedBox(height: Space.xs),
-        Consumer<InvoiceQueue>(
-          builder: (context, queue, _) => ListTile(
-            leading: const Icon(Icons.cloud_upload_outlined),
-            title: Text('Hàng đợi trên điện thoại (${queue.pendingCount})'),
-            subtitle: Text(
-              queue.error ??
-                  (queue.items.any(
-                    (job) => job.state == 'attention' || job.state == 'auth',
-                  )
-                      ? 'Có ảnh cần kiểm tra. Mở hàng đợi để xem chi tiết.'
-                      : queue.paused
-                          ? 'Đang tạm dừng gửi'
-                          : 'Ảnh được tự quét và đối chiếu khi tải lên.'),
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => pushScreen<void>(context, const InvoiceQueueScreen()),
-          ),
-        ),
       ];
 }
 
