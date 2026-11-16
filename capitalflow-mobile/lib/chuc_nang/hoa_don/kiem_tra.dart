@@ -558,19 +558,6 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
     }
   }
 
-  void _useLinesTotal() {
-    var sum = BigInt.zero;
-    for (final line in _lines) {
-      sum += moneyCents(moneyInput(line.lineTotal.text) ?? '0');
-    }
-    if (sum <= BigInt.zero) return;
-    setState(() {
-      final tax = moneyCents(moneyInput(_tax.text) ?? '0');
-      _subtotal.text = editMoney(centsMoney(sum));
-      _total.text = editMoney(centsMoney(sum + tax));
-    });
-  }
-
   void _openImage() {
     final image = _image;
     if (image == null) return;
@@ -638,6 +625,10 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
     final readOnly = _confirmed || _processing || _hidden || _locked;
     final category = appData.categoryById(_categoryId);
     final suggestion = _suggestion;
+    final categoryName = category?.name ??
+        (suggestion?.categoryId == _categoryId
+            ? suggestion?.categoryName
+            : null);
     final rawConfidence = detail.summary.ocrConfidence;
     final confidence = rawConfidence != null &&
             rawConfidence.isFinite &&
@@ -645,7 +636,7 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
             rawConfidence <= 1
         ? rawConfidence
         : null;
-    const fieldGap = SizedBox(height: Space.sm);
+    const fieldGap = SizedBox(height: Space.xs);
 
     return Column(
       children: [
@@ -778,13 +769,6 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
                     child: const Text('Tải lại ảnh gốc'),
                   ),
               ],
-              if (!readOnly)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 10),
-                  child: Text(
-                    'Đối chiếu người bán, ngày, từng dòng hàng và tổng thanh toán với bản gốc. Thông tin chưa đọc được có thể nhập hoặc sửa bên dưới.',
-                  ),
-                ),
               if (confidence != null && status == 'REVIEW_REQUIRED') ...[
                 InfoBanner(
                   message:
@@ -873,7 +857,7 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
                 maxLength: 8,
                 decoration: fieldDecoration('Giờ hóa đơn (HH:mm, nếu có)'),
               ),
-              const SizedBox(height: Space.lg),
+              const SizedBox(height: Space.md),
               Padding(
                 padding: const EdgeInsets.only(bottom: Space.sm),
                 child: Row(
@@ -901,7 +885,7 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
                   ),
                 ),
               for (var i = 0; i < _lines.length; i++) _lineCard(i, readOnly),
-              const SizedBox(height: Space.xs),
+              const SizedBox(height: Space.md),
               const SectionHeader('Tổng tiền & thuế'),
               _fieldPair(
                 TextField(
@@ -938,27 +922,11 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
                       : null,
                 ),
               ),
-              if (!readOnly && _lines.isNotEmpty)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: _useLinesTotal,
-                    icon: const Icon(Icons.calculate_outlined, size: 18),
-                    label: const Text('Tính lại tổng từ các dòng sản phẩm'),
-                  ),
-                ),
-              const SectionHeader('Ghi sổ thu chi'),
-              const Padding(
-                padding: EdgeInsets.only(bottom: 10),
-                child: Text(
-                  'Hóa đơn được ghi thành khoản chi trong sổ thu chi, không trừ tiền ví. '
-                  'Nếu đã thanh toán bằng ví, bạn sẽ được hỏi để gắn vào khoản đó.',
-                  style: TextStyle(fontSize: 12.5, color: AppColors.muted),
-                ),
-              ),
+              const SizedBox(height: Space.md),
+              const SectionHeader('Danh mục chi tiêu'),
               PickerField(
                 label: 'Danh mục chi',
-                value: category?.name,
+                value: categoryName,
                 placeholder: 'Không phân loại (tự gợi ý)',
                 leading: category == null
                     ? null
@@ -995,16 +963,26 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
                   ),
                 ),
               if (!readOnly && suggestion != null && _categoryId == null) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: Space.xxs),
                 InfoBanner(
                   message: 'Gợi ý tự động: ${suggestion.categoryName ?? ''} '
                       '(${(suggestion.confidence * 100).round()}%). '
-                      '${suggestion.autoApply ? 'Sẽ tự áp dụng khi ghi sổ.' : 'Chạm ô Danh mục để chọn.'}',
+                      '${suggestion.autoApply ? 'Sẽ tự áp dụng khi ghi sổ.' : suggestion.reason}',
                   icon: Icons.auto_awesome,
                   color: AppColors.warning,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: Space.sm, vertical: Space.xxs),
+                  action: TextButton(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsetsDirectional.only(end: Space.sm),
+                    ),
+                    onPressed: () =>
+                        setState(() => _categoryId = suggestion.categoryId),
+                    child: const Text('Chọn danh mục'),
+                  ),
                 ),
               ],
-              const SizedBox(height: 10),
+              fieldGap,
               TextField(
                 controller: _note,
                 enabled: !readOnly,
@@ -1033,16 +1011,15 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
                 TextButton.icon(
                   onPressed: _locked || _versionConflict ? null : _saveItems,
                   icon: const Icon(Icons.save_outlined),
-                  label: const Text('Lưu nháp dòng hàng'),
+                  label: const Text('Lưu chỉnh sửa mặt hàng'),
                 ),
                 PrimaryButton(
                   label: _pendingConfirm != null
                       ? 'Thử lại xác nhận'
-                      : 'Kiểm tra & ghi khoản chi',
+                      : 'Xác nhận & ghi nhận khoản chi',
                   loading: _busy,
                   onPressed: _versionConflict ? null : _confirm,
                   icon: Icons.task_alt,
-                  wrapLabel: true,
                 ),
               ],
             ),
@@ -1063,7 +1040,7 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
           alignment: WrapAlignment.spaceBetween,
           crossAxisAlignment: WrapCrossAlignment.center,
           spacing: Space.xs,
-          runSpacing: Space.sm,
+          runSpacing: Space.xs,
           children: [
             SizedBox(width: width, child: first),
             SizedBox(width: width, child: second),
@@ -1180,11 +1157,11 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
   Widget _lineCard(int index, bool readOnly) {
     final line = _lines[index];
     return Padding(
-      padding: const EdgeInsets.only(bottom: Space.sm),
+      padding: const EdgeInsets.only(bottom: Space.xs),
       child: AppCard(
-        padding: const EdgeInsets.all(Space.sm),
+        padding: const EdgeInsets.all(Space.xs),
         child: Column(
-          spacing: Space.sm,
+          spacing: Space.xs,
           children: [
             Row(
               children: [
@@ -1212,13 +1189,12 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
                     enabled: !readOnly,
                     maxLength: 500,
                     style: const TextStyle(
-                      fontSize: 14.5,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
                     decoration: const InputDecoration(
                       hintText: 'Tên hàng hóa / dịch vụ',
                       border: InputBorder.none,
-                      isDense: true,
                       counterText: '',
                     ),
                   ),
@@ -1251,7 +1227,7 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
 
                 return Wrap(
                   spacing: gap,
-                  runSpacing: Space.sm,
+                  runSpacing: Space.xs,
                   children: [
                     SizedBox(
                       width: fieldWidth,
@@ -1292,10 +1268,8 @@ class _InvoiceReviewScreenState extends State<InvoiceReviewScreen>
         quantity ? DecimalInputFormatter() : ThousandsInputFormatter(),
       ],
       decoration: fieldDecoration(label).copyWith(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: Space.xs,
-          vertical: Space.md,
-        ),
+        contentPadding:
+            const EdgeInsets.fromLTRB(Space.xs, Space.sm, Space.xs, Space.xs),
       ),
     );
   }

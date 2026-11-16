@@ -427,7 +427,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
               .copyWith(suffixText: '₫'),
           onChanged: (_) => setState(() {}),
         ),
-        const SizedBox(height: Space.md),
+        const SizedBox(height: Space.xs),
         TextField(
           controller: _warningInput,
           enabled: !_saving,

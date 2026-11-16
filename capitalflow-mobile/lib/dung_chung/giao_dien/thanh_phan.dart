@@ -265,13 +265,6 @@ InputDecoration fieldDecoration(
   Widget? suffix,
   String? helper,
 }) {
-  OutlineInputBorder border(Color color, [double width = 1]) {
-    return OutlineInputBorder(
-      borderRadius: BorderRadius.circular(Radii.sm),
-      borderSide: BorderSide(color: color, width: width),
-    );
-  }
-
   return InputDecoration(
     labelText: label,
     hintText: hint,
@@ -280,21 +273,7 @@ InputDecoration fieldDecoration(
     prefixIcon:
         icon == null ? null : Icon(icon, size: 20, color: AppColors.subtle),
     suffixIcon: suffix,
-    filled: true,
-    fillColor: AppColors.surface,
-    isDense: true,
-    contentPadding:
-        const EdgeInsets.symmetric(horizontal: Space.md, vertical: Space.md),
-    labelStyle: const TextStyle(color: AppColors.muted, fontSize: 15),
-    floatingLabelStyle:
-        const TextStyle(color: AppColors.blue, fontWeight: FontWeight.w600),
-    hintStyle: const TextStyle(color: AppColors.subtle, fontSize: 15),
     counterText: '',
-    border: border(AppColors.line),
-    enabledBorder: border(AppColors.line),
-    focusedBorder: border(AppColors.blue, 1.6),
-    errorBorder: border(AppColors.danger),
-    focusedErrorBorder: border(AppColors.danger, 1.6),
   );
 }
 
@@ -302,10 +281,6 @@ const _pillMinimumSize = Size(0, 40);
 const _pillIconSize = 16.0;
 const _pillPadding = EdgeInsets.symmetric(horizontal: Space.xs);
 const _backLabel = 'Quay lại';
-
-TextStyle _pillLabelStyle(BuildContext context) =>
-    (Theme.of(context).textTheme.labelMedium ?? const TextStyle(fontSize: 12))
-        .copyWith(fontWeight: FontWeight.w600);
 
 class PillBackButton extends StatelessWidget {
   const PillBackButton({super.key, required this.onPressed});
@@ -320,7 +295,7 @@ class PillBackButton extends StatelessWidget {
           foregroundColor: AppColors.ink,
           minimumSize: _pillMinimumSize,
           padding: _pillPadding,
-          textStyle: _pillLabelStyle(context),
+          textStyle: AppText.button,
           tapTargetSize: MaterialTapTargetSize.padded,
           shape: const StadiumBorder(),
           side: const BorderSide(color: AppColors.line),
@@ -350,7 +325,7 @@ class PillAddButton extends StatelessWidget {
         minimumSize: _pillMinimumSize,
         padding: _pillPadding,
         shape: const StadiumBorder(),
-        textStyle: _pillLabelStyle(context),
+        textStyle: AppText.button,
         tapTargetSize: MaterialTapTargetSize.padded,
       ),
       icon: const Icon(Icons.add_rounded, size: _pillIconSize),
@@ -386,7 +361,7 @@ PreferredSizeWidget appBar(
   final textScaler = MediaQuery.textScalerOf(context);
   final headingStyle =
       Theme.of(context).appBarTheme.titleTextStyle ?? AppText.section;
-  final labelStyle = _pillLabelStyle(context);
+  const labelStyle = AppText.button;
 
   double textWidth(String value, TextStyle style) {
     final painter = TextPainter(
@@ -550,7 +525,7 @@ class AppCard extends StatelessWidget {
   const AppCard({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(Space.md),
+    this.padding = const EdgeInsets.all(Space.sm),
     this.onTap,
     this.color,
     this.radius = Radii.md,
@@ -579,7 +554,11 @@ class AppCard extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: shape,
-          child: Padding(padding: padding, child: child),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+                minHeight: onTap == null ? 0 : kMinInteractiveDimension),
+            child: Padding(padding: padding, child: child),
+          ),
         ),
       ),
     );
@@ -609,7 +588,7 @@ class SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: Space.sm),
+      padding: const EdgeInsets.only(bottom: Space.xs),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -639,8 +618,6 @@ class SectionHeader extends StatelessWidget {
               onPressed: onAction,
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: Space.xs),
-                minimumSize: const Size(48, 36),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -852,7 +829,6 @@ class PrimaryButton extends StatefulWidget {
     this.loading = false,
     this.icon,
     this.danger = false,
-    this.wrapLabel = false,
   });
 
   final String label;
@@ -860,7 +836,6 @@ class PrimaryButton extends StatefulWidget {
   final bool loading;
   final IconData? icon;
   final bool danger;
-  final bool wrapLabel;
 
   @override
   State<PrimaryButton> createState() => _PrimaryButtonState();
@@ -877,7 +852,7 @@ class _PrimaryButtonState extends State<PrimaryButton> {
   Widget build(BuildContext context) {
     final enabled = !widget.loading && widget.onPressed != null;
     final color = widget.danger ? AppColors.danger : AppColors.blue;
-    final radius = BorderRadius.circular(16);
+    final radius = BorderRadius.circular(Radii.md);
     return Listener(
       onPointerDown: enabled ? (_) => _setPressed(true) : null,
       onPointerUp: (_) => _setPressed(false),
@@ -889,9 +864,8 @@ class _PrimaryButtonState extends State<PrimaryButton> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           width: double.infinity,
-          height: widget.wrapLabel ? null : 56,
           constraints:
-              widget.wrapLabel ? const BoxConstraints(minHeight: 56) : null,
+              const BoxConstraints(minHeight: kMinInteractiveDimension),
           decoration: BoxDecoration(
             borderRadius: radius,
             boxShadow: enabled
@@ -910,15 +884,7 @@ class _PrimaryButtonState extends State<PrimaryButton> {
               backgroundColor: color,
               disabledBackgroundColor:
                   widget.loading ? color : color.withValues(alpha: 0.38),
-              padding: widget.wrapLabel
-                  ? const EdgeInsets.symmetric(
-                      horizontal: Space.md, vertical: Space.sm)
-                  : null,
               shape: RoundedRectangleBorder(borderRadius: radius),
-              textStyle: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.1),
             ),
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 180),
@@ -943,9 +909,6 @@ class _PrimaryButtonState extends State<PrimaryButton> {
                           child: Text(
                             widget.label,
                             textAlign: TextAlign.center,
-                            overflow: widget.wrapLabel
-                                ? TextOverflow.visible
-                                : TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -991,33 +954,34 @@ class PickerField extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        child: Padding(
-          padding:
-              const EdgeInsets.fromLTRB(Space.md, Space.sm, Space.xs, Space.sm),
+        child: Container(
+          constraints:
+              const BoxConstraints(minHeight: kMinInteractiveDimension),
+          padding: const EdgeInsetsDirectional.fromSTEB(
+              Space.sm, Space.xxs, Space.xxs, Space.xxs),
           child: Row(
             children: [
-              if (leading != null) ...[leading!, const SizedBox(width: 12)],
+              if (leading != null) ...[
+                leading!,
+                const SizedBox(width: Space.xs)
+              ],
               if (leading == null && icon != null) ...[
                 Icon(icon, size: 20, color: AppColors.muted),
-                const SizedBox(width: 12),
+                const SizedBox(width: Space.xs),
               ],
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(label,
-                        style: const TextStyle(
-                            fontSize: 12, color: AppColors.muted)),
+                    Text(label, style: AppText.label),
                     const SizedBox(height: 2),
                     Text(
                       hasValue ? value! : placeholder,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight:
                             hasValue ? FontWeight.w600 : FontWeight.w400,
-                        color: hasValue ? AppColors.ink : AppColors.subtle,
+                        color: hasValue ? AppColors.ink : AppColors.muted,
                       ),
                     ),
                   ],
@@ -1032,7 +996,7 @@ class PickerField extends StatelessWidget {
                 )
               else
                 const Padding(
-                  padding: EdgeInsets.all(12),
+                  padding: EdgeInsets.symmetric(horizontal: Space.xs),
                   child:
                       Icon(Icons.expand_more, size: 22, color: AppColors.muted),
                 ),
@@ -1249,7 +1213,6 @@ class SheetOption extends StatelessWidget {
       leading: leading,
       contentPadding: const EdgeInsets.symmetric(
           horizontal: Space.screen, vertical: Space.xxs),
-      minTileHeight: 64,
       selected: selected,
       selectedTileColor: AppColors.soft.withValues(alpha: 0.5),
       title: Text(
@@ -1342,7 +1305,8 @@ class SegmentedChoice<T> extends StatelessWidget {
                         onChanged(option.key);
                       },
                       child: Container(
-                        constraints: const BoxConstraints(minHeight: 44),
+                        constraints: const BoxConstraints(
+                            minHeight: kMinInteractiveDimension),
                         alignment: Alignment.center,
                         child: AnimatedDefaultTextStyle(
                           duration: const Duration(milliseconds: 200),
@@ -1380,17 +1344,21 @@ class InfoBanner extends StatelessWidget {
       {super.key,
       required this.message,
       this.icon = Icons.info_outline,
-      this.color = AppColors.blue});
+      this.color = AppColors.blue,
+      this.padding = const EdgeInsets.all(Space.xs),
+      this.action});
 
   final String message;
   final IconData icon;
   final Color color;
+  final EdgeInsetsGeometry padding;
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(Space.sm),
+      padding: padding,
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(Radii.sm),
@@ -1405,12 +1373,19 @@ class InfoBanner extends StatelessWidget {
           ),
           const SizedBox(width: Space.xs),
           Expanded(
-            child: Text(message,
-                style: TextStyle(
-                    fontSize: 14,
-                    height: 1.4,
-                    fontWeight: FontWeight.w500,
-                    color: color)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(message,
+                    style: TextStyle(
+                        fontSize: 14,
+                        height: 1.4,
+                        fontWeight: FontWeight.w500,
+                        color: color)),
+                if (action != null) action!,
+              ],
+            ),
           ),
         ],
       ),

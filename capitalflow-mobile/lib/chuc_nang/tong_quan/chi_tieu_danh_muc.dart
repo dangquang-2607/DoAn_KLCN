@@ -151,7 +151,6 @@ class _ExpenseBreakdownSheetState extends State<ExpenseBreakdownSheet> {
             child: TextButton(
               onPressed: () => Navigator.of(context).pop(),
               style: TextButton.styleFrom(
-                minimumSize: const Size(0, 40),
                 padding: const EdgeInsets.symmetric(horizontal: Space.sm),
                 backgroundColor: AppColors.surfaceMuted,
                 foregroundColor: AppColors.ink,
@@ -262,7 +261,8 @@ class _ExpenseBreakdownSheetState extends State<ExpenseBreakdownSheet> {
                 ? () => _openCategory(category, period)
                 : null,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 60),
+              constraints:
+                  const BoxConstraints(minHeight: kMinInteractiveDimension),
               child: Row(children: [
                 category.avatar(38),
                 const SizedBox(width: Space.sm),

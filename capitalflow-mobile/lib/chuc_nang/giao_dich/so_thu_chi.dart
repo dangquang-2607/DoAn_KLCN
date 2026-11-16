@@ -785,7 +785,6 @@ class _TransactionsScreenState extends State<TransactionsScreen>
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.danger,
                   foregroundColor: Colors.white,
-                  minimumSize: const Size(0, 52),
                   shape: const StadiumBorder(),
                 ),
                 child:

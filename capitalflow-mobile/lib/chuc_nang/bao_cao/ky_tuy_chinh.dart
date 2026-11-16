@@ -127,7 +127,6 @@ class _CustomReportPeriodScreenState extends State<CustomReportPeriodScreen> {
                   ? () => Navigator.of(context).pop(period)
                   : null,
               style: TextButton.styleFrom(
-                minimumSize: const Size(48, 40),
                 backgroundColor: AppColors.surfaceMuted,
                 disabledBackgroundColor: AppColors.surfaceMuted,
                 shape: const StadiumBorder(),
@@ -192,7 +191,6 @@ class _DateField extends StatelessWidget {
             label: label,
             child: TextButton(
               style: TextButton.styleFrom(
-                minimumSize: const Size(48, 52),
                 padding: const EdgeInsets.symmetric(horizontal: Space.md),
                 backgroundColor: AppColors.surfaceMuted,
                 foregroundColor: date == null ? AppColors.muted : AppColors.ink,

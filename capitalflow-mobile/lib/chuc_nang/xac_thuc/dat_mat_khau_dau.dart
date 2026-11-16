@@ -73,7 +73,7 @@ class _FirstPasswordScreenState extends State<FirstPasswordScreen> {
             controller: _password,
             label: 'Mật khẩu mới',
             helper: passwordHelper),
-        const SizedBox(height: 12),
+        const SizedBox(height: Space.xs),
         PasswordField(
           controller: _confirm,
           label: 'Nhập lại mật khẩu mới',

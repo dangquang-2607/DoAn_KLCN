@@ -196,9 +196,6 @@ class _PlanOverview extends StatelessWidget {
         FilledButton(
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.ink,
-            minimumSize: const Size(0, 56),
-            padding: const EdgeInsets.symmetric(
-                horizontal: Space.md, vertical: Space.sm),
             shape: const StadiumBorder(),
           ),
           onPressed:

@@ -253,6 +253,12 @@ class AppText {
     color: AppColors.ink,
   );
 
+  static const TextStyle button = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 0.1,
+  );
+
   /// Chú thích, mô tả phụ: 13sp, w400, màu xám.
   static const TextStyle caption = TextStyle(
     fontSize: 13,
@@ -307,6 +313,11 @@ class AppTheme {
       scaffoldBackgroundColor: AppColors.background,
       useMaterial3: true,
     );
+    final textTheme = base.textTheme
+        .apply(bodyColor: AppColors.ink, displayColor: AppColors.ink);
+    const buttonSize = Size.square(kMinInteractiveDimension);
+    const buttonPadding =
+        EdgeInsets.symmetric(horizontal: Space.sm, vertical: Space.xs);
 
     OutlineInputBorder inputBorder(Color color, [double width = 1]) =>
         OutlineInputBorder(
@@ -315,8 +326,11 @@ class AppTheme {
         );
 
     return base.copyWith(
-      textTheme: base.textTheme
-          .apply(bodyColor: AppColors.ink, displayColor: AppColors.ink),
+      textTheme: textTheme.copyWith(
+        bodyLarge: textTheme.bodyLarge?.copyWith(fontSize: 15),
+        bodySmall: textTheme.bodySmall?.copyWith(fontSize: 13),
+        titleMedium: textTheme.titleMedium?.copyWith(fontSize: 15),
+      ),
       dividerColor: AppColors.line,
       visualDensity: VisualDensity.standard,
       materialTapTargetSize: MaterialTapTargetSize.padded,
@@ -346,12 +360,12 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surface,
-        contentPadding: const EdgeInsets.symmetric(
-            horizontal: Space.md, vertical: Space.md),
-        labelStyle: const TextStyle(color: AppColors.muted, fontSize: 15),
+        contentPadding:
+            const EdgeInsets.fromLTRB(Space.sm, Space.sm, Space.sm, Space.xs),
+        labelStyle: const TextStyle(color: AppColors.muted, fontSize: 14),
         floatingLabelStyle:
             const TextStyle(color: AppColors.blue, fontWeight: FontWeight.w600),
-        hintStyle: const TextStyle(color: AppColors.subtle, fontSize: 15),
+        hintStyle: const TextStyle(color: AppColors.muted, fontSize: 14),
         border: inputBorder(AppColors.line),
         enabledBorder: inputBorder(AppColors.line),
         focusedBorder: inputBorder(AppColors.blue, 1.6),
@@ -364,39 +378,38 @@ class AppTheme {
           foregroundColor: Colors.white,
           disabledBackgroundColor: AppColors.blue.withValues(alpha: 0.4),
           disabledForegroundColor: Colors.white,
-          minimumSize: const Size(0, 52),
-          padding: const EdgeInsets.symmetric(horizontal: Space.lg),
+          minimumSize: buttonSize,
+          padding: buttonPadding,
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(Radii.md)),
-          textStyle: const TextStyle(
-              fontSize: 16, fontWeight: FontWeight.w600, letterSpacing: 0.1),
+          textStyle: AppText.button,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.ink,
           backgroundColor: AppColors.surface,
-          minimumSize: const Size(0, 52),
-          padding: const EdgeInsets.symmetric(horizontal: Space.lg),
+          minimumSize: buttonSize,
+          padding: buttonPadding,
           side: const BorderSide(color: AppColors.line),
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(Radii.md)),
-          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          textStyle: AppText.button,
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.blue,
-          minimumSize: const Size(48, 48),
-          padding: const EdgeInsets.symmetric(horizontal: Space.sm),
+          minimumSize: buttonSize,
+          padding: buttonPadding,
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(Radii.sm)),
-          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          textStyle: AppText.button,
         ),
       ),
       iconButtonTheme: IconButtonThemeData(
         style: IconButton.styleFrom(
-          minimumSize: const Size(48, 48),
+          minimumSize: buttonSize,
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(Radii.sm)),
         ),
@@ -410,12 +423,12 @@ class AppTheme {
         highlightElevation: 3,
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(Radii.md)),
-        extendedTextStyle:
-            const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+        extendedTextStyle: AppText.button,
       ),
       listTileTheme: const ListTileThemeData(
         contentPadding: EdgeInsets.symmetric(horizontal: Space.lg),
-        minVerticalPadding: Space.sm,
+        minTileHeight: kMinInteractiveDimension,
+        minVerticalPadding: Space.xs,
         iconColor: AppColors.muted,
         titleTextStyle: TextStyle(
             fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.ink),

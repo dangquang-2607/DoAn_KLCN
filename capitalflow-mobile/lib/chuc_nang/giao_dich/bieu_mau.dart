@@ -286,9 +286,8 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                           ? AppColors.success
                           : AppColors.danger,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: Space.md),
                     AppCard(
-                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -331,7 +330,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: Space.xs),
                     TextField(
                       controller: _description,
                       maxLength: 255,
@@ -356,7 +355,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                         }),
                       ),
                     ],
-                    const SizedBox(height: 12),
+                    const SizedBox(height: Space.xs),
                     PickerField(
                       label: 'Danh mục',
                       value: category?.name,
@@ -375,14 +374,14 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                         _scheduleSuggestion();
                       },
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: Space.xs),
                     PickerField(
                       label: 'Ngày giao dịch',
                       value: formatDate(_date),
                       icon: Icons.event_outlined,
                       onTap: _chooseDate,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: Space.xs),
                     TextField(
                       controller: _note,
                       maxLength: 1000,

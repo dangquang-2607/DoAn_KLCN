@@ -1114,8 +1114,8 @@ class _InvoiceCard extends StatelessWidget {
     return AppCard(
       onTap: tap,
       padding: selected == null
-          ? const EdgeInsets.all(Space.md)
-          : const EdgeInsets.fromLTRB(Space.xxs, Space.sm, Space.md, Space.sm),
+          ? const EdgeInsets.all(Space.sm)
+          : const EdgeInsets.fromLTRB(Space.xxs, Space.xs, Space.sm, Space.xs),
       child: Row(
         children: [
           if (selected == null) ...[

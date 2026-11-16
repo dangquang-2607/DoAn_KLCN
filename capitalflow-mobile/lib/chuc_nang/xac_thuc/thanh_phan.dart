@@ -77,7 +77,7 @@ class AuthScaffold extends StatelessWidget {
                             const SizedBox(height: Space.xs),
                             Text(subtitle,
                                 style: AppText.caption.copyWith(fontSize: 15)),
-                            const SizedBox(height: Space.xl),
+                            const SizedBox(height: Space.md),
                             ...children,
                           ],
                         ),

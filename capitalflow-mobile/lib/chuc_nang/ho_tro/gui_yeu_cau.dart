@@ -102,7 +102,6 @@ class _SupportScreenState extends State<SupportScreen> {
           height: 1.45,
         );
     return AppCard(
-      padding: const EdgeInsets.all(Space.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -114,7 +113,7 @@ class _SupportScreenState extends State<SupportScreen> {
             Text(
                 'Gửi yêu cầu nếu tài khoản bị khóa hoặc bạn không còn mở được email đã đăng ký.',
                 style: bodyStyle),
-            const SizedBox(height: Space.xl),
+            const SizedBox(height: Space.md),
             _SupportField(
               label: 'Email tài khoản',
               child: TextField(
@@ -127,7 +126,7 @@ class _SupportScreenState extends State<SupportScreen> {
                 decoration: _accountInput,
               ),
             ),
-            const SizedBox(height: Space.xl),
+            const SizedBox(height: Space.xs),
             _SupportField(
               label: 'Vấn đề bạn gặp',
               child: DropdownButtonFormField<String>(
@@ -155,7 +154,7 @@ class _SupportScreenState extends State<SupportScreen> {
               ),
             ),
             if (needsContact) ...[
-              const SizedBox(height: Space.xl),
+              const SizedBox(height: Space.xs),
               _SupportField(
                 label: 'Email liên hệ thay thế',
                 child: TextField(

@@ -8,7 +8,8 @@ import 'ky_tuy_chinh.dart';
 import 'ky_bao_cao.dart';
 import '../../dung_chung/giao_dien/thanh_phan.dart';
 
-final _firstReportDate = DateTime(1900);
+// Cùng mốc REPORT_START_DATE của bộ lọc báo cáo trên web.
+final _firstReportDate = DateTime(2026, 8, 30);
 
 class ReportPeriodFilterController extends ChangeNotifier {
   ReportPeriodFilterController({
@@ -19,6 +20,8 @@ class ReportPeriodFilterController extends ChangeNotifier {
         _lastCalendarMode = mode.isCalendar ? mode : ReportPeriodMode.month;
 
   final DateTime through;
+  late final _firstDate =
+      through.isBefore(_firstReportDate) ? through : _firstReportDate;
   final _history = ScrollController(keepScrollOffset: false);
   GlobalKey _selectedTab = GlobalKey();
   ReportPeriodMode _mode;
@@ -41,7 +44,8 @@ class ReportPeriodFilterController extends ChangeNotifier {
   ReportPeriod _calendarPeriod(int offset) {
     final anchor = shiftReportAnchor(mode, through, -offset);
     final bounds = resolveReportPeriod(mode, anchor);
-    return ReportPeriod(bounds.start, offset == 0 ? through : bounds.end);
+    final start = bounds.start.isBefore(_firstDate) ? _firstDate : bounds.start;
+    return ReportPeriod(start, offset == 0 ? through : bounds.end);
   }
 
   void shift(int delta) {
@@ -72,13 +76,16 @@ class ReportPeriodFilterController extends ChangeNotifier {
   }
 
   int get _historyLength {
-    final days = ReportPeriod(_firstReportDate, through).days;
-    final years = through.year - _firstReportDate.year;
+    final years = through.year - _firstDate.year;
+    final firstWeek = resolveReportPeriod(ReportPeriodMode.week, _firstDate);
     return switch (mode) {
-      ReportPeriodMode.day => days,
-      ReportPeriodMode.week => (days - 1) ~/ 7 + 1,
-      ReportPeriodMode.month => years * 12 + through.month,
-      ReportPeriodMode.quarter => years * 4 + (through.month - 1) ~/ 3 + 1,
+      ReportPeriodMode.day => ReportPeriod(_firstDate, through).days,
+      ReportPeriodMode.week =>
+        (ReportPeriod(firstWeek.start, through).days - 1) ~/ 7 + 1,
+      ReportPeriodMode.month =>
+        years * 12 + through.month - _firstDate.month + 1,
+      ReportPeriodMode.quarter =>
+        years * 4 + (through.month - 1) ~/ 3 - (_firstDate.month - 1) ~/ 3 + 1,
       ReportPeriodMode.year => years + 1,
       _ => 1,
     };
@@ -129,7 +136,7 @@ Future<void> _chooseDates(
   final range = await pushScreen<ReportPeriod>(
       context,
       CustomReportPeriodScreen(
-        firstDate: _firstReportDate,
+        firstDate: controller._firstDate,
         lastDate: controller.through,
         initialPeriod: controller._customPeriod,
       ));
@@ -166,7 +173,6 @@ class ReportPeriodFilterButton extends StatelessWidget {
                 selected: item == controller.mode,
                 child: TextButton(
                   style: TextButton.styleFrom(
-                    minimumSize: const Size(48, 52),
                     backgroundColor: item == controller.mode
                         ? AppColors.line
                         : AppColors.surfaceMuted,
@@ -249,7 +255,7 @@ class ReportPeriodFilterStrip extends StatelessWidget {
                   ),
                 ),
         ),
-        if (!mode.isCalendar || !controller.isCurrent)
+        if (!controller.all && (!mode.isCalendar || !controller.isCurrent))
           Padding(
             padding: const EdgeInsetsDirectional.only(end: Space.xs),
             child: IconButton.outlined(

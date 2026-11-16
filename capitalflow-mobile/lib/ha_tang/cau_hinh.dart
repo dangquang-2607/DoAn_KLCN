@@ -3,23 +3,33 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Cấu hình kết nối tới backend CapitalFlow (cùng API và CSDL với bản web).
 ///
-/// Địa chỉ mặc định `http://10.0.2.2:8000` là cách máy ảo Android gọi về
-/// `localhost:8000` của máy tính đang chạy FastAPI. Khi chạy trên điện thoại
-/// thật, người dùng đổi địa chỉ này trong màn "Máy chủ".
+/// Bản phát hành lấy địa chỉ HTTPS từ cấu hình build. Bản phát triển có thể
+/// đổi địa chỉ để kết nối máy ảo Android hoặc điện thoại thử nghiệm.
 class AppConfig extends ChangeNotifier {
-  AppConfig(this._prefs) {
-    _baseUrl =
-        normalizeBaseUrl(_prefs.getString(_keyBaseUrl) ?? defaultBaseUrl);
+  AppConfig(this._prefs, {bool allowServerChanges = true})
+      : canChangeServer = !kReleaseMode && allowServerChanges {
+    if (canChangeServer) {
+      _baseUrl =
+          normalizeBaseUrl(_prefs.getString(_keyBaseUrl) ?? defaultBaseUrl);
+    } else {
+      final configured = normalizeBaseUrl(defaultBaseUrl);
+      final uri = Uri.tryParse(configured);
+      _baseUrl = uri != null && uri.scheme == 'https' && uri.host.isNotEmpty
+          ? configured
+          : _productionBaseUrl;
+    }
   }
 
+  static const String _productionBaseUrl = 'https://api.capitalflow.online';
   static const String defaultBaseUrl = String.fromEnvironment('API_BASE_URL',
-      defaultValue: 'http://10.0.2.2:8000');
+      defaultValue: kReleaseMode ? _productionBaseUrl : 'http://10.0.2.2:8000');
   static const String _keyBaseUrl = 'cf_api_base_url';
 
   final SharedPreferences _prefs;
+  final bool canChangeServer;
   late String _baseUrl;
 
-  /// Gốc máy chủ, ví dụ `http://192.168.1.10:8000`.
+  /// Gốc máy chủ, ví dụ `http://192.168.1.20:8000`.
   String get baseUrl => _baseUrl;
 
   static String connectionHelp(String value) {
@@ -42,6 +52,7 @@ class AppConfig extends ChangeNotifier {
   String get apiRoot => '$_baseUrl/api/v1';
 
   Future<void> setBaseUrl(String value) async {
+    if (!canChangeServer) return;
     final normalized = normalizeBaseUrl(value);
     if (normalized == _baseUrl) return;
     _baseUrl = normalized;

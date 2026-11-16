@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../dung_chung/giao_dien/chu_de.dart';
+import '../../ha_tang/cau_hinh.dart';
 import '../xac_thuc/phien_dang_nhap.dart';
 import '../../dung_chung/giao_dien/thanh_phan.dart';
 import '../vi/vi_cua_toi.dart';
@@ -35,6 +36,7 @@ class MoreScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
     final profile = auth.profile;
+    final canChangeServer = context.read<AppConfig>().canChangeServer;
 
     void open(Widget screen) => pushScreen<void>(context, screen);
 
@@ -140,12 +142,13 @@ class MoreScreen extends StatelessWidget {
                 title: 'Trung tâm hỗ trợ',
                 onTap: () => open(const SupportScreen()),
               ),
-              _MenuItem(
-                icon: Icons.dns_outlined,
-                color: AppColors.muted,
-                title: 'Máy chủ',
-                onTap: () => open(const ServerScreen()),
-              ),
+              if (canChangeServer)
+                _MenuItem(
+                  icon: Icons.dns_outlined,
+                  color: AppColors.muted,
+                  title: 'Máy chủ',
+                  onTap: () => open(const ServerScreen()),
+                ),
             ],
           ),
           if (profile?.isAdmin == true) ...[

@@ -226,7 +226,6 @@ class _BillPaymentScreenState extends State<BillPaymentScreen> {
                             : _uncertain
                                 ? 'Kiểm tra lại kết quả'
                                 : 'Xác nhận thanh toán',
-                        wrapLabel: true,
                         loading: receipt == null && _busy,
                         onPressed: receipt != null
                             ? () => Navigator.pop(context, true)
@@ -274,8 +273,7 @@ class _BillPaymentScreenState extends State<BillPaymentScreen> {
                 style: TextStyle(color: AppColors.muted),
               ),
               const SizedBox(height: Space.lg),
-              PrimaryButton(
-                  label: 'Quét mã QR', wrapLabel: true, onPressed: _scan),
+              PrimaryButton(label: 'Quét mã QR', onPressed: _scan),
             ],
           ),
         ),

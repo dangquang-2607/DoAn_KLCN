@@ -1,7 +1,7 @@
 name: capitalflow_mobile
 description: "CapitalFlow Mobile - Ứng dụng quản lý tài chính cá nhân tích hợp nhận dạng hóa đơn bằng OCR."
 publish_to: "none"
-version: 1.0.0+1
+version: 1.0.1+4
 
 environment:
   sdk: ^3.5.0

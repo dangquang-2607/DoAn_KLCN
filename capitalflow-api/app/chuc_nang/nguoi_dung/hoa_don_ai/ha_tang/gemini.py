@@ -81,6 +81,14 @@ async def _call_gemini_model(model_name: str, file_bytes: bytes, mime_type: str)
     encoded = base64.b64encode(file_bytes).decode()
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
 
+    generation_config: dict[str, str | int | float] = {
+        "responseMimeType": "application/json",
+        "maxOutputTokens": 8192,
+    }
+    # Dùng cấu hình lấy mẫu mặc định cho hai model Flash mới theo hướng dẫn của Google.
+    if model_name not in ("gemini-3.6-flash", "gemini-3.8-flash"):
+        generation_config["temperature"] = 0.1
+
     payload = {
         "contents": [
             {
@@ -90,11 +98,7 @@ async def _call_gemini_model(model_name: str, file_bytes: bytes, mime_type: str)
                 ]
             }
         ],
-        "generationConfig": {
-            "temperature": 0.1,
-            "responseMimeType": "application/json",
-            "maxOutputTokens": 8192,
-        },
+        "generationConfig": generation_config,
     }
 
     headers = _build_auth_headers(settings.google_ai_api_key)
@@ -123,7 +127,8 @@ async def _call_gemini_model(model_name: str, file_bytes: bytes, mime_type: str)
             status, outcome, int((perf_counter() - started) * 1000), len(file_bytes),
         )
 
-    raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
+    parts = data["candidates"][0]["content"]["parts"]
+    raw_text = "".join(part.get("text", "") for part in parts if not part.get("thought"))
     raw_text = re.sub(r"```(?:json)?", "", raw_text).strip().rstrip("```").strip()
 
     start = raw_text.find("{")
@@ -147,8 +152,14 @@ async def run_gemini_ocr(file_bytes: bytes, mime_type: str) -> dict:
     if not settings.google_ai_api_key:
         raise ValueError("GOOGLE_AI_API_KEY chưa được cấu hình trong file .env")
 
-    primary_model = settings.google_ai_model or "gemini-2.0-flash"
-    fallback_models = ["gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite"]
+    primary_model = settings.google_ai_model or "gemini-3.5-flash-lite"
+    fallback_models = [
+        "gemini-3.1-flash-lite",
+        "gemini-3.6-flash",
+        "gemini-3.8-flash",
+        "gemini-2.5-flash-lite",
+        "gemini-2.5-flash",
+    ]
 
     try:
         return await _call_gemini_model(primary_model, file_bytes, mime_type)

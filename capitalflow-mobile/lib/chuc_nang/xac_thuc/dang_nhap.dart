@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../dung_chung/giao_dien/chu_de.dart';
+import '../../ha_tang/cau_hinh.dart';
 import 'phien_dang_nhap.dart';
 import '../../dung_chung/giao_dien/thanh_phan.dart';
 import '../cai_dat/may_chu.dart';
@@ -93,15 +94,18 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final canChangeServer = context.read<AppConfig>().canChangeServer;
     return AuthScaffold(
       title: 'Đăng nhập',
       subtitle:
           'Quản lý thu chi, ngân sách và hóa đơn của bạn — đồng bộ với bản web.',
-      trailing: IconButton(
-        onPressed: () => pushScreen<void>(context, const ServerScreen()),
-        icon: const Icon(Icons.dns_rounded, color: AppColors.muted),
-        tooltip: 'Cấu hình máy chủ',
-      ),
+      trailing: canChangeServer
+          ? IconButton(
+              onPressed: () => pushScreen<void>(context, const ServerScreen()),
+              icon: const Icon(Icons.dns_rounded, color: AppColors.muted),
+              tooltip: 'Cấu hình máy chủ',
+            )
+          : null,
       children: [
         if (_notice != null) ...[
           InfoBanner(
@@ -125,7 +129,7 @@ class _LoginScreenState extends State<LoginScreen> {
           decoration: fieldDecoration('Email',
               icon: Icons.mail_outline_rounded, hint: 'ban@example.com'),
         ),
-        const SizedBox(height: Space.md),
+        const SizedBox(height: Space.xs),
         PasswordField(
           controller: _password,
           label: 'Mật khẩu',
@@ -164,7 +168,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         const SizedBox(height: Space.xs),
         PrimaryButton(label: 'Đăng nhập', loading: _busy, onPressed: _submit),
-        const SizedBox(height: Space.xl),
+        const SizedBox(height: Space.md),
         AuthFooter(
           prompt: 'Chưa có tài khoản?',
           action: 'Đăng ký ngay',

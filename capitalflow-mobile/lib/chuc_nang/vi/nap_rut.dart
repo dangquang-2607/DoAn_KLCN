@@ -226,7 +226,7 @@ class _BankMoneyScreenState extends State<BankMoneyScreen> {
                     colorOf: (value) =>
                         value ? AppColors.success : AppColors.blue,
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: Space.md),
                   PickerField(
                     label: _topup ? 'Nạp vào ví' : 'Rút từ ví',
                     value: wallet == null
@@ -242,7 +242,7 @@ class _BankMoneyScreenState extends State<BankMoneyScreen> {
                     icon: Icons.account_balance_wallet_outlined,
                     onTap: _chooseWallet,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Space.xs),
                   if (_loadingLinks)
                     const LoadingView()
                   else if (_linksError != null)

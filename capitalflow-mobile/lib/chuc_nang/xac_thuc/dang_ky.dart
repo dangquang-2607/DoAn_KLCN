@@ -99,7 +99,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           maxLength: 150,
           decoration: fieldDecoration('Họ và tên', icon: Icons.person_outline),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: Space.xs),
         TextField(
           controller: _email,
           keyboardType: TextInputType.emailAddress,
@@ -108,12 +108,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
           decoration:
               fieldDecoration('Địa chỉ Gmail', icon: Icons.mail_outline),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: Space.xs),
         PasswordField(
-            controller: _password,
-            label: 'Mật khẩu',
-            helper: passwordHelper),
-        const SizedBox(height: 12),
+            controller: _password, label: 'Mật khẩu', helper: passwordHelper),
+        const SizedBox(height: Space.xs),
         PasswordField(
           controller: _confirm,
           label: 'Nhập lại mật khẩu',

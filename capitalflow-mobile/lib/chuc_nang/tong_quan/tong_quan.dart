@@ -725,7 +725,6 @@ class _EmptyHint extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppCard(
       onTap: onTap,
-      padding: const EdgeInsets.all(Space.md),
       child: Row(
         children: [
           IconBadge(icon: icon, color: AppColors.blue, size: 44),

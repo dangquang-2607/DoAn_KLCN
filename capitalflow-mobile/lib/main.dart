@@ -34,7 +34,9 @@ Future<void> main() async {
   final prefs = await SharedPreferences.getInstance();
   final config = AppConfig(prefs);
   final settings = AppSettings(prefs);
-  final tokens = TokenStore();
+  // Phiên của bản phát hành chỉ được khôi phục cho đúng máy chủ đã phát hành.
+  final tokens =
+      TokenStore(serverUrl: config.canChangeServer ? null : config.baseUrl);
   final api = ApiClient(config: config, tokens: tokens);
   final notifier = LocalNotifier();
   final data = AppData(api);

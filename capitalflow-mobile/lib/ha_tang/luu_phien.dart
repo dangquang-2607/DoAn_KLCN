@@ -6,8 +6,16 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 /// (Android Keystore). Token được giữ thêm trong bộ nhớ để gắn vào request
 /// mà không phải đọc đĩa mỗi lần.
 class TokenStore {
-  static const String _keyAccess = 'cf_access_token';
-  static const String _keyRefresh = 'cf_refresh_token';
+  TokenStore({String? serverUrl})
+      : _keyAccess = serverUrl == null
+            ? 'cf_access_token'
+            : 'cf_access_token:$serverUrl',
+        _keyRefresh = serverUrl == null
+            ? 'cf_refresh_token'
+            : 'cf_refresh_token:$serverUrl';
+
+  final String _keyAccess;
+  final String _keyRefresh;
 
   // ignore: prefer_const_constructors
   final FlutterSecureStorage _storage = FlutterSecureStorage();

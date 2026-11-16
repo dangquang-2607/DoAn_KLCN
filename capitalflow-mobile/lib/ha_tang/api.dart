@@ -414,13 +414,15 @@ class ApiClient {
     } on http.ClientException {
       throw ApiException(_offlineMessage);
     } on FormatException {
-      throw ApiException(
-          'Địa chỉ máy chủ không hợp lệ. Hãy kiểm tra lại trong phần Máy chủ.');
+      throw ApiException(config.canChangeServer
+          ? 'Địa chỉ máy chủ không hợp lệ. Hãy kiểm tra lại trong phần Máy chủ.'
+          : 'Cấu hình kết nối không hợp lệ. Vui lòng liên hệ hỗ trợ.');
     }
   }
 
-  String get _offlineMessage =>
-      'Không kết nối được máy chủ ${config.baseUrl}. ${AppConfig.connectionHelp(config.baseUrl)}';
+  String get _offlineMessage => config.canChangeServer
+      ? 'Không kết nối được máy chủ ${config.baseUrl}. ${AppConfig.connectionHelp(config.baseUrl)}'
+      : 'Không kết nối được máy chủ. Kiểm tra kết nối Internet và thử lại.';
 
   dynamic _decode(http.Response response, {required bool auth}) {
     final status = response.statusCode;
