@@ -848,7 +848,7 @@ class AnalyticsData {
   }
 }
 
-/// Một khoản thu/chi trong kỳ báo cáo (`/analytics/export-data`), đã áp dụng đúng bộ lọc
+/// Một khoản thu/chi trong kỳ báo cáo (`/analytics/entries`), đã áp dụng đúng bộ lọc
 /// của báo cáo nên cộng lại khớp với số tổng.
 class ReportEntry {
   ReportEntry({

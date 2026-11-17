@@ -24,9 +24,12 @@
 .price span { color: var(--cf-muted); font-size: 13px; line-height: 20px; }
 .purchase { width: 100%; }
 .features { display: grid; align-content: start; gap: 10px; margin: 8px 0 0; padding: 16px 0 0; border-top: 1px solid var(--cf-line); list-style: none; }
-.features li { display: flex; align-items: baseline; gap: 8px; font-size: 13px; line-height: 20px; }
-.features svg { flex-shrink: 0; align-self: center; color: var(--cf-success); }
+.features li { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 20px; }
+.features svg { flex-shrink: 0; margin-top: 2px; color: var(--cf-muted); }
+.premium .features svg { color: var(--cf-success); }
 .features strong { font-weight: 600; }
+.unavailableFeature, .exportFormat { color: var(--cf-muted); }
+.exportFormat { display: block; font-size: 12px; }
 .comparisonDetails { margin-top: 12px; border: 1px solid var(--cf-line); border-radius: var(--cf-radius); background: var(--cf-surface); overflow: hidden; }
 .comparisonDetails summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px; font-weight: 600; font-size: 13px; line-height: 20px; cursor: pointer; list-style: none; }
 .comparisonDetails summary::-webkit-details-marker { display: none; }
@@ -42,7 +45,8 @@
 .comparison thead { background: var(--cf-bg); }
 .comparison tbody th { font-weight: 400; }
 .comparison tbody tr:nth-child(even) { background: color-mix(in srgb, var(--cf-line) 20%, transparent); }
-.comparison td svg { display: inline-block; color: var(--cf-success); vertical-align: middle; }
+.comparison td svg { display: inline-block; color: var(--cf-muted); vertical-align: middle; }
+.comparison td:last-child svg { color: var(--cf-success); }
 .current { display: grid; gap: 20px; padding: 20px; border: 1px solid var(--cf-line); border-radius: var(--cf-radius); background: var(--cf-surface); min-width: 0; }
 .usageHeading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 .usageHeading h3, .emptyHistory h3 { margin: 0 0 4px; font-size: 16px; line-height: 24px; font-weight: 600; }
@@ -94,6 +98,7 @@
   .features { gap: 8px; }
   .comparisonDetails summary { padding-inline: 16px; }
   .comparison th, .comparison td { padding: 10px 12px; }
+  .comparison tr > :not(:first-child) { padding-inline: 4px; }
   .comparisonDetails > .note { padding-inline: 16px; }
   .current { padding: 16px; gap: 16px; }
   .usage { grid-template-columns: minmax(0, 1fr); gap: 12px; }

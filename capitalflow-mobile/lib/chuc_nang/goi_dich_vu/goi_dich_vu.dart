@@ -192,6 +192,9 @@ class _PlanOverview extends StatelessWidget {
         ],
         const SizedBox(height: Space.lg),
         _PlanComparison(plans: subscription['plans'] as Map?),
+        const SizedBox(height: Space.sm),
+        Text('Premium xuất tệp Excel (.xlsx) để nhập vào Google Trang tính.',
+            textAlign: TextAlign.center, style: muted),
         const SizedBox(height: Space.xl),
         FilledButton(
           style: FilledButton.styleFrom(
@@ -231,6 +234,7 @@ class _PlanComparison extends StatelessWidget {
         .bodyMedium
         ?.copyWith(fontWeight: FontWeight.w700, color: AppColors.muted);
     final highlighted = header?.copyWith(color: AppColors.blueDark);
+    final detail = Theme.of(context).textTheme.bodySmall;
     Widget cell(String value, {TextStyle? style, bool centered = false}) =>
         Padding(
           padding: const EdgeInsets.symmetric(
@@ -238,6 +242,18 @@ class _PlanComparison extends StatelessWidget {
           child: Text(value,
               style: style,
               textAlign: centered ? TextAlign.center : TextAlign.start),
+        );
+    Widget exportCell(String value, IconData icon, Color color) => Padding(
+          padding: const EdgeInsets.symmetric(
+              horizontal: Space.xs, vertical: Space.sm),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: color),
+              const SizedBox(height: Space.xs),
+              Text(value, textAlign: TextAlign.center, style: detail),
+            ],
+          ),
         );
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -256,7 +272,7 @@ class _PlanComparison extends StatelessWidget {
               horizontalInside: BorderSide(color: AppColors.line)),
           children: [
             TableRow(children: [
-              cell('Hạn mức', style: header),
+              cell('Tính năng', style: header),
               cell('Free', centered: true, style: header),
               cell('Premium', centered: true, style: highlighted),
             ]),
@@ -267,6 +283,13 @@ class _PlanComparison extends StatelessWidget {
                 cell('${plans?['PREMIUM']?[resource.key] ?? '—'}',
                     centered: true, style: highlighted),
               ]),
+            TableRow(children: [
+              cell('Xuất dữ liệu'),
+              exportCell('Không thể xuất dữ liệu', Icons.close_rounded,
+                  AppColors.muted),
+              exportCell('Xuất dữ liệu sang Google Trang tính',
+                  Icons.check_circle_outline_rounded, AppColors.success),
+            ]),
           ],
         ),
       ),
@@ -320,6 +343,20 @@ Future<bool> showQuotaLimit(BuildContext context, Object error) async {
       title: 'Đã đạt hạn mức gói ${error.detail['plan'] ?? ''}',
       message:
           'Bạn đã dùng hết hạn mức cho thao tác này. Xem số lượt đã dùng, giới hạn và các gói hiện có.',
+      confirmLabel: 'Xem gói sử dụng');
+  if (open && context.mounted) {
+    await pushScreen<void>(context, const SubscriptionScreen());
+  }
+  return true;
+}
+
+Future<bool> showExcelExportLimit(BuildContext context, Object error) async {
+  if (error is! ApiException || error.code != 'EXCEL_EXPORT_PREMIUM_REQUIRED') {
+    return false;
+  }
+  final open = await confirmDialog(context,
+      title: 'Xuất Excel',
+      message: 'Tính năng xuất Excel chỉ dành cho gói Premium.',
       confirmLabel: 'Xem gói sử dụng');
   if (open && context.mounted) {
     await pushScreen<void>(context, const SubscriptionScreen());

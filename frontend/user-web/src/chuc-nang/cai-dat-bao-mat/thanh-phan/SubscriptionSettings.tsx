@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUpRight, Check, ChevronRight, CreditCard, RefreshCw } from "lucide-react";
+import { ArrowUpRight, Check, ChevronRight, CircleCheck, CreditCard, RefreshCw, X } from "lucide-react";
 import api from "@/dung-chung/connect-api/api";
 import { Alert, ErrorState, Loading, PageHead, Pagination, Panel } from "@/dung-chung/UI-chung/ui";
 import { errorMessage, money } from "@/dung-chung/tien-ich/finance";
@@ -105,6 +105,7 @@ export default function SubscriptionSettings({ asPage = false }: { asPage?: bool
             <div className={styles.plans}>
               {(["FREE", "PREMIUM"] as const).map(plan => {
                 const paid = plan === "PREMIUM";
+                const FeatureCheck = paid ? CircleCheck : Check;
                 const selected = current.plan === plan;
                 const limits = current.plans[plan];
                 return <article key={plan} className={`${styles.plan}${paid ? ` ${styles.premium}` : ""}`} aria-label={`Gói ${paid ? "Premium" : "Free"}`}>
@@ -124,10 +125,21 @@ export default function SubscriptionSettings({ asPage = false }: { asPage?: bool
                     </button>
                     : <button type="button" className={`cf-btn ${styles.purchase}`} disabled>{selected ? "Đang sử dụng" : "Gói mặc định"}</button>}
                   <ul className={styles.features}>
-                    <li><Check size={15} aria-hidden="true" /><span><strong>{limits.wallets}</strong> ví đang hoạt động</span></li>
-                    <li><Check size={15} aria-hidden="true" /><span><strong>{limits.budgets}</strong> ngân sách đang áp dụng</span></li>
-                    <li><Check size={15} aria-hidden="true" /><span><strong>{limits.ai}</strong> lượt quét hóa đơn AI/tháng</span></li>
-                    <li><Check size={15} aria-hidden="true" /><span>Ghi thu chi, xem lịch sử và báo cáo</span></li>
+                    <li><FeatureCheck size={16} aria-hidden="true" /><span><strong>{limits.wallets}</strong> ví đang hoạt động</span></li>
+                    <li><FeatureCheck size={16} aria-hidden="true" /><span><strong>{limits.budgets}</strong> ngân sách đang áp dụng</span></li>
+                    <li><FeatureCheck size={16} aria-hidden="true" /><span><strong>{limits.ai}</strong> lượt quét hóa đơn AI/tháng</span></li>
+                    <li><FeatureCheck size={16} aria-hidden="true" /><span>Ghi thu chi, xem lịch sử và báo cáo</span></li>
+                    {paid ? (
+                      <li>
+                        <FeatureCheck size={16} aria-hidden="true" />
+                        <span>
+                          <span>Xuất dữ liệu sang Google Trang tính</span>
+                          <small className={styles.exportFormat}>Qua tệp Excel (.xlsx)</small>
+                        </span>
+                      </li>
+                    ) : (
+                      <li className={styles.unavailableFeature}><X size={16} aria-hidden="true" /><span>Không thể xuất dữ liệu</span></li>
+                    )}
                   </ul>
                 </article>;
               })}
@@ -139,10 +151,21 @@ export default function SubscriptionSettings({ asPage = false }: { asPage?: bool
                 <thead><tr><th scope="col">Tính năng</th><th scope="col">Free</th><th scope="col">Premium</th></tr></thead>
                 <tbody>
                   {resources.map(({ key, label }) => <tr key={key}><th scope="row">{label}</th><td>{current.plans.FREE[key]}</td><td>{current.plans.PREMIUM[key]}</td></tr>)}
-                  {["Ghi thu chi và xem lịch sử", "Báo cáo tài chính, xuất Excel", "Gửi yêu cầu hỗ trợ"].map(label => <tr key={label}><th scope="row">{label}</th><td><Check size={16} aria-label="Có" /></td><td><Check size={16} aria-label="Có" /></td></tr>)}
+                  {["Ghi thu chi và xem lịch sử", "Báo cáo tài chính", "Gửi yêu cầu hỗ trợ"].map(label => (
+                    <tr key={label}>
+                      <th scope="row">{label}</th>
+                      <td><Check size={16} role="img" aria-label="Có" /></td>
+                      <td><CircleCheck size={16} role="img" aria-label="Có" /></td>
+                    </tr>
+                  ))}
+                  <tr>
+                    <th scope="row">Xuất dữ liệu sang Google Trang tính</th>
+                    <td><X size={16} role="img" aria-label="Không thể xuất dữ liệu" /></td>
+                    <td><CircleCheck size={16} role="img" aria-label="Có, qua tệp Excel" /></td>
+                  </tr>
                 </tbody>
               </table>
-              <p className={styles.note}>Hết Premium vẫn giữ dữ liệu cũ; chỉ giới hạn tạo thêm và quét AI. Gia hạn cộng tiếp vào thời gian còn lại.</p>
+              <p className={styles.note}>Khi Premium hết hạn, bạn vẫn xem được dữ liệu cũ. Hạn mức trở về gói Free và tính năng xuất Excel sẽ bị khóa. Gia hạn cộng tiếp vào thời gian còn lại.</p>
             </details>
           </>}
           {tab === "usage" && <div className={styles.current}>

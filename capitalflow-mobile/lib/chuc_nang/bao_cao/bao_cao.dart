@@ -9,6 +9,7 @@ import '../../du_lieu/xuat_excel.dart';
 import '../../dung_chung/giao_dien/tu_lam_moi.dart';
 import '../../dung_chung/giao_dien/bieu_do.dart';
 import '../../dung_chung/giao_dien/thanh_phan.dart';
+import '../goi_dich_vu/goi_dich_vu.dart';
 import 'bo_loc_ky.dart';
 import 'chi_tiet_danh_muc.dart';
 import 'ky_bao_cao.dart';
@@ -118,7 +119,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
               ? 'Toàn bộ lịch sử'
               : '${formatDate(period.start)} – ${formatDate(period.end)}');
     } catch (e) {
-      showSnack(errorText(e), error: true);
+      if (!mounted) return;
+      if (!await showExcelExportLimit(context, e) && mounted) {
+        showSnack(errorText(e), error: true);
+      }
     } finally {
       if (mounted) setState(() => _exporting = false);
     }

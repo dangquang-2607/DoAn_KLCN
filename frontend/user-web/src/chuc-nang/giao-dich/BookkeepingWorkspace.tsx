@@ -114,13 +114,12 @@ export default function Transactions() {
       return next;
     });
   };
-  const fetchFiltered = async () => (await api.get<LedgerRow[]>("/bookkeeping/export-data", { params: filterParams })).data;
   const selectAllResults = async () => {
     if (selectionDisabled || query.isError || !query.data?.total) return;
     const version = ++selectionVersion.current;
     setSelecting(true); setExportError("");
     try {
-      const rows = await fetchFiltered();
+      const { data: rows } = await api.get<LedgerRow[]>("/bookkeeping/selection-data", { params: filterParams });
       if (version !== selectionVersion.current) return;
       setSelection(Object.fromEntries(rows.map((row) => [row.id, row])));
     } catch (caught) {
@@ -141,6 +140,7 @@ export default function Transactions() {
       debouncedSearch && `Tìm: ${debouncedSearch}`, linkedInvoiceId && `Hóa đơn: ${linkedInvoiceId}`,
     ].filter(Boolean).join("; ") || "Không áp dụng bộ lọc";
     try {
+      await api.get("/billing/subscription/excel-export");
       await exportFinanceExcel("giao-dich-da-chon.xlsx", {
         title: "CapitalFlow — Sổ giao dịch",
         scope: `Các giao dịch đã chọn: ${selectedRows.length} giao dịch. ${filterLabel}.`,

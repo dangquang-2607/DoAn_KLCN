@@ -11,6 +11,7 @@ import '../../du_lieu/xuat_excel.dart';
 import '../../dung_chung/giao_dien/tu_lam_moi.dart';
 import '../../dung_chung/giao_dien/thanh_phan.dart';
 import '../../dung_chung/giao_dien/bo_chon.dart';
+import '../goi_dich_vu/goi_dich_vu.dart';
 import 'dong_giao_dich.dart';
 import 'thao_tac.dart';
 import 'bieu_mau.dart';
@@ -336,6 +337,34 @@ class _TransactionsScreenState extends State<TransactionsScreen>
   bool _canDelete(Txn txn) => txn.editable && !txn.fromWalletPayment;
   bool _canSelect(Txn txn) => _selectingForExport || _canDelete(txn);
 
+  Future<void> _checkExcelExport() async {
+    await context
+        .read<AppData>()
+        .finance
+        .api
+        .get('/billing/subscription/excel-export');
+  }
+
+  Future<void> _startExcelSelection() async {
+    if (_selectionBusy || _selecting) return;
+    setState(() => _exporting = true);
+    try {
+      await _checkExcelExport();
+      if (mounted && !_selecting) _startSelection(_SelectionMode.export);
+    } catch (e) {
+      await _handleExcelError(e);
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  Future<void> _handleExcelError(Object error) async {
+    if (!mounted) return;
+    if (!await showExcelExportLimit(context, error) && mounted) {
+      showSnack(errorText(error), error: true);
+    }
+  }
+
   void _startSelection(_SelectionMode mode) {
     FocusScope.of(context).unfocus();
     if (_searchTimer?.isActive == true) {
@@ -408,7 +437,7 @@ class _TransactionsScreenState extends State<TransactionsScreen>
           ..addAll(selected.keys);
       });
     } catch (e) {
-      if (mounted) showSnack(errorText(e), error: true);
+      await _handleExcelError(e);
     } finally {
       if (mounted) setState(() => _selectingAll = false);
     }
@@ -472,6 +501,8 @@ class _TransactionsScreenState extends State<TransactionsScreen>
             .map((category) => MapEntry(category.id, category.name)));
       }
       if (!mounted) return;
+      if (selectedOnly) await _checkExcelExport();
+      if (!mounted) return;
       await shareExcel(
         [
           for (final row in rows)
@@ -490,7 +521,7 @@ class _TransactionsScreenState extends State<TransactionsScreen>
             : 'Toàn bộ giao dịch theo bộ lọc hiện tại',
       );
     } catch (e) {
-      if (mounted) showSnack(errorText(e), error: true);
+      await _handleExcelError(e);
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
@@ -562,7 +593,7 @@ class _TransactionsScreenState extends State<TransactionsScreen>
                       ),
                     ),
                     IconButton(
-                      onPressed: () => _startSelection(_SelectionMode.export),
+                      onPressed: _exporting ? null : _startExcelSelection,
                       tooltip: 'Xuất Excel',
                       icon: const Icon(Icons.save_alt_rounded),
                     ),

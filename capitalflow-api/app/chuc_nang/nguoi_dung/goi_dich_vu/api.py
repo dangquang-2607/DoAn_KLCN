@@ -11,7 +11,7 @@ from app.dung_chung.http.gioi_han_tan_suat import limiter
 from app.dung_chung.http.phu_thuoc import get_current_user, get_db
 from . import payos
 from .dich_vu import DURATION_DAYS, PRICE_VND, create_order, iso, order_out, owned_order, refresh_order
-from .han_muc import LIMITS, counts, month_vn, plan_for
+from .han_muc import LIMITS, counts, month_vn, plan_for, require_excel_export
 from .luu_tru import PaymentOrder
 
 def private_billing(response: Response):
@@ -34,6 +34,11 @@ def subscription(db: Session = Depends(get_db), user: User = Depends(get_current
     return {"plan": plan, "premium_until": iso(until), "limits": LIMITS[plan], "plans": LIMITS,
             "usage": counts(db, user.id, usage_month=period), "usage_month": period.isoformat(),
             "price": PRICE_VND, "days": DURATION_DAYS, "currency": "VND", "payment_available": payos.configured()}
+
+
+@router.get("/subscription/excel-export", status_code=204, dependencies=[Depends(require_excel_export)])
+def check_excel_export():
+    """Xác nhận quyền xuất Excel khi client đã tải các giao dịch được chọn."""
 
 
 @router.post("/checkout", status_code=201)

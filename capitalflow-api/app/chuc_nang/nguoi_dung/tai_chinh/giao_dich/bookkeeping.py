@@ -11,6 +11,7 @@ from app.dung_chung.http.phu_thuoc import get_db, get_current_user
 from app.dung_chung.text.unicode import validate_utf16_length
 from app.chuc_nang.nguoi_dung.dang_nhap.luu_tru.nguoi_dung import User
 from app.chuc_nang.nguoi_dung.danh_muc.phan_loai import suggest_category
+from app.chuc_nang.nguoi_dung.goi_dich_vu.han_muc import require_excel_export
 from app.chuc_nang.nguoi_dung.hoa_don_ai.schemas.invoice import InvoiceConfirmFields
 from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.invoice import Invoice
 from app.chuc_nang.nguoi_dung.hoa_don_ai.nghiep_vu.vong_doi import transaction_removed
@@ -118,9 +119,10 @@ def records(page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=1000
         .offset((page-1)*page_size).limit(page_size))
     return {'items': rows, 'total': total, 'page': page, 'page_size': page_size}
 
-@router.get('/export-data')
-def export(included: bool | None = None, origin: str | None = Query(None, pattern='^(WALLET|OCR|MANUAL)$'),
-           q=Depends(_filtered_transactions), db: Session = Depends(get_db)):
+@router.get('/export-data', dependencies=[Depends(require_excel_export)])
+@router.get('/selection-data')
+def matching_records(included: bool | None = None, origin: str | None = Query(None, pattern='^(WALLET|OCR|MANUAL)$'),
+                     q=Depends(_filtered_transactions), db: Session = Depends(get_db)):
     if included is not None: q=q.where(Transaction.include_in_reports==included)
     if origin is not None: q=q.where(Transaction.source==origin)
     return display_records(db, q.where(Transaction.kind == 'NORMAL')

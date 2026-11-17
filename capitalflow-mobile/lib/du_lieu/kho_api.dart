@@ -423,7 +423,7 @@ class FinanceRepository {
       {required DateTime start,
       required DateTime end,
       bool all = false}) async {
-    final data = await api.get('/analytics/export-data', query: {
+    final data = await api.get('/analytics/entries', query: {
       if (all)
         'scope': 'all'
       else ...{

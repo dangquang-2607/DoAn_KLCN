@@ -2,14 +2,16 @@
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
-from fastapi import HTTPException
+from fastapi import Depends, HTTPException
 from sqlalchemy import exists, func, select, update
+from sqlalchemy.orm import Session
 
 from app.chuc_nang.nguoi_dung.dang_nhap.luu_tru.nguoi_dung import User
 from app.chuc_nang.nguoi_dung.danh_muc.luu_tru.danh_muc import Category
 from app.chuc_nang.nguoi_dung.hoa_don_ai.luu_tru.tac_vu_ocr import OcrJob
 from app.chuc_nang.nguoi_dung.tai_chinh.ngan_sach.luu_tru.ngan_sach import Budget
 from app.chuc_nang.nguoi_dung.tai_chinh.vi_tai_khoan.luu_tru.wallet import Wallet
+from app.dung_chung.http.phu_thuoc import get_current_user, get_db
 from .luu_tru import AiUsage, Subscription
 
 LIMITS = {"FREE": {"wallets": 2, "budgets": 3, "categories": 5, "ai": 5}, "PREMIUM": {"wallets": 10, "budgets": 20, "categories": 20, "ai": 100}}
@@ -28,6 +30,15 @@ def plan_for(db, user_id, instant=None):
     subscription = db.get(Subscription, user_id, populate_existing=True)
     until = subscription.premium_until if subscription else None
     return ("PREMIUM" if until and until > (instant or utcnow()) else "FREE"), until
+
+
+def require_excel_export(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    plan, _ = plan_for(db, user.id)
+    if plan != "PREMIUM":
+        raise HTTPException(403, detail={
+            "code": "EXCEL_EXPORT_PREMIUM_REQUIRED",
+            "message": "Xuất Excel chỉ dành cho gói Premium. Xem gói sử dụng tại Cài đặt & bảo mật.",
+        })
 
 
 def month_vn():

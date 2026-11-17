@@ -14,6 +14,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from app.dung_chung.http.phu_thuoc import get_current_user, get_db
 from app.chuc_nang.nguoi_dung.dang_nhap.luu_tru.nguoi_dung import User
+from app.chuc_nang.nguoi_dung.goi_dich_vu.han_muc import require_excel_export
 from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.luu_tru.giao_dich import Transaction
 from app.chuc_nang.nguoi_dung.tai_chinh.giao_dich.filters import with_account_display
 from app.chuc_nang.nguoi_dung.danh_muc.luu_tru.danh_muc import Category
@@ -135,15 +136,16 @@ def _export_rows(
     return start_date, end_date, rows
 
 
-@router.get("/export-data")
-def export_analytics_data(
+@router.get("/export-data", dependencies=[Depends(require_excel_export)])
+@router.get("/entries")
+def report_entries(
     start_date: date | None = Query(None),
     end_date: date | None = Query(None),
     scope: str | None = Query(None, pattern="^all$"),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Dữ liệu đầy đủ của kỳ để client tạo Excel, vẫn giới hạn theo current user."""
+    """Các giao dịch được tính vào kỳ báo cáo của người dùng hiện tại."""
     start_date, end_date, rows = _export_rows(start_date, end_date, scope, db, user)
     return {
         "period": {"start_date": start_date, "end_date": end_date},
